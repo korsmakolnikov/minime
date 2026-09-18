@@ -1,3 +1,10 @@
+# minime
+
+My Claude Code subagents and skills.
+
+- [unclebob](#unclebob) — subagent that drives TDD cycles.
+- [scaffold](#scaffold) — skill that bootstraps a new project (currently C).
+
 # unclebob
 
 Subagent for [Claude Code](https://code.claude.com) that drives Test-Driven Development cycles according to Robert C. Martin's Three Laws of TDD, as a step-by-step procedure with explicit completion conditions.
@@ -40,15 +47,7 @@ Cross-cutting rules:
 
 ## Installation
 
-Requires `make` and the `claude` CLI in your `PATH`. Works on any distribution (tested on Arch and Ubuntu): the Makefile copies the files into `~/.claude/agents/`.
-
-```sh
-make install     # installs all agents in agents/
-make uninstall   # removes them
-make reinstall   # uninstall + install
-make list        # lists the installed agents
-make check       # checks that the claude CLI is available
-```
+See [Installation](#installation-1) at the bottom.
 
 ## Usage
 
@@ -59,3 +58,57 @@ claude --agent unclebob
 ```
 
 Do not use it as a delegated subagent (`@unclebob` from a regular session): the procedure stops to ask for confirmation many times per cycle, and a delegated subagent runs in an isolated context that cannot talk directly to the user.
+
+# scaffold
+
+Skill for [Claude Code](https://code.claude.com) that bootstraps a new project in the current directory: directory layout, build system, unit tests, README with CI badge, GitHub Actions CI, `git init` and an empty `start.` commit. It knows nothing about the project's domain; it only automates the tedious first steps. One language per invocation; new languages are added as `skills/scaffold/<language>/templates/`.
+
+## Usage
+
+Create the project directory, start `claude` inside it and run:
+
+```
+/scaffold C
+```
+
+The skill asks for the project name and the language-specific options, renders the templates, runs `git init` + `git commit -m "start." --allow-empty`, then verifies with `make && make test`. The scaffolded files are **not** committed: that is up to you (or the primary agent). If the directory is already inside a git repository (monorepo), `git init` and the empty commit are skipped.
+
+Invocation is explicit only (`disable-model-invocation: true`): the primary agent never triggers it on its own.
+
+## Languages
+
+### C
+
+| Question | Default |
+|----------|---------|
+| Project name | directory basename |
+| C standard | 23 (latest) |
+| Target architecture | `uname -m` of the host (`i686` on `x86_64` is handled with `-m32`; other targets need a cross compiler via `CMAKE_FLAGS`) |
+| GitHub repository (`owner/name`, for the badge) | `gh api user` login + basename |
+
+Produces:
+
+```
+src/                      main.c + <name>.c
+include/<name>.h
+tests/test_<ident>.c      Unity
+Makefile                  make (build), make test, make run, make deps, make clean
+CMakeLists.txt            executable + static library + Unity via FetchContent (v2.6.1)
+README.md                 with the CI badge
+.github/workflows/ci.yml  make deps / make / make test in an ubuntu:latest container
+.gitignore
+```
+
+`make deps` installs gcc, make, cmake and git on Ubuntu/Debian (apt) and Arch (pacman). `C_STANDARD`, `TARGET_ARCH`, `BUILD_TYPE`, `BUILD_DIR` and `CMAKE_FLAGS` can be overridden on the `make` command line.
+
+# Installation
+
+Requires `make` and the `claude` CLI in your `PATH`. Works on any distribution (tested on Arch and Ubuntu): the Makefile copies agents into `~/.claude/agents/` and skills into `~/.claude/skills/`.
+
+```sh
+make install     # installs all agents in agents/ and all skills in skills/
+make uninstall   # removes them
+make reinstall   # uninstall + install
+make list        # lists the installed agents and skills
+make check       # checks that the claude CLI is available
+```

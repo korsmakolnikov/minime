@@ -1,0 +1,23 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    container: ubuntu:latest
+    env:
+      DEBIAN_FRONTEND: noninteractive
+    steps:
+      - name: Install make
+        run: apt-get update && apt-get install -y --no-install-recommends make
+      - uses: actions/checkout@v5
+      - name: Install dependencies
+        run: make deps
+      - name: Build
+        run: make
+      - name: Test
+        run: make test
