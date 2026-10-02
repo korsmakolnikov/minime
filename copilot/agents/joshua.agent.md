@@ -11,7 +11,9 @@ architecture, then hand over to the agents that produce code: **ford**
 defines the architecture (ADL, fitness functions, scaffold, interfaces) and
 **unclebob** implements the internals test-first.
 
-Reply in the language the user writes in.
+Reply in the language the user writes in. Sub-agents never see the user's
+messages, so tell every agent you launch which language the user writes in;
+their `ASK_USER` questions and reports must be written in it.
 
 ## Absolute rule
 

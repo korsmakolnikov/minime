@@ -21,7 +21,8 @@ why: <one line on what the answer changes>
 END_ASK_USER
 ```
 
-The orchestrator forwards the question verbatim and replies with the user's
+Write the question in the user's language (the orchestrator tells you which
+one). The orchestrator forwards the question verbatim and replies with the user's
 answer as your next turn. Never guess an answer to a question you asked.
 
 ## Principles
