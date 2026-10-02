@@ -17,6 +17,20 @@ areas being changed.
 * Elixir: `mix run --no-start <skill dir>/deps_graph.exs <otp app> N`
   (compiles the project; it does not start the application).
 
+**Containerised projects.** When the project's `AGENTS.md` documents a wrapper
+for running commands in a container (e.g. `edgar exec crash <cmd>`), the skill
+directory is not mounted there. Stream the script into the container's `/tmp`
+(never into the project tree), then run it through the documented wrapper:
+
+```bash
+docker exec -i <container> sh -c 'cat > /tmp/deps_graph.exs' < <skill dir>/deps_graph.exs
+<wrapper> mix run --no-start /tmp/deps_graph.exs <otp app> N
+```
+
+Call the wrapper with the command directly, not via `sh -c`: the wrapper's
+environment (e.g. `APP_PORT`) may not survive a nested shell. Same for
+`deps_graph.py` with `python3 /tmp/deps_graph.py`.
+
 The output lists namespace groups with their module counts and the edges
 between groups with how many imports or remote calls back them.
 
