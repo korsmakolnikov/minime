@@ -54,7 +54,8 @@ it with the user.
 
 ### 2. Architecture with ford
 
-Launch ford with `task` (`agent_type: "ford"`). Give it the scope,
+Launch ford with `task` (`agent_type: "ford"`, `mode: "background"`, so that
+you can relay answers to it later). Give it the scope,
 greenfield/brownfield, stack, test command, the confirmed shopping list and the
 as-is drafts verbatim, and your model id. State that it is explicitly
 authorised to delegate commits to gutexberg.
@@ -62,7 +63,8 @@ authorised to delegate commits to gutexberg.
 ### 3. Internals with unclebob
 
 When ford reports `FORD_DONE`, review the report with the user and agree on
-the order of the components. Then launch unclebob (`agent_type: "unclebob"`)
+the order of the components. Then launch unclebob (`agent_type: "unclebob"`,
+`mode: "background"`)
 for one component at a time, passing:
 
 * the component's interface and responsibility from the report;
@@ -82,7 +84,9 @@ Sub-agents cannot talk to the user. When one ends its turn with an
 
 1. Ask the user with `ask_user`, forwarding the question **verbatim**, prefixed
    with the agent's name. Map `choices` to options and `default` to the default.
-2. Send the answer back verbatim with `write_agent` and wait with `read_agent`.
+2. Send the answer back verbatim with `write_agent` and wait with `read_agent`
+   (`wait: true`). `write_agent` only works on agents launched in background
+   mode: always launch ford and unclebob that way.
 3. Do not answer on the user's behalf, do not reword, do not batch questions.
 
 If the user asks you something about the process, answer it yourself without
