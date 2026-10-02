@@ -48,6 +48,9 @@ Skip on greenfield. Otherwise study the code and gather:
   already in use, existing architecture tests).
 * Risks and open questions.
 
+State facts about branches, commits and code only after checking them with
+git or by reading the code; mark anything inferred as such.
+
 Present it to the user and get it confirmed. When the change alters an
 existing architecture, also draft the as-is ADL with `adl-reverse` and review
 it with the user.

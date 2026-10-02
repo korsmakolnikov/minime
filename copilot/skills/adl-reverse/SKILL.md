@@ -35,7 +35,19 @@ module and a few public functions before choosing a logical name. Note:
 * One draft per file of the `adl-spec` layout, meant for `.adl/as-is/`.
 * `DESCRIPTION` states that it is the as-is architecture and the commit it was
   extracted from (`git rev-parse --short HEAD`).
+* **Pure ADL only**, exactly as in `adl-spec`:
+  * one `DEFINE SYSTEM` per file;
+  * every artifact named in an assertion is defined in the same file (use
+    `DEFINE COMPONENT` / `DEFINE LIBRARY` for external modules you need to
+    mention), by its physical name;
+  * only the keywords of the reference (`CONTAINED WITHIN`, `CONTAINS`,
+    `has NO DEPENDENCY on`, `only`, `exclusively`, `other`, `{a, b}`). No
+    invented forms such as `DEPENDS ON only` or `exclusively through`. Express
+    an allow-list as `has NO DEPENDENCY on other COMPONENTS` or as explicit
+    `has NO DEPENDENCY on {…}` assertions.
 * Include only assertions that **hold today** according to the graph.
+* Notes, inferences and anything that cannot be said in ADL go outside the ADL
+  block.
 * List separately, outside the ADL, the rules that are violated today (with the
   offending edges) and the cycles. They feed the target design.
 
