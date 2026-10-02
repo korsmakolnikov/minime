@@ -1,9 +1,10 @@
 # minime
 
-My Claude Code subagents and skills.
+My Claude Code and GitHub Copilot CLI subagents and skills.
 
 - [unclebob](#unclebob) — subagent that drives TDD cycles.
 - [scaffold](#scaffold) — skill that bootstraps a new project (currently C).
+- [Copilot workflow](#copilot-workflow) — architecture-first workflow for the GitHub Copilot CLI.
 
 # unclebob
 
@@ -101,6 +102,27 @@ README.md                 with the CI badge
 
 `make deps` installs gcc, make, cmake and git on Ubuntu/Debian (apt) and Arch (pacman). `C_STANDARD`, `TARGET_ARCH`, `BUILD_TYPE`, `BUILD_DIR` and `CMAKE_FLAGS` can be overridden on the `make` command line.
 
+# Copilot workflow
+
+Agents and skills for the [GitHub Copilot CLI](https://docs.github.com/copilot/how-tos/use-copilot-agents/use-copilot-cli), in `copilot/`. Architecture is defined with the [Architecture Definition Language](https://www.developertoarchitect.com/downloads/adl-ref.pdf) (ADL) by Mark Richards and Neal Ford; ADL files live in `.adl/` at the root of each project and are not committed.
+
+| Agent | Role |
+|-------|------|
+| `joshua` | Orchestrator. Studies the code, gathers the preliminary findings, runs `ford`, then `unclebob` one component at a time, and relays their questions to the user. Never writes code or commits. |
+| `ford` | Interviews the user to write the ADL, then generates fitness functions, scaffold and component interfaces. No business logic. |
+| `unclebob` | Implements the internals test-first. Refuses to work when the tests cannot run. Treats `ford`'s interfaces as a contract. |
+| `gutexberg` | The only actor that writes to git: Conventional Commits, fixups bounded to the branch, Copilot co-author trailer naming the model. Uses the `gutexberg` command in `copilot/bin/`. |
+
+| Skill | Role |
+|-------|------|
+| `adl-spec` | ADL reference, `.adl/` layout, mapping of physical names to Elixir and Python namespaces. |
+| `adl-interview` | Interview protocol and the `ASK_USER` relay format. |
+| `adl-fitness` | ADL assertions to ExUnit/pytest fitness functions, with standard-library helpers. |
+| `adl-scaffold` | Namespaces and interfaces, without logic. |
+| `adl-reverse` | As-is ADL drafts from the dependency graph of existing code. |
+
+Start with `copilot --agent joshua` (or `copilot --agent unclebob` for a plain TDD session).
+
 # Installation
 
 Requires `make` and the `claude` CLI in your `PATH`. Works on any distribution (tested on Arch and Ubuntu): the Makefile copies agents into `~/.claude/agents/` and skills into `~/.claude/skills/`.
@@ -112,3 +134,12 @@ make reinstall   # uninstall + install
 make list        # lists the installed agents and skills
 make check       # checks that the claude CLI is available
 ```
+
+For the Copilot workflow:
+
+```sh
+make copilot-install   # installs or overwrites agents and skills in ~/.copilot/,
+                       # settings in ~/.copilot/settings.json and gutexberg in ~/.local/bin/
+```
+
+`COPILOT_HOME` and `COPILOT_BIN_DIR` can be overridden on the `make` command line.

@@ -1,0 +1,11 @@
+{
+  "model": "claude-opus-5.5",
+  "allowedUrls": [
+    "https://pypi.org",
+    "https://docs.github.com",
+    "https://hexdocs.pm",
+    "https://docs.datadoghq.com",
+    "https://www.datadoghq.com",
+    "https://www.developertoarchitect.com"
+  ]
+}

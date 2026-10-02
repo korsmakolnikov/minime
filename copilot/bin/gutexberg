@@ -1,0 +1,234 @@
+#!/usr/bin/env bash
+# gutexberg: the single write path to git used by the gutexberg agent.
+# The branch-boundary rule mirrors auto_fixup/last_revision in ~/.bashlib:
+# a fixup target must be a commit in <base>..HEAD, otherwise abort.
+
+set -euo pipefail
+
+RED='\033[0;31m'
+NC='\033[0m'
+COPILOT_EMAIL='223556219+Copilot@users.noreply.github.com'
+CONVENTIONAL_RE='^(feat|fix|test|refactor|perf|docs|style|build|ci|chore|revert)(\([a-z0-9._/-]+\))?!?: [^ ].*[^.]$'
+
+die() {
+  >&2 echo -e "${RED}$*${NC}"
+  exit 1
+}
+
+usage() {
+  cat <<'EOF'
+Usage: gutexberg <command> [args]
+
+Read-only:
+  base                          Print the merge-base of HEAD and the base branch.
+  range                         List branch commits (<base>..HEAD), newest first.
+  last-revision <file>          Last branch commit touching <file> (empty if none).
+  function <file> <name>        Branch commits that touched function <name> in <file>.
+  owners [<file>...]            For each staged hunk, the branch commits owning the
+                                lines it modifies. TSV: file, old-range, kind, owners.
+                                For pure insertions, owners are those of the
+                                neighbouring lines (a hint, not proof).
+  in-scope <rev>                Exit 0 if <rev> is a commit in <base>..HEAD.
+
+Write:
+  stage <path>...               git add the given paths.
+  stage-patch <patch-file>      Stage only the hunks in <patch-file> (git apply --cached).
+  unstage [<path>...]           Unstage paths (all if none given).
+  commit --model <id> -F <file> Commit staged changes. <file> holds the subject line,
+                                a blank line and a body. The subject must follow
+                                Conventional Commits. The Copilot trailer is appended.
+  fixup <rev> --model <id> -F <file>
+                                Create a fixup! commit for <rev> after checking that
+                                <rev> lies inside the branch. <file> holds the body.
+  amend                         Amend HEAD with the staged changes, keeping its message.
+                                Refused if HEAD is outside the branch.
+
+The base branch is $GUTEXBERG_BASE, else `git config gutexberg.base`, else the first
+existing ref among origin/master, origin/main, master, main.
+EOF
+}
+
+base_ref() {
+  local ref="${GUTEXBERG_BASE:-$(git config --get gutexberg.base || true)}"
+  if [ -n "$ref" ]; then
+    git rev-parse --verify -q "$ref^{commit}" >/dev/null || die "Base ref '$ref' does not exist."
+    echo "$ref"
+    return
+  fi
+  for ref in origin/master origin/main master main; do
+    if git rev-parse --verify -q "$ref^{commit}" >/dev/null; then
+      echo "$ref"
+      return
+    fi
+  done
+  die "Cannot find a base branch. Set GUTEXBERG_BASE or 'git config gutexberg.base'."
+}
+
+base() {
+  git merge-base "$(base_ref)" HEAD
+}
+
+current_branch_guard() {
+  local branch
+  branch=$(git symbolic-ref --short -q HEAD || true)
+  [ -n "$branch" ] || die "Detached HEAD: refusing to write."
+  case "$branch" in
+  master | main) die "Refusing to commit on '$branch'. Work on a feature branch." ;;
+  esac
+}
+
+in_scope() {
+  local rev="$1" sha
+  sha=$(git rev-parse --verify -q "$rev^{commit}") || return 1
+  git rev-list "$(base)..HEAD" | grep -qx "$sha"
+}
+
+parse_model_and_file() {
+  MODEL=""
+  MSG_FILE=""
+  while [ $# -gt 0 ]; do
+    case "$1" in
+    --model) MODEL="${2:-}"; shift 2 ;;
+    -F) MSG_FILE="${2:-}"; shift 2 ;;
+    *) die "Unknown argument: $1" ;;
+    esac
+  done
+  [ -n "$MODEL" ] || die "--model <id> is required."
+}
+
+trailer() {
+  echo "Co-authored-by: Copilot ($MODEL) <$COPILOT_EMAIL>"
+}
+
+require_staged() {
+  git diff --cached --quiet && die "Nothing is staged."
+  if git diff --cached --name-only | grep -qE '(^|/)\.adl/'; then
+    die "Staged changes include .adl/ files, which are never committed. Unstage them."
+  fi
+  return 0
+}
+
+strip_existing_trailer() {
+  grep -v "^Co-authored-by: Copilot" "$1" | sed -e :a -e '/^\n*$/{$d;N;ba' -e '}'
+}
+
+validate_message() {
+  local file="$1" subject blank body
+  [ -f "$file" ] || die "Message file '$file' not found."
+  subject=$(sed -n 1p "$file")
+  blank=$(sed -n 2p "$file")
+  body=$(sed -n '3,$p' "$file" | grep -v "^Co-authored-by: Copilot" | grep -v '^[[:space:]]*$' || true)
+  [[ "$subject" =~ $CONVENTIONAL_RE ]] ||
+    die "Subject is not a Conventional Commit sentence without a trailing period: '$subject'"
+  [ "${#subject}" -le 72 ] || die "Subject is longer than 72 characters."
+  [ -z "$blank" ] || die "Line 2 of the message must be blank."
+  [ -n "$body" ] || die "The message needs a body after the blank line."
+}
+
+cmd_owners() {
+  local b files=("$@")
+  b=$(base)
+  if [ ${#files[@]} -eq 0 ]; then
+    mapfile -t files < <(git diff --cached --name-only --diff-filter=M)
+  fi
+  local f header old start count kind lo hi owners
+  for f in "${files[@]}"; do
+    while IFS= read -r header; do
+      old=$(sed -E 's/^@@ -([0-9]+(,[0-9]+)?) .*/\1/' <<<"$header")
+      start=${old%%,*}
+      count=1
+      [[ "$old" == *,* ]] && count=${old##*,}
+      if [ "$count" -eq 0 ]; then
+        kind=insert
+        lo=$((start > 0 ? start : 1))
+        hi=$((start + 1))
+      else
+        kind=modify
+        lo=$start
+        hi=$((start + count - 1))
+      fi
+      local total
+      total=$(git show "HEAD:$f" 2>/dev/null | wc -l)
+      [ "$hi" -le "$total" ] || hi=$total
+      [ "$lo" -le "$hi" ] || lo=$hi
+      if [ "$total" -eq 0 ]; then
+        owners="-"
+      else
+        owners=$(git blame -s -l -L "$lo,$hi" "$b..HEAD" -- "$f" |
+          awk '$1 !~ /^\^/ {print substr($1,1,12)}' | sort -u | paste -sd, -)
+        [ -n "$owners" ] || owners="-"
+      fi
+      printf '%s\t%s\t%s\t%s\n' "$f" "$old" "$kind" "$owners"
+    done < <(git diff --cached -U0 -- "$f" | grep '^@@')
+  done
+}
+
+cmd="${1:-}"
+[ -n "$cmd" ] || { usage; exit 1; }
+shift
+
+git rev-parse --is-inside-work-tree >/dev/null 2>&1 || die "Not inside a git work tree."
+
+case "$cmd" in
+-h | --help | help) usage ;;
+base) base ;;
+range) git log --format='%h %s' "$(base)..HEAD" ;;
+last-revision)
+  [ $# -eq 1 ] || die "Usage: gutexberg last-revision <file>"
+  git log "$(base)..HEAD" -s --format=%h -- "$1" | head -n 1
+  ;;
+function)
+  [ $# -eq 2 ] || die "Usage: gutexberg function <file> <name>"
+  git log -L ":$2:$1" "$(base)..HEAD" --format=%h --no-patch | grep -v '^$' || true
+  ;;
+owners) cmd_owners "$@" ;;
+in-scope)
+  [ $# -eq 1 ] || die "Usage: gutexberg in-scope <rev>"
+  in_scope "$1"
+  ;;
+stage)
+  [ $# -ge 1 ] || die "Usage: gutexberg stage <path>..."
+  git add -- "$@"
+  ;;
+stage-patch)
+  [ $# -eq 1 ] || die "Usage: gutexberg stage-patch <patch-file>"
+  git apply --cached --unidiff-zero --whitespace=nowarn "$1"
+  ;;
+unstage)
+  if [ $# -eq 0 ]; then git reset -q; else git reset -q -- "$@"; fi
+  ;;
+commit)
+  parse_model_and_file "$@"
+  [ -n "$MSG_FILE" ] || die "-F <file> is required."
+  current_branch_guard
+  require_staged
+  validate_message "$MSG_FILE"
+  { strip_existing_trailer "$MSG_FILE"; echo; trailer; } | git commit -q -F -
+  git log -1 --format='%h %s'
+  ;;
+fixup)
+  [ $# -ge 1 ] || die "Usage: gutexberg fixup <rev> --model <id> -F <file>"
+  target="$1"
+  shift
+  parse_model_and_file "$@"
+  [ -n "$MSG_FILE" ] || die "-F <file> is required."
+  current_branch_guard
+  if ! in_scope "$target"; then
+    die "Auto fix returned with exit code 1, aborting due the last revision is out of scope"
+  fi
+  require_staged
+  body=$(strip_existing_trailer "$MSG_FILE")
+  [ -n "$(tr -d '[:space:]' <<<"$body")" ] || die "The fixup needs a body explaining the correction."
+  git commit -q --fixup="$(git rev-parse --short "$target")" -m "$body" -m "$(trailer)"
+  git log -1 --format='%h %s'
+  ;;
+amend)
+  [ $# -eq 0 ] || die "Usage: gutexberg amend"
+  current_branch_guard
+  in_scope HEAD || die "HEAD is outside the branch: refusing to amend."
+  require_staged
+  git commit -q --amend --no-edit
+  git log -1 --format='%h %s'
+  ;;
+*) usage; exit 1 ;;
+esac
