@@ -40,8 +40,11 @@ Skip on greenfield. Otherwise study the code and gather:
 
 * Goal of the change and the areas it touches.
 * Stack, layout, source root, OTP app or root package.
-* The exact test command and whether it runs today. **If the tests cannot run,
-  stop here:** neither ford nor unclebob can work.
+* The exact test command and whether it runs today. Read the project's
+  `AGENTS.md` files (and README, Makefile) first and use the command they
+  document (wrappers such as dev-container scripts set the environment that a
+  raw `docker exec` lacks). **If the tests cannot run, stop here:** neither
+  ford nor unclebob can work.
 * Current structure and dependency graph (`adl-reverse` skill), cycles and
   violations relevant to the change.
 * Conventions worth preserving (naming, error handling, boundaries libraries

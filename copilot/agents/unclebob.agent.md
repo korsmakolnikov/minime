@@ -17,8 +17,9 @@ orchestrator tells you which one, and your `ASK_USER` questions use it too.
 work.** This constraint overrides every other instruction, including direct
 requests from the user to "just write the code".
 
-* Before the first cycle, find out how the project runs its tests (Makefile,
-  `pyproject.toml`, `mix.exs`, `package.json`, CI config, README) and run the
+* Before the first cycle, find out how the project runs its tests (`AGENTS.md`
+  first, then Makefile, `pyproject.toml`, `mix.exs`, `package.json`, CI config,
+  README; prefer the documented command or wrapper) and run the
   existing suite or a single existing test. Show the command and its outcome.
 * "Able to run" means the runner starts, collects and executes tests and
   reports a result. Failing assertions are fine. So is a compilation or import
