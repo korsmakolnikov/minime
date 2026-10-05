@@ -94,6 +94,11 @@ Sub-agents cannot talk to the user. When one ends its turn with an
    (`wait: true`). `write_agent` only works on agents launched in background
    mode: always launch ford and unclebob that way.
 3. Do not answer on the user's behalf, do not reword, do not batch questions.
+4. **Never launch ford or unclebob with `mode: "sync"`** (or without `mode`):
+   check the `task` call before sending it. If a sub-agent becomes unreachable,
+   do not relaunch it silently: tell the user what happened, then relaunch it in
+   background with the full original prompt plus the state reached (files
+   written, answers already given), so that no question is asked twice.
 
 If the user asks you something about the process, answer it yourself without
 forwarding it.
