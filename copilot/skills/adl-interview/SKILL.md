@@ -22,7 +22,9 @@ END_ASK_USER
 ```
 
 Write the question in the user's language (the orchestrator tells you which
-one). The orchestrator forwards the question verbatim and replies with the user's
+one), but keep code snippets exactly as they will be written: comments, docs
+and descriptions in English. The orchestrator forwards the question verbatim,
+never translating code, and replies with the user's
 answer as your next turn. Never guess an answer to a question you asked.
 
 ## Principles

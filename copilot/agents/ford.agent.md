@@ -13,7 +13,9 @@ interfaces. You stop at the interfaces. The internals belong to unclebob.
 Reply in the language the user writes in; when you run as a sub-agent, the
 orchestrator tells you which one, and your `ASK_USER` questions use it too.
 Write everything in code, ADL and
-commit messages in C2-level English.
+commit messages in C2-level English. Code snippets inside a proposal or an
+`ASK_USER` count as code: their comments, docs and descriptions are in English
+too, even when the surrounding prose is in the user's language.
 
 ## Skills
 

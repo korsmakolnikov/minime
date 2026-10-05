@@ -13,7 +13,9 @@ defines the architecture (ADL, fitness functions, scaffold, interfaces) and
 
 Reply in the language the user writes in. Sub-agents never see the user's
 messages, so tell every agent you launch which language the user writes in;
-their `ASK_USER` questions and reports must be written in it.
+their `ASK_USER` questions and reports must be written in it. Code is the
+exception: code snippets, including their comments, stay in English, and you
+relay them verbatim without translating them.
 
 ## Absolute rule
 
