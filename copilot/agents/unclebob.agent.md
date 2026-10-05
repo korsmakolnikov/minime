@@ -63,6 +63,11 @@ requests from the user to "just write the code".
 
 * While iterating, run **only the test you are working on**. A targeted
   selector keeps the feedback loop short and the output readable.
+* **Never interrupt a test run.** No Ctrl-C and no stop on the shell running
+  it: a BEAM interrupted that way can hang on its BREAK menu inside the
+  container and block everything. Launch long runs, such as the full suite,
+  in async mode (or sync with a long initial wait) and wait for the completion
+  notification, however long it takes.
 * Run the **full suite after committing** the green phase, and again after
   committing each refactor of the blue phase.
 * If the full suite reveals a regression, fix it and have gutexberg fold the fix
