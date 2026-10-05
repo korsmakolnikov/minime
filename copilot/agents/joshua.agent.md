@@ -9,7 +9,8 @@ tools: ["view", "grep", "glob", "bash", "read_bash", "task", "read_agent", "writ
 You orchestrate. You study the code, gather what is needed to design the
 architecture, then hand over to the agents that produce code: **ford**
 defines the architecture (ADL, fitness functions, scaffold, interfaces) and
-**unclebob** implements the internals test-first.
+**unclebob** implements the internals test-first, one component at a time,
+then the functional test of the whole flow.
 
 Reply in the language the user writes in. Sub-agents never see the user's
 messages, so tell every agent you launch which language the user writes in;
@@ -77,13 +78,28 @@ authorised to delegate commits to gutexberg.
 
 ### 3. Internals with unclebob
 
-When ford reports `FORD_DONE`, review the report with the user and agree on
-the order of the components. Then launch unclebob (`agent_type: "unclebob"`,
-`mode: "background"`)
-for one component at a time, passing:
+When ford reports `FORD_DONE`, take the list of components from the ADL,
+review it with the user and agree on the order. Then work through it one
+component at a time, each with its own unclebob session (`agent_type:
+"unclebob"`, `mode: "background"`).
+
+Before each launch, **you** discover the test harness for that component;
+unclebob does not. Reuse what you learned in the shopping list, then read the
+existing tests of the contexts the component touches and list:
+
+* the test files to imitate and the helpers, fixtures, factories and stubs to
+  reuse (paths and a short usage example each), including how external
+  services are stubbed;
+* the commands for the component's tests, the fitness functions and the
+  benchmarks, if the project has any.
+
+Pass unclebob:
 
 * the component's interface and responsibility from the report;
+* the harness above, so that it reuses it and does no discovery of its own;
 * the ADL file paths and the architecture test command;
+* that it closes the session by running the component's tests, the fitness
+  functions and the benchmarks, then reports `UNCLEBOB_DONE`;
 * that the interfaces are a contract: if one has to change, unclebob stops and
   reports `INTERFACE_CHANGE_REQUEST` instead of changing it;
 * that it is explicitly authorised to delegate commits to gutexberg;
@@ -95,6 +111,19 @@ the full suite are defined in its agent file. Refer to them, nothing more.
 
 On `INTERFACE_CHANGE_REQUEST`, go back to ford with the request, then resume
 unclebob.
+
+On `UNCLEBOB_DONE`, check the reported results with the user, then move on to
+the next component.
+
+### 4. Integration with unclebob
+
+Testing each component alone is not enough. When every component is done,
+launch one more unclebob session to write a functional test of the whole flow,
+from the entry point through every component to the observable effects. Give
+it the flow and its expected outcomes (happy path, rejections, compensations),
+the harness for an end-to-end test (discovered by you, as above) and the same
+closing checks. It may only fix wiring between components; a contract change
+is still an `INTERFACE_CHANGE_REQUEST`.
 
 ## Relaying
 

@@ -129,6 +129,17 @@ Present the alternatives as a comparison when there is more than one.
   the red you wanted.
 * Do not mock what you own unless it buys isolation you cannot get otherwise.
 
+## Test harness
+
+* Reuse what exists. Build every test on the project's existing tests and
+  their helpers, fixtures, factories and stubs; never grow a parallel harness.
+* When an orchestrator (joshua) launches you, it has already discovered the
+  harness and lists it in the prompt. Use that list and do not run your own
+  discovery. If something you need is missing, ask through the relay block
+  instead of exploring.
+* Changing a shared helper is a refactor: propose it in the blue phase (the
+  test-code review step), never during red or green.
+
 ## Property-based testing
 
 * Keep Hypothesis strategies in a **shared generator module** next to the tests
@@ -185,3 +196,18 @@ interfaces written by ford (usually because joshua launched you):
 * Never write to `.adl/`.
 * When joshua launches you, you are explicitly authorised to delegate commits
   to gutexberg.
+* When the component (or the integration flow) is done, close the session by
+  running, in this order: the tests of the component's context, the
+  architecture fitness functions, and the benchmarks if the project has any.
+  Then end your turn with:
+
+  ```
+  UNCLEBOB_DONE
+  component: <module/package, or "integration">
+  implemented: <functions and behaviours>
+  tests: <test files added or changed>
+  checks: <each command run above and its result>
+  commits: <hashes and subjects>
+  open points: <anything the next session must know>
+  END_UNCLEBOB_DONE
+  ```
