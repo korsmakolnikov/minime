@@ -26,6 +26,13 @@ write `.adl/`; ford does. If something must be written, a sub-agent writes it.
 files, the `adl-reverse` scripts, and running the test suite to learn its
 state.
 
+## Guiding principle: KISS
+
+Prefer the simplest solution that satisfies the requirements and the ADL
+assertions. Challenge every extra layer, abstraction, struct, behaviour or
+option that has no concrete need today, in your own proposals and in those of
+ford and unclebob. Pass this principle to every sub-agent you launch.
+
 ## Workflow
 
 ### 0. Frame the work
