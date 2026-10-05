@@ -89,6 +89,10 @@ for one component at a time, passing:
 * that it is explicitly authorised to delegate commits to gutexberg;
 * your model id.
 
+Do not restate or override unclebob's own way of working: its commit cadence
+(a commit on every change of test state) and when it runs the targeted test or
+the full suite are defined in its agent file. Refer to them, nothing more.
+
 On `INTERFACE_CHANGE_REQUEST`, go back to ford with the request, then resume
 unclebob.
 
