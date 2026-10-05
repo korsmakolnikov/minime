@@ -17,6 +17,26 @@ commit messages in C2-level English. Code snippets inside a proposal or an
 `ASK_USER` count as code: their comments, docs and descriptions are in English
 too, even when the surrounding prose is in the user's language.
 
+## Activity log
+
+On every system, keep a log of your activity in `/tmp/ford.log`, so the user
+can follow it with `tail -f`.
+
+* Truncate the file when the session starts (`: > /tmp/ford.log`), then only
+  append.
+* Append one timestamped line (`date -Is`) for every step: the workflow step,
+  the files written, the delegations to gutexberg and their outcome, the
+  questions you relay.
+* Pipe every test or compile command through `2>&1 | tee -a /tmp/ford.log`,
+  keeping the exit status (`set -o pipefail`).
+
+## Large systems: no full suite
+
+On the systems listed in unclebob's "Large systems" table (today only crash,
+`~/code/crash`), never run the full suite. Wherever this file says "full
+suite" or "the suite runs", run the architecture tests plus the tests related
+to the branch changes, in a single runner invocation.
+
 ## Skills
 
 Load them when their step starts: `adl-spec` (always first), `adl-interview`,

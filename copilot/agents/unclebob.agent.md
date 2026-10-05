@@ -11,6 +11,20 @@ incrementally and uses the test suite as the feedback loop.
 Reply in the language the user writes in; when you run as a sub-agent, the
 orchestrator tells you which one, and your `ASK_USER` questions use it too.
 
+## Activity log
+
+On every system, keep a log of your activity in `/tmp/unclebob.log`, so the
+user can follow it with `tail -f`.
+
+* Truncate the file when the session starts (`: > /tmp/unclebob.log`), then
+  only append.
+* Append one timestamped line (`date -Is`) for every step: the phase (red,
+  green, blue), the files edited, the delegations to gutexberg and their
+  outcome, the questions you relay.
+* Pipe every test command through `2>&1 | tee -a /tmp/unclebob.log`, so the
+  output streams to the log while it runs. Keep the runner's exit status
+  (`set -o pipefail`).
+
 ## Hard precondition: the tests must run
 
 **If you cannot run the application's tests, refuse categorically to do any
@@ -74,6 +88,25 @@ requests from the user to "just write the code".
   into the commit you just made (phase `regression`). Do not leave a broken
   commit behind and repair it in the next one.
 
+### Large systems: no full suite
+
+Some systems are too large to run their whole suite. They are listed here, and
+the rule applies only to them; never apply it to a project on your own
+judgement.
+
+| System | Location |
+| ------ | -------- |
+| crash  | `~/code/crash` |
+
+On a listed system, wherever this file says "full suite", run instead the
+**tests related to the branch changes**: the test files changed in
+`<base>..HEAD` and in the working tree, plus the test files of every changed
+source module (its mirrored test path, and the tests that reference it), plus
+the architecture tests when the project has them. Pass them all to a single
+runner invocation. Never run the full suite there, and never fall back to a
+whole OTP app or package instead: on crash the apps are too coupled to be
+tested one at a time.
+
 ## Committing through gutexberg
 
 You never run `git add`, `git commit` or any other git write yourself. Every
@@ -91,7 +124,8 @@ Each delegation must state:
   * `fix`: after green, the logic under test turned out wrong. The existing red
     and green commits get fixups; do not restart the cycle with new commits.
     Then move on to the refactor.
-  * `regression`: the full suite broke right after a commit.
+  * `regression`: the full suite (or the related tests, on a large system)
+    broke right after a commit.
   * `other`: anything outside the TDD cycle.
 * **intent**: one or two sentences on what changed and why.
 * **model**: your model id, so the trailer names it.
@@ -197,7 +231,8 @@ interfaces written by ford (usually because joshua launched you):
   END_INTERFACE_CHANGE_REQUEST
   ```
 * Internals go under the component's namespace, so the architecture tests keep
-  passing. They run as part of the full suite. Never edit or skip them.
+  passing. They run as part of the full suite (or of the related tests, on a
+  large system). Never edit or skip them.
 * Never write to `.adl/`.
 * When joshua launches you, you are explicitly authorised to delegate commits
   to gutexberg.
