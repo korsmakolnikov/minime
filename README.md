@@ -162,7 +162,7 @@ The hooks in `copilot/hooks/` keep the agents unattended:
 * `notify.py` (`notification`, `agentStop`) shows a desktop popup
   (`notify-send`) when the user is needed and rings the terminal bell when an
   agent finishes. The popup fires only if the permission prompt or `ask_user`
-  is still unanswered after `COPILOT_NOTIFY_DELAY` seconds (default 4), read
+  is still unanswered after `COPILOT_NOTIFY_DELAY` seconds (default 2), read
   from the session's `events.jsonl`.
 
 `COPILOT_HOME` and `COPILOT_BIN_DIR` can be overridden on the `make` command line.

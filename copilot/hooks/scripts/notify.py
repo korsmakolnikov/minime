@@ -13,7 +13,7 @@ import time
 
 NEEDS_USER = {"permission_prompt", "elicitation_dialog"}
 AGENT_DONE = {"agent_completed", "agent_idle"}
-PROMPT_DELAY = float(os.environ.get("COPILOT_NOTIFY_DELAY", "4"))
+PROMPT_DELAY = float(os.environ.get("COPILOT_NOTIFY_DELAY", "2"))
 SESSIONS = os.path.expanduser("~/.copilot/session-state")
 
 
