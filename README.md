@@ -155,7 +155,9 @@ The hooks in `copilot/hooks/` keep the agents unattended:
   file creation whose effects fall inside a git-versioned folder (not
   git-ignored) or under `/tmp`, where agents may run anything. Command
   substitutions (`$(...)`, backticks, `<(...)`) are approved when their own
-  command is. Everything else asks. `git push` is always
+  command is. Reads (`view`, `grep`, `glob`) of `~/.copilot/agents` and
+  `~/.copilot/skills` are approved, so agents can read the agents they launch
+  and the skills they use. Everything else asks. `git push` is always
   denied, and git commands that discard uncommitted work (`reset --hard`,
   `clean`, `checkout --`, ...) always ask. Set `COPILOT_HOOK_DEBUG=1` to log
   the payloads to `/tmp/copilot-hook-permission.jsonl`.

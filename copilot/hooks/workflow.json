@@ -4,7 +4,7 @@
     "permissionRequest": [
       {
         "type": "command",
-        "matcher": "bash|edit|create",
+        "matcher": "bash|edit|create|view|grep|glob|read",
         "bash": "python3 \"$HOME/.copilot/hooks/scripts/auto_approve.py\"",
         "timeoutSec": 10
       }

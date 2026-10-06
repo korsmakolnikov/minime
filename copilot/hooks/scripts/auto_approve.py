@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""permissionRequest hook for bash, edit and create.
+"""permissionRequest hook for bash, edit, create and the read tools.
 
 Rule: an operation is approved when every effect it has falls inside a folder
 versioned with git (a work tree path that is not git-ignored), because git can
@@ -7,7 +7,8 @@ always bring it back. /tmp is the other approved place: agents may run and
 write anything there. Command substitutions are approved when their own
 command is. Anything else, or anything the hook cannot reason about, falls
 through to the normal permission prompt. `git push` is always denied, and git
-commands that throw away uncommitted work always ask.
+commands that throw away uncommitted work always ask. Reads (view, grep, glob)
+of the agent and skill definitions under ~/.copilot are approved too.
 
 Output: {"behavior": "allow"}, {"behavior": "deny", ...} or {} (fall through).
 """
@@ -46,6 +47,10 @@ INLINE_CODE_FLAGS = {"-c", "-e", "--eval", "-E", "-r"}
 INTERPRETERS = {"sh", "bash", "zsh", "dash", "python", "python3", "node", "ruby", "perl", "elixir", "iex", "erl"}
 PATH_ARGS = {"rm", "rmdir", "mkdir", "touch", "truncate", "cp", "mv", "ln", "chmod", "tee", "patch", "install"}
 SEPARATORS = {"&&", "||", ";", "|", "&", "(", ")"}
+READ_TOOLS = {"view", "grep", "glob", "read"}
+READABLE_ROOTS = tuple(
+    os.path.realpath(os.path.expanduser(p)) for p in ("~/.copilot/agents", "~/.copilot/skills")
+)
 
 
 def resolve(path, cwd):
@@ -287,7 +292,26 @@ def decide(payload):
         return decide_shell(command, cwd)
     if tool in ("edit", "create", "Edit", "Write") and isinstance(args.get("path"), str):
         return ALLOW if writable(args["path"], cwd) else FALL_THROUGH
+    if tool in READ_TOOLS:
+        paths = read_paths(args)
+        return ALLOW if paths and all(readable(p, cwd) for p in paths) else FALL_THROUGH
     return FALL_THROUGH
+
+
+def read_paths(args):
+    paths = args.get("path") or args.get("paths")
+    if isinstance(paths, str):
+        return [paths]
+    if isinstance(paths, list) and all(isinstance(p, str) for p in paths):
+        return paths
+    return []
+
+
+def readable(path, cwd):
+    """Agent and skill definitions: agents read the files of the agents they
+    launch and the helpers of the skills they use."""
+    target = os.path.realpath(resolve(path, cwd))
+    return any(target == root or target.startswith(root + os.sep) for root in READABLE_ROOTS)
 
 
 def main():
