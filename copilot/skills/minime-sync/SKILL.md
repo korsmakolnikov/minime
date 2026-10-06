@@ -69,15 +69,20 @@ The target is the root commit of the branch:
 cd ~/code/minime && git log --format=%h --grep='^feat: copilot workflow$' master..copilot
 ```
 
-Write only the **body** to a temporary file (gutexberg writes the
-`fixup! …` subject and the Copilot trailer itself): one or two C2-level English
-sentences saying what changed.
+Commit with one readable command (the user approves it in a permission
+prompt and reads the message there): the changed paths one per line, the body
+only as a quoted heredoc (gutexberg writes the `fixup! …` subject and the
+Copilot trailer itself), one or two C2-level English sentences saying what
+changed. Add `--model <id>` only if your model differs from the one in
+`~/.copilot/settings.json`.
 
 ```sh
-cd ~/code/minime && printf '%s\n' '<body>' > /tmp/minime-sync-msg \
-  && gutexberg stage <changed paths> \
-  && gutexberg fixup <target> --model <your model id> -F /tmp/minime-sync-msg; \
-  rm -f /tmp/minime-sync-msg; git status --short; git log --oneline -1
+cd ~/code/minime && gutexberg fixup <target> \
+  copilot/agents/foo.agent.md \
+  README.md \
+  <<'MSG'
+<body>
+MSG
 ```
 
 Never squash or autosquash the fixup: the user does it by hand. Report the new

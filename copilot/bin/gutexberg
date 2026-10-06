@@ -34,14 +34,20 @@ Write:
   stage <path>...               git add the given paths.
   stage-patch <patch-file>      Stage only the hunks in <patch-file> (git apply --cached).
   unstage [<path>...]           Unstage paths (all if none given).
-  commit --model <id> -F <file> Commit staged changes. <file> holds the subject line,
-                                a blank line and a body. The subject must follow
+  commit [<path>...] <<'MSG'    Stage the given paths, then commit everything staged.
+                                The message comes from stdin: the subject line, a
+                                blank line and a body. The subject must follow
                                 Conventional Commits. The Copilot trailer is appended.
-  fixup <rev> --model <id> -F <file>
-                                Create a fixup! commit for <rev> after checking that
-                                <rev> lies inside the branch. <file> holds the body.
-  amend                         Amend HEAD with the staged changes, keeping its message.
-                                Refused if HEAD is outside the branch.
+  fixup <rev> [<path>...] <<'MSG'
+                                Stage the given paths, then create a fixup! commit for
+                                <rev> after checking that <rev> lies inside the branch.
+                                Stdin holds only the body; the fixup! subject is generated.
+  amend [<path>...]             Stage the given paths and amend HEAD, keeping its
+                                message. Refused if HEAD is outside the branch.
+
+  commit and fixup also accept -F <file> instead of stdin, and --model <id>. The
+  model named in the trailer is --model, else $GUTEXBERG_MODEL, else the "model"
+  of ~/.copilot/settings.json. Both print the new commit and its files.
 
 The base branch is $GUTEXBERG_BASE, else `git config gutexberg.base`, else the first
 existing ref among origin/master, origin/main, master, main.
@@ -83,17 +89,44 @@ in_scope() {
   git rev-list "$(base)..HEAD" | grep -qx "$sha"
 }
 
-parse_model_and_file() {
+default_model() {
+  local settings="${COPILOT_HOME:-$HOME/.copilot}/settings.json"
+  [ -f "$settings" ] || return 0
+  sed -nE 's/^[[:space:]]*"model"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/p' "$settings" | head -n 1
+}
+
+# Parses --model, -F and the paths to stage; reads the message from stdin
+# when there is no -F.
+parse_commit_args() {
   MODEL=""
   MSG_FILE=""
+  PATHS=()
   while [ $# -gt 0 ]; do
     case "$1" in
     --model) MODEL="${2:-}"; shift 2 ;;
     -F) MSG_FILE="${2:-}"; shift 2 ;;
-    *) die "Unknown argument: $1" ;;
+    --) shift; PATHS+=("$@"); break ;;
+    -*) die "Unknown option: $1" ;;
+    *) PATHS+=("$1"); shift ;;
     esac
   done
-  [ -n "$MODEL" ] || die "--model <id> is required."
+  MODEL="${MODEL:-${GUTEXBERG_MODEL:-$(default_model)}}"
+  [ -n "$MODEL" ] || die "No model: pass --model <id>, set GUTEXBERG_MODEL or a model in settings.json."
+  if [ -z "$MSG_FILE" ]; then
+    [ -t 0 ] && die "The message is missing: pass it on stdin (heredoc) or with -F <file>."
+    MSG_FILE=$(mktemp)
+    trap 'rm -f "$MSG_FILE"' EXIT
+    cat >"$MSG_FILE"
+  fi
+}
+
+stage_paths() {
+  [ $# -eq 0 ] || git add -- "$@"
+}
+
+report() {
+  git log -1 --format='%h %s'
+  git diff-tree --no-commit-id --name-only -r HEAD | sed 's/^/  /'
 }
 
 trailer() {
@@ -198,37 +231,37 @@ unstage)
   if [ $# -eq 0 ]; then git reset -q; else git reset -q -- "$@"; fi
   ;;
 commit)
-  parse_model_and_file "$@"
-  [ -n "$MSG_FILE" ] || die "-F <file> is required."
+  parse_commit_args "$@"
   current_branch_guard
-  require_staged
   validate_message "$MSG_FILE"
+  stage_paths "${PATHS[@]}"
+  require_staged
   { strip_existing_trailer "$MSG_FILE"; echo; trailer; } | git commit -q -F -
-  git log -1 --format='%h %s'
+  report
   ;;
 fixup)
-  [ $# -ge 1 ] || die "Usage: gutexberg fixup <rev> --model <id> -F <file>"
+  [ $# -ge 1 ] || die "Usage: gutexberg fixup <rev> [<path>...] <<'MSG'"
   target="$1"
   shift
-  parse_model_and_file "$@"
-  [ -n "$MSG_FILE" ] || die "-F <file> is required."
+  parse_commit_args "$@"
   current_branch_guard
   if ! in_scope "$target"; then
     die "Auto fix returned with exit code 1, aborting due the last revision is out of scope"
   fi
+  stage_paths "${PATHS[@]}"
   require_staged
-  body=$(strip_existing_trailer "$MSG_FILE")
+  body=$(strip_existing_trailer "$MSG_FILE" | grep -v '^fixup! ' | sed -e '/./,$!d')
   [ -n "$(tr -d '[:space:]' <<<"$body")" ] || die "The fixup needs a body explaining the correction."
   git commit -q --fixup="$(git rev-parse --short "$target")" -m "$body" -m "$(trailer)"
-  git log -1 --format='%h %s'
+  report
   ;;
 amend)
-  [ $# -eq 0 ] || die "Usage: gutexberg amend"
   current_branch_guard
   in_scope HEAD || die "HEAD is outside the branch: refusing to amend."
+  stage_paths "$@"
   require_staged
   git commit -q --amend --no-edit
-  git log -1 --format='%h %s'
+  report
   ;;
 *) usage; exit 1 ;;
 esac

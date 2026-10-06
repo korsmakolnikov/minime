@@ -212,6 +212,9 @@ def segment_allowed(words, cwd):
         return True
     if cmd == "git":
         return git_allowed(args, cwd)
+    if cmd == "gutexberg":
+        # Commits always ask: the user reads the message in the prompt.
+        return args[:1] not in (["commit"], ["fixup"], ["amend"]) and versioned(cwd)
     if cmd == "docker":
         return bool(args) and args[0] in DOCKER_READ_ONLY
     if cmd == "edgar":

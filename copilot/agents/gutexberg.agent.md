@@ -82,24 +82,42 @@ phase, which is always a separate commit.
    * Several fixups to the same owner may share one fixup commit.
    * Distinct logical changes of the same type get distinct commits.
 4. Stage each group precisely:
-   * Whole files: `gutexberg stage <path>...`.
+   * Whole files: pass them to `gutexberg commit` / `fixup` / `amend`
+     directly (step 5).
    * Part of a file: write a patch containing only the chosen hunks (start from
      `git diff -U0 -- <file>`, keep the file header and the selected `@@`
-     blocks) to a file created with `mktemp`, then
+     blocks) to `/tmp/gutexberg-<short name>.patch`, a literal path (never
+     `$(mktemp)` or a shell variable), then
      `gutexberg stage-patch <file>`. Check the result with `git diff --cached`.
-5. Commit the group, verify with `git log -1 --stat`, move on.
-6. Remove the temporary message and patch files.
+5. Commit the group with **one command and nothing else** (see "Messages"),
+   check the commit and files it prints, move on.
+6. Remove the patch files.
 
 ## Messages
 
-Write the message to a file created with `mktemp` and pass it with `-F`.
+**The user approves every commit, fixup and amend in a permission prompt, and
+reads the message there.** So the command must be readable at a glance:
 
-New commits (`gutexberg commit --model <id> -F <file>`):
+* one `gutexberg` command per call: no `&&`, `;` or pipes, no other command
+  before or after it (inspect with separate calls);
+* the paths to stage as arguments, **one per line** with `\`;
+* the message as a quoted heredoc (`<<'MSG'`); never a temporary file,
+  `$(mktemp)`, `printf`, `echo` or a shell variable;
+* no `--model` when your model is the one in `~/.copilot/settings.json`;
+  otherwise `--model <id>` on the first line;
+* the bash `description`: `[gutexberg] <kind> <subject>`.
 
-```
+New commits:
+
+```sh
+gutexberg commit \
+  lib/foo/bar.ex \
+  test/foo/bar_test.exs \
+  <<'MSG'
 <type>(<optional scope>): <one imperative sentence, no trailing period>
 
 <A short comment on why the change was made and any trade-off worth knowing.>
+MSG
 ```
 
 * Conventional Commits always. Do not copy conventions from the local history.
@@ -111,8 +129,21 @@ New commits (`gutexberg commit --model <id> -F <file>`):
   `Co-authored-by: Copilot (<model>) <223556219+Copilot@users.noreply.github.com>`.
   Do not write it yourself.
 
-Fixups (`gutexberg fixup <rev> --model <id> -F <file>`): the file holds only the
-comment explaining the correction. The `fixup! <subject>` line is generated.
+Fixups: the heredoc holds only the comment explaining the correction; the
+`fixup! <subject>` line is generated, never write it.
+
+```sh
+gutexberg fixup 2812988d6 \
+  apps/crash/test/architecture/settlement_test.exs \
+  <<'MSG'
+<The comment explaining the correction.>
+MSG
+```
+
+Amend: `gutexberg amend <path>...`, paths one per line as above.
+
+If the user denies the prompt, read their feedback, fix the message or the
+grouping, and try again; never commit around the denial.
 
 ## Report
 
