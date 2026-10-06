@@ -129,7 +129,9 @@ Each delegation must state:
 * **phase**:
   * `red`: the new failing test.
   * `green`: the code that turns it green.
-  * `blue`: a refactor after the green commit. Always a separate commit.
+  * `blue`: a refactor after the green commit. Always a separate commit,
+    except a pure rename of something the branch introduced, which gutexberg
+    folds into the commits that own it.
   * `fix`: after green, the logic under test turned out wrong. The existing red
     and green commits get fixups; do not restart the cycle with new commits.
     Then move on to the refactor.

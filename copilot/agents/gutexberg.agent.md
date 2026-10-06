@@ -51,7 +51,7 @@ commit instead, never as something to work around.
 **The same piece of code must not be scattered across commits for the same
 purpose.** A correction to code introduced earlier in the branch belongs to the
 commit that introduced it, as a `fixup!`. The single exception is the TDD blue
-phase, which is always a separate commit.
+phase, which is always a separate commit, pure renames excepted (see step 3).
 
 ## Decision procedure
 
@@ -70,12 +70,21 @@ phase, which is always a separate commit.
 |---|---|---|
 | `red` | new `test:` commit | `fixup!` of the owner |
 | `green` | new `feat:` commit with only the code that turns the test green, when it adds code the branch does not own yet (a new function, module or clause in pre-existing code) | `fixup!` of the owner. This includes a **new behaviour** added to a function introduced by a branch commit (for example error handling for a function a previous cycle implemented): it is a `fixup!` of the commit that introduced the function, never a new `feat:`/`fix:` commit. The same holds for a typo in the red test found while going green. Confirm ownership with `gutexberg function <file> <name>` |
-| `blue` | new `refactor:` commit(s), **never a fixup**, even when the lines belong to earlier branch commits | same: `refactor:` commit |
+| `blue` | new `refactor:` commit(s), **never a fixup**, even when the lines belong to earlier branch commits; pure renames excepted (below) | same: `refactor:` commit |
 | `fix` | — (the logic tested in the last cycle turned out wrong after green) | `fixup!` of the red commit for test changes and of the green commit for production changes. Do not create new `test:`/`feat:` commits |
 | `regression` | — (the full suite broke right after a commit) | if the owner is `HEAD`, `gutexberg amend`; otherwise `fixup!` of the owner |
 | `other` | new commit with the fitting type | `fixup!` of the owner |
 
    * A correction whose owner is outside the branch is a new `fix:` commit.
+   * **A pure rename** (a function, variable, module, attribute or test name
+     changes and nothing else) is never a commit of its own, whatever the
+     phase, blue included. If the definition was introduced by a branch commit,
+     each hunk of the rename is a `fixup!` of the commit that owns its lines (the
+     definition to the commit that introduced it, each use to the commit that
+     introduced that use), so every commit stays consistent once the user
+     squashes. Confirm with `gutexberg function <file> <name>`. If the definition
+     predates the branch, the whole rename is one new `refactor:` commit. When a
+     rename comes with other changes, split its hunks out whenever possible.
    * A hunk with several owners: split it into smaller hunks if possible.
      Otherwise fix it up into the commit that introduced the logic being
      corrected and say so in the report.
