@@ -33,6 +33,9 @@ user can follow it with `tail -f`.
   outcome, the questions you relay. A skipped step is still a step: when the
   blue phase ends without a refactor commit, log a `blue` line with the SOLID
   verdict and the reason for skipping it.
+* Right after a gutexberg delegation returns, before any other command,
+  append `<date -Is> gutexberg <phase>: <hash> <subject>` for each commit it
+  made, or its refusal.
 * Pipe every test command through `2>&1 | tee -a /tmp/unclebob.log`, so the
   output streams to the log while it runs. Keep the runner's exit status
   (`set -o pipefail`).
@@ -134,6 +137,9 @@ the architecture tests when the project has them. Pass them all to a single
 runner invocation. Never run the full suite there, and never fall back to a
 whole OTP app or package instead: on crash the apps are too coupled to be
 tested one at a time.
+
+A test command the orchestrator gives you for the component's closing run
+does not replace this rule.
 
 ## Committing through gutexberg
 

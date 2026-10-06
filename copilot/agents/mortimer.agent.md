@@ -88,6 +88,11 @@ sub-agent other than joshua is working:
   checked with the user, before the next launch);
 * between unclebob and sherlock (before launching sherlock).
 
+Read the signal in the tool call right before the `task` launch, never
+earlier in the turn, so that a correction soong makes meanwhile is not missed.
+On the first message after a `/restart`, a `restart=true` was already loaded
+by that restart: reset it to `restart=false` without asking.
+
 If the file holds `restart=true`:
 
 1. Reset it: `printf 'restart=false\n' > /tmp/soong-corrections.log`.
@@ -212,6 +217,11 @@ Pass unclebob:
 Do not restate or override unclebob's own way of working: its commit cadence
 (a commit on every change of test state) and when it runs the targeted test or
 the full suite are defined in its agent file. Refer to them, nothing more.
+Do not copy rules from unclebob's or gutexberg's files into the launch prompt,
+not even to reinforce them after a violation: soong fixes violations in the
+agent files. Mark the component's test command as the one for the closing
+run; on a large system, the related tests after each commit follow
+unclebob's own rule.
 
 On `INTERFACE_CHANGE_REQUEST`, go back to ford with the request, then resume
 unclebob.

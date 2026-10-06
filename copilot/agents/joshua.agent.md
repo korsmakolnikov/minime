@@ -127,8 +127,9 @@ mortimer:
   `/tmp/soong-corrections.log` and `/tmp/mortimer-partial-session-progress.md`.
 * Resumes from `/tmp/mortimer-partial-session-progress.md`, checked on every
   user message, and deletes it; checks the restart signal at its four
-  checkpoints and, on `restart=true`, resets it, saves its progress and asks
-  for a `/restart`.
+  checkpoints, right before the launch, and, on `restart=true`, resets it,
+  saves its progress and asks for a `/restart`; on the first message after a
+  `/restart` it resets a `restart=true` without asking.
 * Launches every agent in background, one unclebob session per component,
   then the integration session, then sherlock.
 * Sends you every event and prints your violations in its console.
