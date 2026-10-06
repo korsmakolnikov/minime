@@ -122,6 +122,7 @@ Agents and skills for the [GitHub Copilot CLI](https://docs.github.com/copilot/h
 | `adl-fitness` | ADL assertions to ExUnit/pytest fitness functions, with standard-library helpers. |
 | `adl-scaffold` | Namespaces and interfaces, without logic. |
 | `adl-reverse` | As-is ADL drafts from the dependency graph of existing code. |
+| `minime-sync` | Mirrors `~/.copilot` into `copilot/` and records it as a fixup through `gutexberg`; run it before a `/restart`. |
 
 Start with `copilot --agent mortimer` (or `copilot --agent unclebob` for a plain TDD session).
 
