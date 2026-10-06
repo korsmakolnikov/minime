@@ -232,7 +232,7 @@ def decide_shell(command, cwd):
 
 
 def tool_input(payload):
-    args = payload.get("toolInput", payload.get("toolArgs", payload.get("tool_input")))
+    args = payload.get("toolInput", payload.get("toolArgs", payload.get("tool_input", payload.get("permissionRequest"))))
     if isinstance(args, str):
         try:
             args = json.loads(args)
@@ -242,13 +242,14 @@ def tool_input(payload):
 
 
 def decide(payload):
-    tool = payload.get("toolName") or payload.get("tool_name")
+    tool = payload.get("toolName") or payload.get("tool_name") or (payload.get("permissionRequest") or {}).get("kind")
     args = tool_input(payload)
     cwd = payload.get("cwd") or os.getcwd()
     if args is None or args.get("requestSandboxBypass"):
         return FALL_THROUGH
-    if tool in ("bash", "Bash") and isinstance(args.get("command"), str):
-        return decide_shell(args["command"], cwd)
+    command = args.get("command") or args.get("fullCommandText")
+    if tool in ("bash", "Bash", "shell") and isinstance(command, str):
+        return decide_shell(command, cwd)
     if tool in ("edit", "create", "Edit", "Write") and isinstance(args.get("path"), str):
         return ALLOW if writable(args["path"], cwd) else FALL_THROUGH
     return FALL_THROUGH

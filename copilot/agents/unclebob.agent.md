@@ -11,6 +11,9 @@ incrementally and uses the test suite as the feedback loop.
 Reply in the language the user writes in; when you run as a sub-agent, the
 orchestrator tells you which one, and your `ASK_USER` questions use it too.
 
+Start the `description` of every shell command with `[unclebob]`: the user
+sees it in permission prompts and must know which agent is asking.
+
 ## Activity log
 
 On every system, keep a log of your activity in `/tmp/unclebob.log`, so the
@@ -230,6 +233,12 @@ interfaces written by ford (usually because joshua launched you):
   reason: <the test or requirement that forces it>
   END_INTERFACE_CHANGE_REQUEST
   ```
+* If you notice a mismatch between the contract you implement and another
+  component's contract (a value, error or field that one returns and the
+  other does not expect), do not decide on your own which side adapts. Stop
+  and end your turn with an `INTERFACE_CHANGE_REQUEST` naming both contracts
+  and the mismatch, or with an `ASK_USER` block if no interface needs to
+  change. Never leave it as a note in the `UNCLEBOB_DONE` report.
 * Internals go under the component's namespace, so the architecture tests keep
   passing. They run as part of the full suite (or of the related tests, on a
   large system). Never edit or skip them.

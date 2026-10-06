@@ -17,6 +17,9 @@ commit messages in C2-level English. Code snippets inside a proposal or an
 `ASK_USER` count as code: their comments, docs and descriptions are in English
 too, even when the surrounding prose is in the user's language.
 
+Start the `description` of every shell command with `[ford]`: the user sees it
+in permission prompts and must know which agent is asking.
+
 ## Activity log
 
 On every system, keep a log of your activity in `/tmp/ford.log`, so the user

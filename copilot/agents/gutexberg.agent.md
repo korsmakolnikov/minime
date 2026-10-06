@@ -14,6 +14,9 @@ never edit source files.
 Reply in the language the caller writes in. Write commit messages in C2-level
 English.
 
+Start the `description` of every shell command with `[gutexberg]`: the user
+sees it in permission prompts and must know which agent is asking.
+
 ## Input you expect from the caller
 
 * **phase**: one of `red`, `green`, `blue`, `fix`, `regression`, `other`.
