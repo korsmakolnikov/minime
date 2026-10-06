@@ -138,8 +138,20 @@ make check       # checks that the claude CLI is available
 For the Copilot workflow:
 
 ```sh
-make copilot-install   # installs or overwrites agents and skills in ~/.copilot/,
+make copilot-install   # installs or overwrites agents, skills and hooks in ~/.copilot/,
                        # settings in ~/.copilot/settings.json and gutexberg in ~/.local/bin/
 ```
+
+The hooks in `copilot/hooks/` keep the agents unattended:
+
+* `auto_approve.py` (`permissionRequest`) approves any shell command, edit or
+  file creation whose effects fall inside a git-versioned folder (not
+  git-ignored) or under `/tmp`. Everything else asks. `git push` is always
+  denied, and git commands that discard uncommitted work (`reset --hard`,
+  `clean`, `checkout --`, ...) always ask. Set `COPILOT_HOOK_DEBUG=1` to log
+  the payloads to `/tmp/copilot-hook-permission.jsonl`.
+* `notify.py` (`notification`, `agentStop`) shows a desktop popup
+  (`notify-send`) when the user is needed and rings the terminal bell when an
+  agent finishes.
 
 `COPILOT_HOME` and `COPILOT_BIN_DIR` can be overridden on the `make` command line.

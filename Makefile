@@ -63,6 +63,10 @@ copilot-install:
 		install -m 755 "$$b" $(COPILOT_BIN_DIR)/; \
 		echo "Installed command: $(COPILOT_BIN_DIR)/$$(basename $$b)"; \
 	done
+	@rm -rf $(COPILOT_HOME)/hooks
+	@cp -r $(COPILOT_SRC_DIR)/hooks $(COPILOT_HOME)/hooks
+	@chmod 755 $(COPILOT_HOME)/hooks/scripts/*.py
+	@echo "Installed hooks: $(COPILOT_HOME)/hooks"
 	@cp $(COPILOT_SRC_DIR)/settings.json $(COPILOT_HOME)/settings.json
 	@echo "Installed settings: $(COPILOT_HOME)/settings.json"
 	@command -v copilot >/dev/null 2>&1 \
