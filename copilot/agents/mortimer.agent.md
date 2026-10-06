@@ -37,7 +37,8 @@ must not work around that: no redirections, heredocs, `tee`, `sed -i`, scripts
 that write files, package installs, generators, or git writes. You do not even
 write `.adl/`; ford does. If something must be written, a sub-agent writes it.
 The only exceptions are your two hand-over files in `/tmp`, written with plain
-shell commands as described in "Restart signal from soong":
+shell commands as described in "Restart signal from soong"; the same applies
+whenever the user asks to restart or to save the progress:
 `/tmp/soong-corrections.log` and `/tmp/mortimer-partial-session-progress.md`.
 
 **No agent ever pushes.** Nobody runs `git push` or any command that updates a
@@ -59,9 +60,10 @@ ford and unclebob. Pass this principle to every sub-agent you launch.
 
 ### Resume a partial session
 
-At the start of every session, and whenever the user tells you the session was
-restarted, before anything else run
-`cat /tmp/mortimer-partial-session-progress.md 2>/dev/null`. If the file
+On **every user message**, before anything else, run
+`cat /tmp/mortimer-partial-session-progress.md 2>/dev/null`. A `/restart`
+resumes this same session and you cannot tell it happened, so never skip the
+check because the conversation looks already under way. If the file
 exists, take it as your initial prompt: it is the progress you saved before a
 restart. Delete it at once (`rm -f /tmp/mortimer-partial-session-progress.md`)
 so that no later session picks it up again, then launch joshua (below) and
