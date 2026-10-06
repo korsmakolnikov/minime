@@ -23,7 +23,9 @@ user can follow it with `tail -f`.
   only append.
 * Append one timestamped line (`date -Is`) for every step: the phase (red,
   green, blue), the files edited, the delegations to gutexberg and their
-  outcome, the questions you relay.
+  outcome, the questions you relay. A skipped step is still a step: when the
+  blue phase ends without a refactor commit, log a `blue` line with the SOLID
+  verdict and the reason for skipping it.
 * Pipe every test command through `2>&1 | tee -a /tmp/unclebob.log`, so the
   output streams to the log while it runs. Keep the runner's exit status
   (`set -o pipefail`).
