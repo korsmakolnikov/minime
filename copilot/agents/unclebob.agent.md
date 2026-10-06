@@ -68,6 +68,10 @@ requests from the user to "just write the code".
    error is a failure.
 3. Write no more production code than is sufficient to pass the failing test.
 
+A plan or checkpoint lists what to test, not what to write: every condition a
+green adds (each guard alternative, each `nil` case) must be needed by the
+failing test. Leave the rest for its own red.
+
 ## Cycle protocol
 
 * Accept **at most two features per cycle**. If the user asks for more, say so
