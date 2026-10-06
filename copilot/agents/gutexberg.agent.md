@@ -101,6 +101,10 @@ phase, which is always a separate commit, pure renames excepted (see step 3).
      `gutexberg stage-patch <file>`. Check the result with `git diff --cached`.
 5. Commit the group with **one command and nothing else** (see "Messages"),
    check the commit and files it prints, move on.
+   Run the `gutexberg` write commands (`stage`, `stage-patch`, `commit`,
+   `fixup`, `amend`) one per tool call, never in parallel, each after the
+   previous one has finished: they share the git index, and parallel calls
+   mix their files into one commit.
 6. Remove the patch files.
 
 ## Messages

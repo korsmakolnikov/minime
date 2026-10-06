@@ -202,6 +202,15 @@ shift
 
 git rev-parse --is-inside-work-tree >/dev/null 2>&1 || die "Not inside a git work tree."
 
+# Write commands share the index: serialise them, so that parallel calls cannot
+# mix their files into one commit.
+case "$cmd" in
+stage | stage-patch | unstage | commit | fixup | amend)
+  exec 9>"$(git rev-parse --git-common-dir)/gutexberg.lock"
+  flock 9
+  ;;
+esac
+
 case "$cmd" in
 -h | --help | help) usage ;;
 base) base ;;
