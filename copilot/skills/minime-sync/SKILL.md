@@ -1,6 +1,6 @@
 ---
 name: minime-sync
-description: Mirrors the live Copilot setup in ~/.copilot (agents, skills, hooks, settings, global instructions) and the gutexberg command into ~/code/minime/copilot/, then records the change as a fixup of the "feat: copilot workflow" commit through gutexberg. Use before a /restart and whenever an agent, skill, hook or setting has changed.
+description: Mirrors the live Copilot setup in ~/.copilot (agents, skills, hooks, settings, global instructions) and the gutexberg and soong-poll commands into ~/code/minime/copilot/, then records the change as a fixup of the "feat: copilot workflow" commit through gutexberg. Use before a /restart and whenever an agent, skill, hook or setting has changed.
 ---
 
 # minime-sync
@@ -34,7 +34,7 @@ cd ~/code/minime \
   && for s in ~/.copilot/skills/*/; do cp -r "$s" copilot/skills/; done \
   && cp -r ~/.copilot/hooks/. copilot/hooks/ \
   && cp ~/.copilot/settings.json ~/.copilot/copilot-instructions.md copilot/ \
-  && cp ~/.local/bin/gutexberg copilot/bin/
+  && cp ~/.local/bin/gutexberg ~/.local/bin/soong-poll copilot/bin/
 ```
 
 Then look for files the live setup no longer has (renamed or deleted):

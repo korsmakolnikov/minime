@@ -71,11 +71,19 @@ agent id and name:
   `INTERFACE_CHANGE_REQUEST`, `REVIEW_CHANGES`, `SHERLOCK_DONE`);
 * `WATCH`: while a long sub-agent runs, ask joshua to watch it.
 
-joshua answers each message with `AUDIT_OK` or an `AUDIT_VIOLATIONS` block.
-Read it before moving on. On a violation, do not proceed: show it to the user
-as joshua wrote it and ask how to resolve it (stop the agent and relaunch it,
-have it fix its own work, accept it). joshua audits you too: treat its
-findings about you the same way.
+joshua answers each message with `AUDIT_OK` or an `AUDIT_VIOLATIONS` block,
+and appends every violation to `/tmp/joshua-violations.md`. Violations
+**never stop the workflow and never ask the user anything**: print them in
+your console as a notice, then carry on.
+
+```
+⚠ joshua: <severity> — <agent>: <note> (<evidence>)
+```
+
+One line per violation, in the user's language. Do not open an `ask_user`,
+do not wait, do not stop or relaunch the agent on your own. The user fixes the
+agent files from another session with soong, which reads the same log. This
+applies to findings about you too.
 
 joshua never writes code or files; never ask it to fix anything.
 

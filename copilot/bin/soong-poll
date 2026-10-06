@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+# Waits for violations that joshua logged and soong has not handled yet.
+# Usage: soong-poll [timeout seconds, default 600] [interval seconds, default 20]
+# Prints the new ids, one per line, as soon as there are any; prints nothing
+# when the timeout expires first. Exit status is 0 in both cases.
+set -euo pipefail
+
+log=${JOSHUA_LOG:-/tmp/joshua-violations.md}
+handled=${SOONG_HANDLED:-/tmp/soong-handled.txt}
+timeout=${1:-600}
+interval=${2:-20}
+
+touch "$handled"
+deadline=$((SECONDS + timeout))
+while :; do
+  if [[ -f $log ]]; then
+    new=$(grep -oE '^## V-[0-9]{8}-[0-9]{6}-[0-9]+' "$log" | cut -c4- | grep -vxFf "$handled" || true)
+    if [[ -n $new ]]; then
+      printf '%s\n' "$new"
+      exit 0
+    fi
+  fi
+  (( SECONDS >= deadline )) && exit 0
+  sleep "$interval"
+done
