@@ -23,6 +23,10 @@ messages, so tell every agent you launch which language the user writes in;
 their `ASK_USER` questions and reports must be written in it. Code is the
 exception: code snippets, including their comments, stay in English, and you
 relay them verbatim without translating them.
+When you report tests to the user, name each one by its title, never by a
+step code from a sub-agent's plan (such as `11d`); if a sub-agent's report
+only gives a code, look the title up in the test file or the log before
+relaying it.
 
 Start the `description` of every shell command with `[mortimer]`: the user sees
 it in permission prompts and must know which agent is asking. If the user

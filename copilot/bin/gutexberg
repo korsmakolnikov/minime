@@ -124,6 +124,21 @@ stage_paths() {
   [ $# -eq 0 ] || git add -- "$@"
 }
 
+# Files of <rev> once its branch fixups are squashed into it: the commit
+# itself plus every `fixup! <subject>` (nested ones included) in the branch.
+target_files() {
+  local sha subject
+  sha=$(git rev-parse "$1^{commit}")
+  subject=$(git log -1 --format=%s "$sha")
+  {
+    echo "$sha"
+    git log --format='%H%x09%s' "$(base)..HEAD" |
+      awk -F '\t' -v s="$subject" '{ t = $2; while (sub(/^(fixup|amend|squash)! /, "", t)) if (t == s) { print $1; break } }'
+  } | while read -r commit; do
+    git diff-tree --no-commit-id --name-only -r "$commit"
+  done | sort -u
+}
+
 report() {
   git log -1 --format='%h %s'
   git diff-tree --no-commit-id --name-only -r HEAD | sed 's/^/  /'
@@ -259,8 +274,7 @@ fixup)
   fi
   stage_paths "${PATHS[@]}"
   require_staged
-  outside=$(comm -23 <(git diff --cached --name-only | sort) \
-    <(git diff-tree --no-commit-id --name-only -r "$target" | sort))
+  outside=$(comm -23 <(git diff --cached --name-only | sort) <(target_files "$target"))
   [ -z "$outside" ] || die "These staged files are not in $target, so they cannot be a fixup of it: $outside"
   body=$(strip_existing_trailer "$MSG_FILE" | grep -v '^fixup! ' | sed -e '/./,$!d')
   [ -n "$(tr -d '[:space:]' <<<"$body")" ] || die "The fixup needs a body explaining the correction."

@@ -13,6 +13,11 @@ orchestrator tells you which one, and every text you end a turn with (status
 reports, `ASK_USER` blocks, `INTERFACE_CHANGE_REQUEST`, `UNCLEBOB_DONE`) uses
 it. Only code, test names and commit messages stay in English.
 
+Name every test by its full title (the `test "..."` string, with its
+`describe` when it helps), never by a step code of your own plan such as
+`11d`: in reports, `ASK_USER` blocks, `UNCLEBOB_DONE`, the activity log and
+your delegations to gutexberg. Such codes mean nothing to the user.
+
 Start the `description` of every shell command with `[unclebob]`: the user
 sees it in permission prompts and must know which agent is asking.
 
