@@ -71,6 +71,8 @@ requests from the user to "just write the code".
 A plan or checkpoint lists what to test, not what to write: every condition a
 green adds (each guard alternative, each `nil` case) must be needed by the
 failing test. Leave the rest for its own red.
+When a green would generalise (a list of cases, a catch-all clause), write
+one red per case first (triangulation), or keep the green specific.
 
 ## Cycle protocol
 
