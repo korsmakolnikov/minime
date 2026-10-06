@@ -66,7 +66,7 @@ phase, which is always a separate commit.
 | Phase | New behaviour / new code | Correction of code owned by a branch commit |
 |---|---|---|
 | `red` | new `test:` commit | `fixup!` of the owner |
-| `green` | new `feat:`/`fix:` commit with only the code that turns the test green | `fixup!` of the owner (for example a typo in the red test found while going green) |
+| `green` | new `feat:` commit with only the code that turns the test green, when it adds code the branch does not own yet (a new function, module or clause in pre-existing code) | `fixup!` of the owner. This includes a **new behaviour** added to a function introduced by a branch commit (for example error handling for a function a previous cycle implemented): it is a `fixup!` of the commit that introduced the function, never a new `feat:`/`fix:` commit. The same holds for a typo in the red test found while going green. Confirm ownership with `gutexberg function <file> <name>` |
 | `blue` | new `refactor:` commit(s), **never a fixup**, even when the lines belong to earlier branch commits | same: `refactor:` commit |
 | `fix` | — (the logic tested in the last cycle turned out wrong after green) | `fixup!` of the red commit for test changes and of the green commit for production changes. Do not create new `test:`/`feat:` commits |
 | `regression` | — (the full suite broke right after a commit) | if the owner is `HEAD`, `gutexberg amend`; otherwise `fixup!` of the owner |
