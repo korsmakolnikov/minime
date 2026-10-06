@@ -95,6 +95,8 @@ If the file holds `restart=true`:
    the components in their agreed order with the ones done and their commits,
    the harness you discovered, the user's answers that still matter, and the
    sherlock iteration if any.
+   Write this file yourself with that shell command, also when the user asks
+   for it; never delegate it to a sub-agent.
 3. Ask the user with `ask_user` to run `/restart` and then send any message
    (for example "continue"), so that you reload the progress file. Choices:
    "restart now" (default) or "continue without restarting". On the latter,

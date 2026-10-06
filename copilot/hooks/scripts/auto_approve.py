@@ -54,6 +54,11 @@ INLINE_CODE_FLAGS = {"-c", "-e", "--eval", "-E", "-r"}
 INTERPRETERS = {"sh", "bash", "zsh", "dash", "python", "python3", "node", "ruby", "perl", "elixir", "iex", "erl"}
 PATH_ARGS = {"rm", "rmdir", "mkdir", "touch", "truncate", "cp", "mv", "ln", "chmod", "tee", "patch", "install"}
 SEPARATORS = {"&&", "||", ";", "|", "&", "(", ")"}
+# Shell grammar words: the prefixes lead the command that follows them; the
+# closers and a `for`/`select` header run nothing themselves (their list
+# substitutions are checked on their own).
+SHELL_PREFIXES = {"if", "then", "else", "elif", "while", "until", "do", "!", "{"}
+SHELL_CLOSERS = {"fi", "done", "}", "break", "continue"}
 READ_TOOLS = {"view", "grep", "glob", "read"}
 READABLE_ROOTS = tuple(
     os.path.realpath(os.path.expanduser(p)) for p in ("~/.copilot/agents", "~/.copilot/skills")
@@ -136,7 +141,39 @@ def strip_heredocs(command):
 # Stands for the output of a substitution: harmless as an argument, never
 # accepted as a path to write or remove.
 SUBST = "\x00subst"
-SUBSTITUTION = re.compile(r"\$\(([^()`]*)\)|`([^`]*)`|[<>]\(([^()`]*)\)")
+BACKTICK = re.compile(r"`([^`]*)`")
+
+
+def innermost_substitution(command):
+    """(start, end, inner) of the first `$(…)`, `<(…)` or `>(…)` to close,
+    which holds no other one. Quote-aware, so parentheses inside quotes (as in
+    `jq 'select(…)'`) do not end it. None when there is none."""
+    opened, quotes, i = [], [None], 0
+    while i < len(command):
+        char, quote = command[i], quotes[-1]
+        if quote == "'":
+            if char == "'":
+                quotes[-1] = None
+        elif char == "\\":
+            i += 1
+        elif command.startswith("(", i + 1) and (char == "$" or (char in "<>" and quote is None)):
+            opened.append([i, i + 2, 0])
+            quotes.append(None)
+            i += 1
+        elif char == "'" and quote is None:
+            quotes[-1] = "'"
+        elif char == '"':
+            quotes[-1] = None if quote == '"' else '"'
+        elif quote is None and opened and char == "(":
+            opened[-1][2] += 1
+        elif quote is None and opened and char == ")":
+            if opened[-1][2]:
+                opened[-1][2] -= 1
+            else:
+                start, inner, _ = opened.pop()
+                return start, i + 1, command[inner:i]
+        i += 1
+    return None
 
 
 def without_substitutions(command, cwd):
@@ -144,13 +181,16 @@ def without_substitutions(command, cwd):
     checking its command; returns None when one is not allowed."""
     command = re.sub(r"\$\(\([^()]*\)\)", SUBST, command)
     while True:
-        match = SUBSTITUTION.search(command)
-        if not match:
+        found = innermost_substitution(command)
+        if found is None:
+            match = BACKTICK.search(command)
+            found = match and (match.start(), match.end(), match.group(1))
+        if not found:
             return None if any(s in command for s in ("`", "$(", "<(", ">(")) else command
-        inner = next(g for g in match.groups() if g is not None)
+        start, end, inner = found
         if decide_shell(inner, cwd) != ALLOW:
             return None
-        command = command[: match.start()] + SUBST + command[match.end():]
+        command = command[:start] + SUBST + command[end:]
 
 
 def tokenize(command):
@@ -204,9 +244,13 @@ def git_allowed(args, cwd):
 
 
 def segment_allowed(words, cwd):
+    while words and words[0] in SHELL_PREFIXES:
+        words = words[1:]
     while words and re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*=.*", words[0]):
         words = words[1:]
-    if not words:
+    if not words or words[0] in SHELL_CLOSERS:
+        return True
+    if words[0] in ("for", "select"):
         return True
     cmd, args = os.path.basename(words[0]), words[1:]
 
@@ -256,9 +300,9 @@ def segment_allowed(words, cwd):
 
 
 def decide_shell(command, cwd):
-    if re.search(r"\bgit\b[^;&|\n]*\bpush\b", command):
-        return DENY_PUSH
     stripped, expanded = strip_heredocs(command)
+    if re.search(r"\bgit\b[^;&|\n]*\bpush\b", command if stripped is None else stripped + "\n" + expanded):
+        return DENY_PUSH
     if stripped is None:
         return FALL_THROUGH
     if expanded and without_substitutions(expanded, cwd) is None:
