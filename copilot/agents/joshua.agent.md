@@ -75,7 +75,8 @@ Applies to every agent:
 
 * No `git push`, no command updating a remote.
 * Only the git writes its file allows: only gutexberg commits (sherlock rewrites
-  history only on its `-review` branch); no `rebase --autosquash`, no squashed
+  history only on its `-review` branch); no `rebase --autosquash` (except
+  sherlock on its `-review` branch), no squashed
   fixups, no `reset --hard` on work that is not committed.
 * Text written in code (comments, docs, test names, commit messages) is in
   C2-level English.
@@ -136,8 +137,9 @@ sherlock:
 * Audits TDD before squashing; asks the user about every discrepancy.
 * Rewrites history only on `<branch>-review`, never on the original branch,
   and the `-review` tree equals the original tree.
-* One commit per component, typed `feat` for new code and `refactor`/`fix`
-  for changes to code existing on the base branch.
+* Folds the fixups on `-review`, then one architecture commit, one commit per
+  component, one functional test commit; typed `feat` for new code and
+  `refactor`/`fix` for changes to code existing on the base branch.
 * Shows one commit at a time and waits for the user.
 
 ## Report
