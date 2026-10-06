@@ -243,6 +243,34 @@ def git_allowed(args, cwd):
     return not losing_work and work_tree(cwd) is not None
 
 
+def sed_read_only(args):
+    """sed that only prints: no in-place edit, no script file, and no script
+    able to write or run (`w`, `W`, `e`, or the `w`/`e` flags of `s`)."""
+    scripts, i = [], 0
+    while i < len(args):
+        arg = args[i]
+        if arg.startswith(("-i", "--in-place", "-f", "--file")) or (re.fullmatch(r"-[a-zA-Z]+", arg) and set(arg[1:]) & {"i", "f"}):
+            return False
+        if arg in ("-e", "--expression") and i + 1 < len(args):
+            scripts.append(args[i + 1])
+            i += 1
+        elif arg.startswith("--expression="):
+            scripts.append(arg.split("=", 1)[1])
+        i += 1
+    if not scripts:
+        positional = [a for a in args if not a.startswith("-")]
+        scripts = positional[:1]
+    if not scripts:
+        return False
+    for script in scripts:
+        bare = re.sub(r"\\.", "", script)
+        bare = re.sub(r"s(.)(?:(?!\1).)*\1(?:(?!\1).)*\1([gpiImM0-9]*)", lambda m: "s" + m.group(2), bare)
+        bare = re.sub(r"/[^/]*/", " ", bare)
+        if re.search(r"[wWe]", bare):
+            return False
+    return True
+
+
 def segment_allowed(words, cwd):
     while words and words[0] in SHELL_PREFIXES:
         words = words[1:]
@@ -284,6 +312,8 @@ def segment_allowed(words, cwd):
         return bool(args) and args[0] in EDGAR_READ_ONLY
     if cmd == "find" and any(a in ("-exec", "-execdir", "-ok", "-okdir") for a in args):
         return False
+    if cmd == "sed":
+        return sed_read_only(args)
     paths = [a for a in args if not a.startswith("-")]
     if cmd == "rm":
         return bool(paths) and all(SUBST not in p and (scratch(resolve(p, cwd)) or tracked(resolve(p, cwd))) for p in paths)
