@@ -152,7 +152,9 @@ The hooks in `copilot/hooks/` keep the agents unattended:
 
 * `auto_approve.py` (`permissionRequest`) approves any shell command, edit or
   file creation whose effects fall inside a git-versioned folder (not
-  git-ignored) or under `/tmp`. Everything else asks. `git push` is always
+  git-ignored) or under `/tmp`, where agents may run anything. Command
+  substitutions (`$(...)`, backticks, `<(...)`) are approved when their own
+  command is. Everything else asks. `git push` is always
   denied, and git commands that discard uncommitted work (`reset --hard`,
   `clean`, `checkout --`, ...) always ask. Set `COPILOT_HOOK_DEBUG=1` to log
   the payloads to `/tmp/copilot-hook-permission.jsonl`.

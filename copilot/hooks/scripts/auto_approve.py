@@ -3,8 +3,9 @@
 
 Rule: an operation is approved when every effect it has falls inside a folder
 versioned with git (a work tree path that is not git-ignored), because git can
-always bring it back. /tmp is the only other approved place (logs, commit
-message files). Anything else, or anything the hook cannot reason about, falls
+always bring it back. /tmp is the other approved place: agents may run and
+write anything there. Command substitutions are approved when their own
+command is. Anything else, or anything the hook cannot reason about, falls
 through to the normal permission prompt. `git push` is always denied, and git
 commands that throw away uncommitted work always ask.
 
@@ -91,25 +92,53 @@ def tracked(path):
 
 
 def writable(path, cwd):
+    if SUBST in path:
+        return False
     path = resolve(path, cwd)
     return scratch(path) or versioned(path)
 
 
 def strip_heredocs(command):
     """Drops heredoc bodies and their `<<MARKER`; the redirect receiving the
-    heredoc (e.g. `cat > /tmp/msg <<EOF`) is still checked."""
-    out, terminator = [], None
+    heredoc (e.g. `cat > /tmp/msg <<EOF`) is still checked. Returns the
+    command and the bodies of unquoted heredocs, where the shell still runs
+    command substitutions."""
+    out, expanded, terminator, quoted = [], [], None, False
     for line in command.split("\n"):
         if terminator is not None:
             if line.strip() == terminator:
                 terminator = None
+            elif not quoted:
+                expanded.append(line)
             continue
-        match = re.search(r"<<-?\s*['\"]?([A-Za-z_][A-Za-z0-9_]*)['\"]?", line)
+        match = re.search(r"<<-?\s*(['\"]?)([A-Za-z_][A-Za-z0-9_]*)['\"]?", line)
         if match:
-            terminator = match.group(1)
+            quoted, terminator = bool(match.group(1)), match.group(2)
             line = line[: match.start()] + line[match.end():]
         out.append(line)
-    return None if terminator is not None else "\n".join(out)
+    if terminator is not None:
+        return None, None
+    return "\n".join(out), "\n".join(expanded)
+
+
+# Stands for the output of a substitution: harmless as an argument, never
+# accepted as a path to write or remove.
+SUBST = "\x00subst"
+SUBSTITUTION = re.compile(r"\$\(([^()`]*)\)|`([^`]*)`|[<>]\(([^()`]*)\)")
+
+
+def without_substitutions(command, cwd):
+    """Replaces each command substitution, innermost first, with SUBST after
+    checking its command; returns None when one is not allowed."""
+    command = re.sub(r"\$\(\([^()]*\)\)", SUBST, command)
+    while True:
+        match = SUBSTITUTION.search(command)
+        if not match:
+            return None if any(s in command for s in ("`", "$(", "<(", ">(")) else command
+        inner = next(g for g in match.groups() if g is not None)
+        if decide_shell(inner, cwd) != ALLOW:
+            return None
+        command = command[: match.start()] + SUBST + command[match.end():]
 
 
 def tokenize(command):
@@ -193,14 +222,14 @@ def segment_allowed(words, cwd):
         return False
     paths = [a for a in args if not a.startswith("-")]
     if cmd == "rm":
-        return bool(paths) and all(scratch(resolve(p, cwd)) or tracked(resolve(p, cwd)) for p in paths)
+        return bool(paths) and all(SUBST not in p and (scratch(resolve(p, cwd)) or tracked(resolve(p, cwd))) for p in paths)
     if cmd in ("cp", "install", "ln"):
         return bool(paths) and writable(paths[-1], cwd)
     if cmd in PATH_ARGS:
         return bool(paths) and all(writable(p, cwd) for p in paths if not re.fullmatch(r"[0-7]{3,4}|[ugoa]*[-+=][rwxXst]*", p))
     # Any other command acts on its working directory: approve it inside a
-    # versioned folder, provided no path argument points outside one.
-    if not versioned(cwd):
+    # versioned folder or /tmp, provided no path argument points outside them.
+    if not (scratch(cwd) or versioned(cwd)):
         return False
     path_like = [a for a in args if a.startswith(("/", "~", "..")) and not a.startswith("//")]
     return all(writable(p, cwd) for p in path_like)
@@ -209,9 +238,12 @@ def segment_allowed(words, cwd):
 def decide_shell(command, cwd):
     if re.search(r"\bgit\b[^;&|\n]*\bpush\b", command):
         return DENY_PUSH
-    if any(s in command for s in ("`", "$(", "<(", ">(")):
+    stripped, expanded = strip_heredocs(command)
+    if stripped is None:
         return FALL_THROUGH
-    stripped = strip_heredocs(command)
+    if expanded and without_substitutions(expanded, cwd) is None:
+        return FALL_THROUGH
+    stripped = without_substitutions(stripped, cwd)
     if stripped is None:
         return FALL_THROUGH
     try:
