@@ -1,6 +1,6 @@
 ---
 name: minime-sync
-description: Mirrors the live Copilot setup in ~/.copilot (agents, skills, hooks, settings, global instructions), the autonomy settings in ~/.bash_copilot and the gutexberg and soong-poll commands into ~/code/minime/copilot/, then records the change as a fixup of the "feat: copilot workflow" commit through gutexberg. Use before a /restart and whenever an agent, skill, hook or setting has changed.
+description: Mirrors the live Copilot setup in ~/.copilot (agents, skills, hooks, settings, global instructions), the autonomy settings in ~/.bash_copilot and the gutexberg and soong-poll commands into ~/code/minime/copilot/, then records the change as a fixup of the copilot workflow feature commit through gutexberg. Use before a /restart and whenever an agent, skill, hook or setting has changed.
 ---
 
 # minime-sync
