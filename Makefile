@@ -71,6 +71,12 @@ copilot-install:
 	@echo "Installed settings: $(COPILOT_HOME)/settings.json"
 	@cp $(COPILOT_SRC_DIR)/copilot-instructions.md $(COPILOT_HOME)/copilot-instructions.md
 	@echo "Installed instructions: $(COPILOT_HOME)/copilot-instructions.md"
+	@if [ -e $(HOME)/.bash_copilot ]; then \
+		echo "Kept autonomy settings: $(HOME)/.bash_copilot"; \
+	else \
+		cp $(COPILOT_SRC_DIR)/bash_copilot $(HOME)/.bash_copilot; \
+		echo "Installed autonomy settings: $(HOME)/.bash_copilot"; \
+	fi
 	@command -v copilot >/dev/null 2>&1 \
 		|| echo "WARNING: copilot CLI not found in PATH (files were installed anyway)."
 	@case ":$$PATH:" in *":$(COPILOT_BIN_DIR):"*) ;; \

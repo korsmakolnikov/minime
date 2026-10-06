@@ -29,6 +29,9 @@ user can follow it with `tail -f`.
 * Pipe every test command through `2>&1 | tee -a /tmp/unclebob.log`, so the
   output streams to the log while it runs. Keep the runner's exit status
   (`set -o pipefail`).
+* Your edits to the code ask the user unless `AUTONOMY_UNCLEBOB=1` in
+  `~/.bash_copilot`; the permission hook decides, so work the same way
+  either way and never route an edit around the prompt.
 
 ## Hard precondition: the tests must run
 

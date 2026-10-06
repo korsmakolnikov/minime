@@ -19,6 +19,12 @@ import re
 import shlex
 import subprocess
 import sys
+import time
+
+AUTONOMY_FILE = os.path.expanduser("~/.bash_copilot")
+SESSIONS = os.path.expanduser("~/.copilot/session-state")
+MINIME = os.path.realpath(os.path.expanduser(os.environ.get("COPILOT_MINIME", "~/code/minime")))
+AGENT_LOOKUP_WAIT = 2.0
 
 FALL_THROUGH = {}
 ALLOW = {"behavior": "allow"}
@@ -219,8 +225,13 @@ def segment_allowed(words, cwd):
     if cmd == "git":
         return git_allowed(args, cwd)
     if cmd == "gutexberg":
-        # Commits always ask: the user reads the message in the prompt.
-        return args[:1] not in (["commit"], ["fixup"], ["amend"]) and versioned(cwd)
+        if args[:1] in (["commit"], ["fixup"], ["amend"]):
+            # Commits ask (the user reads the message in the prompt) unless the
+            # committer is autonomous: soong for the minime mirror, else gutexberg.
+            real = os.path.realpath(cwd)
+            in_minime = real == MINIME or real.startswith(MINIME + os.sep)
+            return versioned(cwd) and autonomy("soong" if in_minime else "gutexberg")
+        return versioned(cwd)
     if cmd == "docker":
         return bool(args) and args[0] in DOCKER_READ_ONLY
     if cmd == "edgar":
@@ -294,11 +305,87 @@ def decide(payload):
     if tool in ("edit", "create", "Edit", "Write") and isinstance(args.get("path"), str):
         return ALLOW if writable(args["path"], cwd) else FALL_THROUGH
     if tool in ("edit", "create") and isinstance(args.get("file_path"), str):
-        # Code edits keep asking the user; only scratch files under /tmp are free.
-        return ALLOW if scratch(resolve(args["file_path"], cwd)) else FALL_THROUGH
+        return decide_edit(payload, args["file_path"], cwd)
     if tool in READ_TOOLS:
         paths = read_paths(args)
         return ALLOW if paths and all(readable(p, cwd) for p in paths) else FALL_THROUGH
+    return FALL_THROUGH
+
+
+def autonomy(agent):
+    """AUTONOMY_<AGENT> from ~/.bash_copilot, read live: True only for 1."""
+    pattern = re.compile(r"^\s*(?:export\s+)?AUTONOMY_%s=['\"]?(\w+)" % agent.upper())
+    try:
+        with open(AUTONOMY_FILE) as config:
+            for line in config:
+                match = pattern.match(line)
+                if match:
+                    return match.group(1) == "1"
+    except OSError:
+        pass
+    return False
+
+
+def session_events(session_id, offset=0):
+    """The events of a session's events.jsonl from offset, and the new offset."""
+    path = os.path.join(SESSIONS, session_id or "-", "events.jsonl")
+    try:
+        with open(path, "rb") as log:
+            log.seek(offset)
+            chunk = log.read()
+    except OSError:
+        return [], offset
+    end = chunk.rfind(b"\n") + 1
+    events = []
+    for line in chunk[:end].splitlines():
+        try:
+            events.append(json.loads(line))
+        except ValueError:
+            continue
+    return events, offset + end
+
+
+def requesting_agent(payload, path, cwd, wait=AGENT_LOOKUP_WAIT):
+    """The agent behind an edit/create request. The payload does not name it, so
+    find the pending tool call on the same file in the session's events.jsonl
+    (it may be logged a little after the hook starts) and follow its parent
+    task call to the agent launched by it; a call without a parent belongs to
+    the session's main agent. None when it cannot be told."""
+    session_id = payload.get("sessionId") or payload.get("session_id")
+    names, pending, main_agent, offset = {}, {}, None, 0
+    deadline = time.monotonic() + wait
+    while True:
+        events, offset = session_events(session_id, offset)
+        for event in events:
+            etype, data = event.get("type"), event.get("data") or {}
+            if etype == "subagent.selected" and main_agent is None:
+                main_agent = data.get("agentName")
+            elif etype == "subagent.started":
+                names[data.get("toolCallId")] = data.get("agentName")
+            elif etype == "tool.execution_start" and data.get("toolName") in ("edit", "create"):
+                target = (data.get("arguments") or {}).get("path")
+                if isinstance(target, str) and resolve(target, cwd) == path:
+                    pending[data.get("toolCallId")] = data.get("parentToolCallId")
+            elif etype == "tool.execution_complete":
+                pending.pop(data.get("toolCallId"), None)
+        if pending:
+            parent = list(pending.values())[-1]
+            return names.get(parent) if parent else main_agent
+        if time.monotonic() >= deadline:
+            return None
+        time.sleep(0.1)
+
+
+def decide_edit(payload, file_path, cwd):
+    path = resolve(file_path, cwd)
+    if scratch(path):
+        return ALLOW
+    real = os.path.realpath(path)
+    if any(real.startswith(root + os.sep) for root in READABLE_ROOTS) and autonomy("soong"):
+        return ALLOW
+    if writable(path, cwd) and autonomy("unclebob") and requesting_agent(payload, path, cwd) == "unclebob":
+        return ALLOW
+    # Everything else, code edits first of all, asks the user.
     return FALL_THROUGH
 
 

@@ -154,7 +154,8 @@ The hooks in `copilot/hooks/` keep the agents unattended:
 * `auto_approve.py` (`permissionRequest`) approves any shell command whose
   effects fall inside a git-versioned folder (not git-ignored) or under
   `/tmp`, where agents may run anything. Edits and file creations are approved
-  only under `/tmp`: code edits always reach the user. Command
+  only under `/tmp`: code edits reach the user unless an autonomy setting
+  says otherwise (below). Command
   substitutions (`$(...)`, backticks, `<(...)`) are approved when their own
   command is. Reads (`view`, `grep`, `glob`) of `~/.copilot/agents`,
   `~/.copilot/skills` and `/tmp` are approved, so agents can read the agents
@@ -167,5 +168,16 @@ The hooks in `copilot/hooks/` keep the agents unattended:
   agent finishes. The popup fires only if the permission prompt or `ask_user`
   is still unanswered after `COPILOT_NOTIFY_DELAY` seconds (default 2), read
   from the session's `events.jsonl`.
+
+`~/.bash_copilot` (installed from `copilot/bash_copilot` only when missing)
+sets how much each agent may do without asking, read live by the hook and
+the agents. `0` asks, `1` proceeds:
+
+* `AUTONOMY_GUTEXBERG`: `gutexberg commit`, `fixup` and `amend`.
+* `AUTONOMY_UNCLEBOB`: unclebob's code edits. The hook tells the agent behind
+  an edit by finding the pending tool call on that file in the session's
+  `events.jsonl` and following it to the task that launched the agent.
+* `AUTONOMY_SOONG`: soong applies its fixes without proposing them, edits
+  agent and skill files and commits the minime mirror without prompting.
 
 `COPILOT_HOME` and `COPILOT_BIN_DIR` can be overridden on the `make` command line.

@@ -25,7 +25,8 @@ it in permission prompts and must know which agent is asking.
   `~/.copilot/skills/`, then their mirror in `~/code/minime/copilot/`. Never
   the project's code, never `.adl/`, never the hooks, settings or
   instructions without the user asking explicitly.
-* No change without the user's approval of its exact wording.
+* No change without the user's approval of its exact wording, unless
+  `AUTONOMY_SOONG=1` (see "Autonomy").
 * You never talk to the workflow agents and never launch agents.
 * Never write to `/tmp/joshua-violations.md`; it belongs to joshua.
 * Your only other write is the restart signal in `/tmp/soong-corrections.log`
@@ -44,6 +45,9 @@ it in permission prompts and must know which agent is asking.
   asks the user to `/restart` and writes `restart=false`.
 
 ## Loop
+
+Start the loop at step 1 as soon as the session starts, without waiting for
+the user to ask.
 
 1. **Poll.** Run `cd /tmp && soong-poll 600` with `initial_wait: 620`. It
    prints the new ids as soon as joshua logs any, or nothing after ten
@@ -76,6 +80,16 @@ it in permission prompts and must know which agent is asking.
    the user to `/restart` at its next checkpoint. Tell the user, in one or two
    lines, what changed and that mortimer will ask for the restart. Then go
    back to step 1.
+
+## Autonomy
+
+Before every proposal, read `grep '^export AUTONOMY_SOONG=' ~/.bash_copilot`.
+With 0, or no such line, propose with `ask_user` as in step 4. With 1, do not
+ask: apply the wording you would have proposed, or nothing when you judge no
+change is needed, and print one line per group in your console:
+`✎ soong: <ids> — <file>: <the change in one sentence>` (or
+`no change: <reason>`). The permission hook then approves your edits to agent
+and skill files and your mirror commits in minime without prompting.
 
 ## Notes
 
