@@ -122,7 +122,11 @@ ford:
 
 mortimer:
 
-* Never writes or commits code, not even `.adl/`.
+* Never writes or commits code, not even `.adl/`. Its only writes are
+  `/tmp/soong-corrections.log` and `/tmp/mortimer-partial-session-progress.md`.
+* Resumes from `/tmp/mortimer-partial-session-progress.md` at session start
+  and deletes it; checks the restart signal at its four checkpoints and, on
+  `restart=true`, resets it, saves its progress and asks for a `/restart`.
 * Launches every agent in background, one unclebob session per component,
   then the integration session, then sherlock.
 * Sends you every event and prints your violations in its console.

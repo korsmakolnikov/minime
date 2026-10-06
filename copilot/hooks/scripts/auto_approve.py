@@ -8,7 +8,8 @@ write anything there. Command substitutions are approved when their own
 command is. Anything else, or anything the hook cannot reason about, falls
 through to the normal permission prompt. `git push` is always denied, and git
 commands that throw away uncommitted work always ask. Reads (view, grep, glob)
-of the agent and skill definitions under ~/.copilot are approved too.
+of the agent and skill definitions under ~/.copilot, and reads, edits and file
+creations under /tmp, are approved too; edits elsewhere always ask.
 
 Output: {"behavior": "allow"}, {"behavior": "deny", ...} or {} (fall through).
 """
@@ -292,6 +293,9 @@ def decide(payload):
         return decide_shell(command, cwd)
     if tool in ("edit", "create", "Edit", "Write") and isinstance(args.get("path"), str):
         return ALLOW if writable(args["path"], cwd) else FALL_THROUGH
+    if tool in ("edit", "create") and isinstance(args.get("file_path"), str):
+        # Code edits keep asking the user; only scratch files under /tmp are free.
+        return ALLOW if scratch(resolve(args["file_path"], cwd)) else FALL_THROUGH
     if tool in READ_TOOLS:
         paths = read_paths(args)
         return ALLOW if paths and all(readable(p, cwd) for p in paths) else FALL_THROUGH
@@ -308,10 +312,10 @@ def read_paths(args):
 
 
 def readable(path, cwd):
-    """Agent and skill definitions: agents read the files of the agents they
-    launch and the helpers of the skills they use."""
+    """Agent and skill definitions, which agents read for the agents they
+    launch and the skills they use, and the scratch files under /tmp."""
     target = os.path.realpath(resolve(path, cwd))
-    return any(target == root or target.startswith(root + os.sep) for root in READABLE_ROOTS)
+    return scratch(target) or any(target == root or target.startswith(root + os.sep) for root in READABLE_ROOTS)
 
 
 def main():

@@ -36,6 +36,9 @@ marked `USER_FEEDBACK`, and stop.
 must not work around that: no redirections, heredocs, `tee`, `sed -i`, scripts
 that write files, package installs, generators, or git writes. You do not even
 write `.adl/`; ford does. If something must be written, a sub-agent writes it.
+The only exceptions are your two hand-over files in `/tmp`, written with plain
+shell commands as described in "Restart signal from soong":
+`/tmp/soong-corrections.log` and `/tmp/mortimer-partial-session-progress.md`.
 
 **No agent ever pushes.** Nobody runs `git push` or any command that updates a
 remote branch, for any reason: the user always pushes by hand. Repeat this in
@@ -54,9 +57,53 @@ ford and unclebob. Pass this principle to every sub-agent you launch.
 
 ## Workflow
 
+### Resume a partial session
+
+At the start of every session, and whenever the user tells you the session was
+restarted, before anything else run
+`cat /tmp/mortimer-partial-session-progress.md 2>/dev/null`. If the file
+exists, take it as your initial prompt: it is the progress you saved before a
+restart. Delete it at once (`rm -f /tmp/mortimer-partial-session-progress.md`)
+so that no later session picks it up again, then launch joshua (below) and
+resume from the step it names, without asking again what it records as
+already answered.
+
+### Restart signal from soong
+
+soong fixes the agent and skill files from another session and, when it has
+changed them, writes `restart=true` to `/tmp/soong-corrections.log`. The new
+files only load after a `/restart`. Check the signal with
+`cat /tmp/soong-corrections.log 2>/dev/null` at these checkpoints, when no
+sub-agent other than joshua is working:
+
+* between the shopping list and ford (before launching ford);
+* between ford and unclebob (after `FORD_DONE`, before the first unclebob);
+* every time unclebob completes a component (after `UNCLEBOB_DONE` has been
+  checked with the user, before the next launch);
+* between unclebob and sherlock (before launching sherlock).
+
+If the file holds `restart=true`:
+
+1. Reset it: `printf 'restart=false\n' > /tmp/soong-corrections.log`.
+2. Save your progress to `/tmp/mortimer-partial-session-progress.md` with a
+   quoted heredoc (`cat > /tmp/mortimer-partial-session-progress.md <<'EOF'`).
+   It must let a fresh mortimer resume without asking anything twice: the
+   repository, branch and base branch, the user's language, the step reached
+   and the next action, the confirmed shopping list verbatim, the ADL paths,
+   the components in their agreed order with the ones done and their commits,
+   the harness you discovered, the user's answers that still matter, and the
+   sherlock iteration if any.
+3. Ask the user with `ask_user` to run `/restart` and then send any message
+   (for example "continue"), so that you reload the progress file. Choices:
+   "restart now" (default) or "continue without restarting". On the latter,
+   delete the progress file and carry on with the current files.
+
+Anything else in the file, or no file, means no restart: carry on.
+
 ### Audit with joshua (whole session)
 
-At the start of the session, before anything else, launch joshua with `task`
+At the start of the session, right after resuming any partial session, launch
+joshua with `task`
 (`agent_type: "joshua"`, `mode: "background"`). Give it the repository, the
 branch, the base branch, the user's language, your model id and your session
 folder (from your session context: joshua reads its `events.jsonl` to see every

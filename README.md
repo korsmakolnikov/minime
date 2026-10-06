@@ -114,7 +114,7 @@ Agents and skills for the [GitHub Copilot CLI](https://docs.github.com/copilot/h
 | `unclebob` | Implements the internals test-first, one red test at a time. Refuses to work when the tests cannot run. Treats `ford`'s interfaces as a contract. |
 | `gutexberg` | The only actor that writes to git: Conventional Commits, fixups bounded to the branch, Copilot co-author trailer naming the model. Uses the `gutexberg` command in `copilot/bin/`. |
 | `sherlock` | Reviewer. Audits that the branch was built test-first, squashes it into one commit per component on `<branch>-review`, then walks the user through each commit; requested changes go back to the original branch. |
-| `soong` | Maintainer of the agent files, run in its own session (`copilot --agent soong`). Polls the violations `joshua` logs in `/tmp/joshua-violations.md` (with the `soong-poll` command in `copilot/bin/`), proposes a fix to the agent and skill files for each, applies the approved ones and mirrors them here. |
+| `soong` | Maintainer of the agent files, run in its own session (`copilot --agent soong`). Polls the violations `joshua` logs in `/tmp/joshua-violations.md` (with the `soong-poll` command in `copilot/bin/`), proposes a fix to the agent and skill files for each, applies the approved ones and mirrors them here, then writes `restart=true` to `/tmp/soong-corrections.log`. At its checkpoints (before ford, before unclebob, after each component, before sherlock) `mortimer` reads that signal, saves its progress to `/tmp/mortimer-partial-session-progress.md` and asks for a `/restart`; on the next start it resumes from that file and deletes it. |
 
 | Skill | Role |
 |-------|------|
@@ -151,13 +151,14 @@ make copilot-install   # installs or overwrites agents, skills and hooks in ~/.c
 
 The hooks in `copilot/hooks/` keep the agents unattended:
 
-* `auto_approve.py` (`permissionRequest`) approves any shell command, edit or
-  file creation whose effects fall inside a git-versioned folder (not
-  git-ignored) or under `/tmp`, where agents may run anything. Command
+* `auto_approve.py` (`permissionRequest`) approves any shell command whose
+  effects fall inside a git-versioned folder (not git-ignored) or under
+  `/tmp`, where agents may run anything. Edits and file creations are approved
+  only under `/tmp`: code edits always reach the user. Command
   substitutions (`$(...)`, backticks, `<(...)`) are approved when their own
-  command is. Reads (`view`, `grep`, `glob`) of `~/.copilot/agents` and
-  `~/.copilot/skills` are approved, so agents can read the agents they launch
-  and the skills they use. Everything else asks. `git push` is always
+  command is. Reads (`view`, `grep`, `glob`) of `~/.copilot/agents`,
+  `~/.copilot/skills` and `/tmp` are approved, so agents can read the agents
+  they launch and the skills they use. Everything else asks. `git push` is always
   denied, and git commands that discard uncommitted work (`reset --hard`,
   `clean`, `checkout --`, ...) always ask. Set `COPILOT_HOOK_DEBUG=1` to log
   the payloads to `/tmp/copilot-hook-permission.jsonl`.

@@ -28,6 +28,8 @@ it in permission prompts and must know which agent is asking.
 * No change without the user's approval of its exact wording.
 * You never talk to the workflow agents and never launch agents.
 * Never write to `/tmp/joshua-violations.md`; it belongs to joshua.
+* Your only other write is the restart signal in `/tmp/soong-corrections.log`
+  (step 7).
 
 ## Files
 
@@ -37,6 +39,9 @@ it in permission prompts and must know which agent is asking.
   gap) and a suggested fix.
 * `/tmp/soong-handled.txt`: the ids you have handled, one per line. Append
   an id once the user has decided on it, whatever the decision.
+* `/tmp/soong-corrections.log`: the restart signal for mortimer. You write
+  `restart=true`; mortimer reads it at its checkpoints, saves its progress,
+  asks the user to `/restart` and writes `restart=false`.
 
 ## Loop
 
@@ -66,8 +71,10 @@ it in permission prompts and must know which agent is asking.
 6. **Mirror.** When there is no other pending entry, load the `minime-sync`
    skill and follow it: it copies `~/.copilot` into minime and records the
    change as a fixup through gutexberg.
-7. Tell the user, in one or two lines, what changed and that it takes effect
-   for agents launched after a `/restart` of the workflow session. Then go
+7. **Signal.** If an agent or skill file changed, run
+   `printf 'restart=true\n' > /tmp/soong-corrections.log`, so mortimer asks
+   the user to `/restart` at its next checkpoint. Tell the user, in one or two
+   lines, what changed and that mortimer will ask for the restart. Then go
    back to step 1.
 
 ## Notes
