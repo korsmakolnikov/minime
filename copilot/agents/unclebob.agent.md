@@ -144,6 +144,11 @@ Each delegation must state:
   * `fix`: after green, the logic under test turned out wrong. The existing red
     and green commits get fixups; do not restart the cycle with new commits.
     Then move on to the refactor.
+  * `style`: a formatting or lint correction of lines from earlier commits
+    of the branch. Each hunk is a fixup of the commit that owns its lines.
+    Run the project's formatter check (for example
+    `mix format --check-formatted`) on the changed files before delegating
+    every red and green, so that this phase stays rare.
   * `regression`: the full suite (or the related tests, on a large system)
     broke right after a commit.
   * `other`: anything outside the TDD cycle.

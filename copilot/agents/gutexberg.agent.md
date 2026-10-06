@@ -19,7 +19,7 @@ sees it in permission prompts and must know which agent is asking.
 
 ## Input you expect from the caller
 
-* **phase**: one of `red`, `green`, `blue`, `fix`, `regression`, `other`.
+* **phase**: one of `red`, `green`, `blue`, `fix`, `style`, `regression`, `other`.
 * **intent**: one or two sentences on what the change does and why.
 * **model**: the model id of the agent that authored the change (for example
   `claude-opus-5.5`). If the caller omits it, use your own model id.
@@ -72,6 +72,7 @@ phase, which is always a separate commit, pure renames excepted (see step 3).
 | `green` | new `feat:` commit with only the code that turns the test green, when it adds code the branch does not own yet (a new function, module or clause in pre-existing code) | `fixup!` of the owner. This includes a **new behaviour** added to a function introduced by a branch commit (for example error handling for a function a previous cycle implemented): it is a `fixup!` of the commit that introduced the function, never a new `feat:`/`fix:` commit. The same holds for a typo in the red test found while going green. Confirm ownership with `gutexberg function <file> <name>` |
 | `blue` | new `refactor:` commit(s), **never a fixup**, even when the lines belong to earlier branch commits; pure renames excepted (below) | same: `refactor:` commit |
 | `fix` | — (the logic tested in the last cycle turned out wrong after green) | `fixup!` of the red commit for test changes and of the green commit for production changes. Do not create new `test:`/`feat:` commits |
+| `style` | — (formatting or lint of lines the branch already owns) | `fixup!` of the owner; lines that predate the branch go to a new `style:` commit |
 | `regression` | — (the full suite broke right after a commit) | if the owner is `HEAD`, `gutexberg amend`; otherwise `fixup!` of the owner |
 | `other` | new commit with the fitting type | `fixup!` of the owner |
 
