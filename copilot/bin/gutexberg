@@ -259,6 +259,9 @@ fixup)
   fi
   stage_paths "${PATHS[@]}"
   require_staged
+  outside=$(comm -23 <(git diff --cached --name-only | sort) \
+    <(git diff-tree --no-commit-id --name-only -r "$target" | sort))
+  [ -z "$outside" ] || die "These staged files are not in $target, so they cannot be a fixup of it: $outside"
   body=$(strip_existing_trailer "$MSG_FILE" | grep -v '^fixup! ' | sed -e '/./,$!d')
   [ -n "$(tr -d '[:space:]' <<<"$body")" ] || die "The fixup needs a body explaining the correction."
   git commit -q --fixup="$(git rev-parse --short "$target")" -m "$body" -m "$(trailer)"

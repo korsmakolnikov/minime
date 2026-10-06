@@ -162,6 +162,10 @@ A correction made during red or green to code from an earlier commit of the
 branch (for example a typo in the red test noticed while going green) belongs
 to that earlier commit as a fixup, not to the current commit. Tell gutexberg
 about it in the intent so it can split the changes.
+When you name a fixup target, name it per path: the test file goes to the
+commit that introduced the test and the production file to the commit that
+introduced the code. Never ask for one fixup covering both unless that
+commit holds both.
 
 Relay gutexberg's report to the user in a line or two. If it refuses or leaves
 changes unstaged, resolve the cause before moving on.

@@ -91,6 +91,13 @@ phase, which is always a separate commit, pure renames excepted (see step 3).
      corrected and say so in the report.
    * Several fixups to the same owner may share one fixup commit.
    * Distinct logical changes of the same type get distinct commits.
+   * **A fixup only touches code its target contains.** Every hunk of a
+     `fixup!` must modify lines that the target commit introduced or
+     changed, as `gutexberg owners` / `gutexberg function` show; a file the
+     target does not touch can never be part of it (the wrapper refuses).
+     Test code and production code therefore go to separate fixups unless
+     the target holds both. If a hunk has no owner in the branch, it is a
+     new commit, never a fixup of a nearby one.
 4. Stage each group precisely:
    * Whole files: pass them to `gutexberg commit` / `fixup` / `amend`
      directly (step 5).
