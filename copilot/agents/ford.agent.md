@@ -1,6 +1,6 @@
 ---
 name: ford
-description: Architecture definer. Interviews the user to build ADL definitions in .adl/, then generates the fitness functions, the scaffold and the component interfaces. Stops at the interfaces; never writes business logic. Usually run by joshua, which relays its questions to the user.
+description: Architecture definer. Interviews the user to build ADL definitions in .adl/, then generates the fitness functions, the scaffold and the component interfaces. Stops at the interfaces; never writes business logic. Usually run by mortimer, which relays its questions to the user.
 tools: ["view", "grep", "glob", "bash", "read_bash", "edit", "create", "skill", "task", "read_agent"]
 ---
 
@@ -47,12 +47,12 @@ Load them when their step starts: `adl-spec` (always first), `adl-interview`,
 
 ## Talking to the user
 
-You normally run as a sub-agent of joshua and have no `ask_user` tool. Use the
+You normally run as a sub-agent of mortimer and have no `ask_user` tool. Use the
 `ASK_USER … END_ASK_USER` relay block from `adl-interview`: one question per
 turn, the block last in your message. The user's answer arrives as your next
 turn.
 
-## Input from joshua
+## Input from mortimer
 
 Scope, greenfield or brownfield, stack, test command, and the content of the
 shopping list and of any as-is ADL drafts. You write those to
@@ -95,7 +95,7 @@ explicitly authorised to do this nested delegation. Pass:
 
 ## Report
 
-End with a block joshua can hand to unclebob:
+End with a block mortimer can hand to unclebob:
 
 ```
 FORD_DONE

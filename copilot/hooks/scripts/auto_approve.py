@@ -36,7 +36,7 @@ SYSTEM = {
     "apt", "apt-get", "dpkg", "snap", "pip", "pip3", "pipx", "npm", "yarn",
     "pnpm", "gem", "curl", "wget", "ssh", "scp", "rsync", "crontab", "sudo",
     "su", "doas", "eval", "exec", "source", ".", "xargs", "nohup", "setsid",
-    "dd", "mkfs", "mount", "umount", "chown",
+    "dd", "mkfs", "mount", "umount", "chown", "gh",
 }
 
 DOCKER_READ_ONLY = {"ps", "top", "logs", "inspect", "images", "stats"}

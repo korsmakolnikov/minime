@@ -70,7 +70,7 @@ committed** (the user ignores it globally). Never stage it.
 
 ```
 .adl/
-  shopping-list.md        preliminary findings gathered by joshua
+  shopping-list.md        preliminary findings gathered by mortimer
   system.adl              SYSTEM and its DOMAINS / SERVICES
   <domain>.adl            one file per domain
   <domain>.<subdomain>.adl

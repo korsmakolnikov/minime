@@ -108,10 +108,12 @@ Agents and skills for the [GitHub Copilot CLI](https://docs.github.com/copilot/h
 
 | Agent | Role |
 |-------|------|
-| `joshua` | Orchestrator. Studies the code, gathers the preliminary findings, runs `ford`, then `unclebob` one component at a time, and relays their questions to the user. Never writes code or commits. |
+| `mortimer` | Orchestrator, run as the main agent. Studies the code, gathers the preliminary findings, runs `ford`, then `unclebob` one component at a time, then `sherlock`, relays their questions to the user and keeps `joshua` informed. Never writes code or commits. |
+| `joshua` | Auditor. Runs in background beside `mortimer` for the whole session and checks every agent against its file and launch prompt. Read-only: reports violations, never fixes them. |
 | `ford` | Interviews the user to write the ADL, then generates fitness functions, scaffold and component interfaces. No business logic. |
-| `unclebob` | Implements the internals test-first. Refuses to work when the tests cannot run. Treats `ford`'s interfaces as a contract. |
+| `unclebob` | Implements the internals test-first, one red test at a time. Refuses to work when the tests cannot run. Treats `ford`'s interfaces as a contract. |
 | `gutexberg` | The only actor that writes to git: Conventional Commits, fixups bounded to the branch, Copilot co-author trailer naming the model. Uses the `gutexberg` command in `copilot/bin/`. |
+| `sherlock` | Reviewer. Audits that the branch was built test-first, squashes it into one commit per component on `<branch>-review`, then walks the user through each commit; requested changes go back to the original branch. |
 
 | Skill | Role |
 |-------|------|
@@ -121,7 +123,9 @@ Agents and skills for the [GitHub Copilot CLI](https://docs.github.com/copilot/h
 | `adl-scaffold` | Namespaces and interfaces, without logic. |
 | `adl-reverse` | As-is ADL drafts from the dependency graph of existing code. |
 
-Start with `copilot --agent joshua` (or `copilot --agent unclebob` for a plain TDD session).
+Start with `copilot --agent mortimer` (or `copilot --agent unclebob` for a plain TDD session).
+
+`copilot/copilot-instructions.md` holds the rules every agent follows; above all, no agent ever pushes.
 
 # Installation
 
@@ -139,7 +143,8 @@ For the Copilot workflow:
 
 ```sh
 make copilot-install   # installs or overwrites agents, skills and hooks in ~/.copilot/,
-                       # settings in ~/.copilot/settings.json and gutexberg in ~/.local/bin/
+                       # settings and copilot-instructions.md in ~/.copilot/
+                       # and gutexberg in ~/.local/bin/
 ```
 
 The hooks in `copilot/hooks/` keep the agents unattended:

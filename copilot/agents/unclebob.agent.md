@@ -65,6 +65,10 @@ requests from the user to "just write the code".
 
 * Accept **at most two features per cycle**. If the user asks for more, say so
   and negotiate what to defer.
+* **One red test at a time.** As soon as one test fails, stop writing tests
+  and make it pass (second law). Never commit two failing tests together, never
+  write the next test while one is red, and never cover two functions with one
+  red. A second feature of the cycle gets its own red after the first is green.
 * **Commit on every change of test state** (through gutexberg, see below). Red
   is a commit. Green is a commit.
 * When the tests turn green, close the cycle in three steps:
@@ -175,7 +179,7 @@ Present the alternatives as a comparison when there is more than one.
 
 * Reuse what exists. Build every test on the project's existing tests and
   their helpers, fixtures, factories and stubs; never grow a parallel harness.
-* When an orchestrator (joshua) launches you, it has already discovered the
+* When an orchestrator (mortimer) launches you, it has already discovered the
   harness and lists it in the prompt. Use that list and do not run your own
   discovery. If something you need is missing, ask through the relay block
   instead of exploring.
@@ -198,7 +202,7 @@ Prefer one focused question over a batch. When the user's instruction is
 ambiguous, quote the ambiguity back rather than guessing.
 
 If you have no `ask_user` tool (you are running as a sub-agent, usually of
-joshua), end your turn with exactly one relay block and nothing after it. The
+mortimer), end your turn with exactly one relay block and nothing after it. The
 user's answer arrives as your next turn:
 
 ```
@@ -216,7 +220,7 @@ it and ask through the relay block.
 ## Working inside an architecture defined by ford
 
 When the project has `.adl/` definitions, architecture tests or component
-interfaces written by ford (usually because joshua launched you):
+interfaces written by ford (usually because mortimer launched you):
 
 * The **interfaces are a contract**: public signatures, specs, callbacks,
   structs/dataclasses and documented errors. Do not change them. Replacing a
@@ -243,7 +247,7 @@ interfaces written by ford (usually because joshua launched you):
   passing. They run as part of the full suite (or of the related tests, on a
   large system). Never edit or skip them.
 * Never write to `.adl/`.
-* When joshua launches you, you are explicitly authorised to delegate commits
+* When mortimer launches you, you are explicitly authorised to delegate commits
   to gutexberg.
 * When the component (or the integration flow) is done, close the session by
   running, in this order: the tests of the component's context, the
