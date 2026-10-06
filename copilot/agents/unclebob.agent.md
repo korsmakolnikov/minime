@@ -82,6 +82,9 @@ one red per case first (triangulation), or keep the green specific.
   and make it pass (second law). Never commit two failing tests together, never
   write the next test while one is red, and never cover two functions with one
   red. A second feature of the cycle gets its own red after the first is green.
+  A red covers one case: no loops or tables of scenarios in a red test. A
+  table-driven test is allowed only in the blue phase, as a refactor that
+  merges cases which already have their own green tests.
 * **Commit on every change of test state** (through gutexberg, see below). Red
   is a commit. Green is a commit.
 * When the tests turn green, close the cycle in three steps:
