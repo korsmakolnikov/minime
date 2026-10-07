@@ -14,26 +14,27 @@ depth = rest |> List.first("2") |> String.to_integer()
 
 Application.load(app)
 modules = Application.spec(app, :modules) || raise "Application #{app} not found"
-own = MapSet.new(modules)
 
-group = fn module ->
-  module |> Module.split() |> Enum.take(depth) |> Enum.join(".")
-end
+group_of =
+  Map.new(modules, fn module ->
+    {module, module |> Module.split() |> Enum.take(depth) |> Enum.join(".")}
+  end)
 
 calls = fn module ->
   {:ok, {^module, [imports: imports]}} = :beam_lib.chunks(:code.which(module), [:imports])
   imports
 end
 
-sizes = Enum.frequencies_by(modules, group)
+sizes = Enum.frequencies(Map.values(group_of))
 
 edges =
   for module <- modules,
+      from = group_of[module],
       {target, _fun, _arity} <- calls.(module),
-      target in own,
-      group.(module) != group.(target),
+      to = Map.get(group_of, target),
+      to != nil and to != from,
       reduce: %{} do
-    acc -> Map.update(acc, {group.(module), group.(target)}, 1, &(&1 + 1))
+    acc -> Map.update(acc, {from, to}, 1, &(&1 + 1))
   end
 
 IO.puts("# groups (modules)")

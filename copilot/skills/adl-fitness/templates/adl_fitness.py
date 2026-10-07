@@ -11,7 +11,7 @@ tool such as ``import-linter`` in the ADL ``REQUIRES`` clause when that matters.
 from __future__ import annotations
 
 import ast
-from collections.abc import Iterable, Iterator
+from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -41,7 +41,11 @@ def modules(source_root: Path | str, package: str) -> list[Module]:
 
 
 def modules_within(source_root: Path | str, package: str, namespace: str) -> list[Module]:
-    return [m for m in modules(source_root, package) if within(m.name, namespace)]
+    return _filter_within(modules(source_root, package), namespace)
+
+
+def _filter_within(found: Iterable[Module], namespace: str) -> list[Module]:
+    return [m for m in found if within(m.name, namespace)]
 
 
 def _resolve_relative(module: Module, level: int, target: str | None) -> str:
@@ -77,8 +81,9 @@ def _wrap(value: str | Iterable[str]) -> list[str]:
 
 def assert_defined(source_root: Path | str, package: str, namespaces: str | Iterable[str]) -> None:
     """Guard against vacuous passes: each namespace must contain a module."""
+    found = modules(source_root, package)
     for namespace in _wrap(namespaces):
-        assert modules_within(source_root, package, namespace), (
+        assert _filter_within(found, namespace), (
             f"ADL artifact {namespace!r} has no modules in {package!r}."
         )
 
@@ -100,22 +105,21 @@ def assert_only_within(
     assert not strays, f"Modules outside {namespaces}: {strays}"
 
 
-def _violations(
-    source_root: Path | str, package: str, origin: str, targets: list[str]
-) -> Iterator[tuple[str, str]]:
-    for module in modules_within(source_root, package, origin):
-        for dependency in sorted(dependencies(module)):
-            if any(within(dependency, t) for t in targets):
-                yield module.name, dependency
+def _refute_dependency(found: list[Module], origin: str, targets: list[str]) -> None:
+    violations = [
+        (module.name, dependency)
+        for module in _filter_within(found, origin)
+        for dependency in sorted(dependencies(module))
+        if any(within(dependency, t) for t in targets)
+    ]
+    assert not violations, f"{origin} depends on {targets}: {violations}"
 
 
 def assert_no_dependency(
     source_root: Path | str, package: str, origin: str, targets: str | Iterable[str]
 ) -> None:
     """ASSERT(<origin> has NO DEPENDENCY on {<targets>})."""
-    targets = _wrap(targets)
-    violations = list(_violations(source_root, package, origin, targets))
-    assert not violations, f"{origin} depends on {targets}: {violations}"
+    _refute_dependency(modules(source_root, package), origin, _wrap(targets))
 
 
 def assert_mutually_independent(
@@ -123,7 +127,6 @@ def assert_mutually_independent(
 ) -> None:
     """ASSERT(<each> has NO DEPENDENCY on other <siblings>), pairwise."""
     namespaces = list(namespaces)
+    found = modules(source_root, package)
     for origin in namespaces:
-        assert_no_dependency(
-            source_root, package, origin, [n for n in namespaces if n != origin]
-        )
+        _refute_dependency(found, origin, [n for n in namespaces if n != origin])

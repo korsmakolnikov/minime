@@ -99,8 +99,14 @@ base_ref() {
   die "Cannot find a base branch. Set GUTEXBERG_BASE or 'git config gutexberg.base'."
 }
 
-base() {
-  git merge-base "$(base_ref)" HEAD
+# Sets BASE once: the merge-base does not move while the branch grows.
+load_base() {
+  [ -n "${BASE:-}" ] || BASE=$(git merge-base "$(base_ref)" HEAD)
+}
+
+# True when the commit lies in <base>..HEAD.
+in_branch() {
+  git merge-base --is-ancestor "$1" HEAD && ! git merge-base --is-ancestor "$1" "$BASE"
 }
 
 current_branch_guard() {
@@ -112,37 +118,38 @@ current_branch_guard() {
   esac
 }
 
-phase_log() {
-  local dir
-  dir="$(git rev-parse --git-common-dir)/gutexberg"
-  mkdir -p "$dir"
-  echo "$dir/phases"
-}
-
 phase_of() {
-  awk -v s="$1" '$1 == s { p = $2 } END { print p }' "$(phase_log)" 2>/dev/null || true
+  awk -v s="$1" '$1 == s { p = $2 } END { print p }' "$PHASE_LOG" 2>/dev/null || true
 }
 
 record_phase() {
-  echo "$(git rev-parse HEAD) $1" >>"$(phase_log)"
+  mkdir -p "${PHASE_LOG%/*}"
+  echo "$(git rev-parse HEAD) $1" >>"$PHASE_LOG"
+}
+
+# One line per commit of <range>, newest first: "<sha> <short> <phase> <subject>",
+# with "-" for a commit whose phase was never recorded. Two processes in all,
+# whatever the length of the range.
+log_with_phases() {
+  git log --format='%H %h %s' "$1" |
+    awk -v plog="$PHASE_LOG" '
+      BEGIN { while ((getline line < plog) > 0) { split(line, f, " "); p[f[1]] = f[2] } }
+      { sha = $1; short = $2; sub(/^[^ ]+ [^ ]+ /, ""); print sha, short, (sha in p ? p[sha] : "-"), $0 }'
 }
 
 # The scope of a Conventional Commits subject, empty when it has none.
 subject_scope() {
-  sed -nE "s/^($TYPES)\(([^)]*)\)!?: .*/\2/p" <<<"$1"
+  if [[ "$1" =~ ^($TYPES)\(([^\)]*)\)!?:\  ]]; then echo "${BASH_REMATCH[2]}"; fi
 }
 
 # The phase of the newest cycle commit since the last squashed unit, or "none".
 last_cycle_phase() {
-  local sha phase
-  for sha in $(git rev-list "$(base)..HEAD"); do
-    phase=$(phase_of "$sha")
-    case "$phase" in
-    red | green | refactor | regression | characterisation) echo "$phase"; return ;;
-    unit) break ;;
-    esac
-  done
-  echo none
+  load_base
+  log_with_phases "$BASE..HEAD" | awk '
+    stop { next }
+    $3 ~ /^(red|green|refactor|regression|characterisation)$/ { phase = $3; stop = 1; next }
+    $3 == "unit" { stop = 1 }
+    END { print (phase == "" ? "none" : phase) }'
 }
 
 allowed_after() {
@@ -223,14 +230,22 @@ parse_commit_args() {
   done
   [ -n "$PHASE" ] || die "The phase is missing: pass --phase <phase> ($PHASES)."
   [[ " $PHASES " == *" $PHASE "* ]] || die "Unknown phase '$PHASE'. Phases: $PHASES."
+  resolve_model
+  [ "$CMD" != commit ] || read_message
+}
+
+resolve_model() {
   MODEL="${MODEL:-${GUTEXBERG_MODEL:-$(default_model)}}"
   [ -n "$MODEL" ] || die "No model: pass --model <id>, set GUTEXBERG_MODEL or a model in settings.json."
-  if [ -z "$MSG_FILE" ] && [ "$CMD" = commit ]; then
-    [ -t 0 ] && die "The message is missing: pass it on stdin (heredoc) or with -F <file>."
-    MSG_FILE=$(mktemp)
-    trap 'rm -f "$MSG_FILE"' EXIT
-    cat >"$MSG_FILE"
-  fi
+}
+
+# Reads the message from stdin into a temporary MSG_FILE, unless -F gave one.
+read_message() {
+  [ -z "$MSG_FILE" ] || return 0
+  [ -t 0 ] && die "The message is missing: pass it on stdin (heredoc) or with -F <file>."
+  MSG_FILE=$(mktemp)
+  trap 'rm -f "$MSG_FILE"' EXIT
+  cat >"$MSG_FILE"
 }
 
 stage_paths() {
@@ -285,24 +300,17 @@ validate_message() {
 }
 
 check_message() {
-  local file="" problems subject
+  MSG_FILE=""
   while [ $# -gt 0 ]; do
     case "$1" in
-    -F) file="${2:-}"; shift 2 ;;
+    -F) MSG_FILE="${2:-}"; shift 2 ;;
     *) die "Usage: gutexberg check-message [-F <file>] <<'MSG'" ;;
     esac
   done
-  if [ -z "$file" ]; then
-    [ -t 0 ] && die "The message is missing: pass it on stdin (heredoc) or with -F <file>."
-    CHECK_FILE=$(mktemp)
-    trap 'rm -f "$CHECK_FILE"' EXIT
-    file=$CHECK_FILE
-    cat >"$file"
-  fi
-  [ -f "$file" ] || die "Message file '$file' not found."
-  problems=$(message_problems "$file")
-  [ -z "$problems" ] || die "$problems"
-  subject=$(sed -n 1p "$file")
+  read_message
+  validate_message "$MSG_FILE"
+  local subject
+  subject=$(sed -n 1p "$MSG_FILE")
   echo "ok (${#subject}/72)"
 }
 
@@ -311,25 +319,31 @@ CMD="${1:-}"
 shift
 
 git rev-parse --is-inside-work-tree >/dev/null 2>&1 || die "Not inside a git work tree."
+COMMON_DIR=$(git rev-parse --git-common-dir)
+PHASE_LOG="$COMMON_DIR/gutexberg/phases"
 
 # Write commands share the index: serialise them, so that parallel calls cannot
 # mix their files into one commit.
 case "$CMD" in
 stage | stage-patch | unstage | commit | amend | squash)
-  exec 9>"$(git rev-parse --git-common-dir)/gutexberg.lock"
+  exec 9>"$COMMON_DIR/gutexberg.lock"
   flock 9
   ;;
 esac
 
 case "$CMD" in
 -h | --help | help) usage ;;
-base) base ;;
+base) load_base; echo "$BASE" ;;
 range)
-  for sha in $(git rev-list "$(base)..HEAD"); do
-    printf '%s %s %s\n' "$(git rev-parse --short "$sha")" "[$(phase_of "$sha")]" "$(git log -1 --format=%s "$sha")"
-  done
+  load_base
+  while read -r _ short phase subject; do
+    printf '%s [%s] %s\n' "$short" "${phase#-}" "$subject"
+  done < <(log_with_phases "$BASE..HEAD")
   ;;
-next) echo "last cycle commit: $(last_cycle_phase); allowed: $(allowed_after "$(last_cycle_phase)")" ;;
+next)
+  last=$(last_cycle_phase)
+  echo "last cycle commit: $last; allowed: $(allowed_after "$last")"
+  ;;
 check-message) check_message "$@" ;;
 stage)
   [ $# -ge 1 ] || die "Usage: gutexberg stage <path>..."
@@ -363,8 +377,10 @@ commit)
 amend)
   parse_commit_args "$@"
   current_branch_guard
-  git rev-list "$(base)..HEAD" | grep -qx "$(git rev-parse HEAD)" || die "HEAD is outside the branch: refusing to amend."
-  head_phase=$(phase_of "$(git rev-parse HEAD)")
+  load_base
+  head=$(git rev-parse HEAD)
+  in_branch "$head" || die "HEAD is outside the branch: refusing to amend."
+  head_phase=$(phase_of "$head")
   case "$head_phase" in
   red | regression | characterisation) ;;
   *) die "Only a red, regression or characterisation HEAD can be amended; HEAD is '${head_phase:-unrecorded}'." ;;
@@ -393,14 +409,8 @@ squash)
     esac
   done
   [ -n "$SCOPE" ] && [ -n "$FROM" ] || die "Usage: gutexberg squash --scope <scope> --from <commit> <<'MSG'"
-  MODEL="${MODEL:-${GUTEXBERG_MODEL:-$(default_model)}}"
-  [ -n "$MODEL" ] || die "No model: pass --model <id>, set GUTEXBERG_MODEL or a model in settings.json."
-  if [ -z "$MSG_FILE" ]; then
-    [ -t 0 ] && die "The message is missing: pass it on stdin (heredoc) or with -F <file>."
-    MSG_FILE=$(mktemp)
-    trap 'rm -f "$MSG_FILE"' EXIT
-    cat >"$MSG_FILE"
-  fi
+  resolve_model
+  read_message
   current_branch_guard
   validate_message "$MSG_FILE"
   [ "$(subject_scope "$(sed -n 1p "$MSG_FILE")")" = "$SCOPE" ] ||
@@ -408,26 +418,27 @@ squash)
   git diff --quiet && git diff --cached --quiet ||
     die "The work tree has uncommitted changes: a squash needs a clean tree."
   from=$(git rev-parse --verify -q "$FROM^{commit}") || die "Unknown commit '$FROM'."
-  git rev-list "$(base)..HEAD" | grep -qx "$from" || die "$FROM is outside the branch (<base>..HEAD)."
+  load_base
+  in_branch "$from" || die "$FROM is outside the branch (<base>..HEAD)."
   [ -z "$(git rev-list --merges "$from^..HEAD")" ] || die "The unit contains merge commits."
-  for sha in $(git rev-list "$from^..HEAD"); do
-    subject=$(git log -1 --format=%s "$sha")
+  count=0
+  while read -r _ short phase subject; do
+    count=$((count + 1))
     [ "$(subject_scope "$subject")" = "$SCOPE" ] ||
-      die "$(git rev-parse --short "$sha") does not carry the scope ($SCOPE): '$subject'"
-    [ "$(phase_of "$sha")" != unit ] ||
-      die "$(git rev-parse --short "$sha") is a squashed unit already: start the unit after it."
-  done
+      die "$short does not carry the scope ($SCOPE): '$subject'"
+    [ "$phase" != unit ] || die "$short is a squashed unit already: start the unit after it."
+  done < <(log_with_phases "$from^..HEAD")
   before=$(git rev-parse "$from^")
-  if git rev-list "$(base)..HEAD" | grep -qx "$before" &&
+  if in_branch "$before" &&
     [ "$(subject_scope "$(git log -1 --format=%s "$before")")" = "$SCOPE" ] &&
     [ "$(phase_of "$before")" != unit ]; then
     die "$(git rev-parse --short "$before") before $FROM also carries ($SCOPE): the unit starts earlier."
   fi
-  case "$(last_cycle_phase)" in
+  last=$(last_cycle_phase)
+  case "$last" in
   none | refactor) ;;
-  *) die "The unit's cycle is open (last cycle commit: $(last_cycle_phase)): close it with a refactor first." ;;
+  *) die "The unit's cycle is open (last cycle commit: $last): close it with a refactor first." ;;
   esac
-  count=$(git rev-list --count "$from^..HEAD")
   tip=$(git rev-parse HEAD)
   git reset -q --soft "$before"
   if ! { strip_existing_trailer "$MSG_FILE"; echo; trailer; } | git commit -q --allow-empty -F -; then

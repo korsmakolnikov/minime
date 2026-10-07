@@ -37,9 +37,9 @@ defmodule AdlFitness do
   end
 
   @doc "Modules of `app` that live under `namespace`."
-  def modules_within(app, namespace) do
-    Enum.filter(modules(app), &within?(&1, namespace))
-  end
+  def modules_within(app, namespace), do: filter_within(modules(app), namespace)
+
+  defp filter_within(modules, namespace), do: Enum.filter(modules, &within?(&1, namespace))
 
   @doc "Distinct modules called by `module`, excluding itself."
   def dependencies(module) do
@@ -59,8 +59,10 @@ defmodule AdlFitness do
   module, otherwise an assertion about it would pass on an empty tree.
   """
   def assert_defined(app, namespaces) do
+    all = modules(app)
+
     for namespace <- List.wrap(namespaces) do
-      assert modules_within(app, namespace) != [],
+      assert filter_within(all, namespace) != [],
              "ADL artifact #{inspect(namespace)} has no modules in #{inspect(app)}."
     end
 
@@ -91,10 +93,12 @@ defmodule AdlFitness do
   ASSERT(<from> has NO DEPENDENCY on {<targets>}).
   """
   def assert_no_dependency(app, from, targets) do
-    targets = List.wrap(targets)
+    refute_dependency(modules(app), from, List.wrap(targets))
+  end
 
+  defp refute_dependency(modules, from, targets) do
     violations =
-      for module <- modules_within(app, from),
+      for module <- filter_within(modules, from),
           dependency <- dependencies(module),
           target <- targets,
           within?(dependency, target),
@@ -109,8 +113,10 @@ defmodule AdlFitness do
   each namespace in `namespaces` must not depend on any of the others.
   """
   def assert_mutually_independent(app, namespaces) do
+    all = modules(app)
+
     for from <- namespaces do
-      assert_no_dependency(app, from, List.delete(namespaces, from))
+      refute_dependency(all, from, List.delete(namespaces, from))
     end
 
     :ok
