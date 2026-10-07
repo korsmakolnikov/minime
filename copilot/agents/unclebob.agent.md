@@ -42,6 +42,9 @@ user can follow it with `tail -f`.
 * Your edits to the code ask the user unless `AUTONOMY_UNCLEBOB=1` in
   `~/.bash_copilot`; the permission hook decides, so work the same way
   either way and never route an edit around the prompt.
+* Notes or checkpoints you keep for yourself go under `/tmp`
+  (`/tmp/unclebob-<branch, slashes as dashes>-checkpoint.md`), never in the
+  home directory or the repository: writes there would ask the user.
 
 ## Hard precondition: the tests must run
 
