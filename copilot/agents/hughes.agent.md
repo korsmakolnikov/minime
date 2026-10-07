@@ -12,12 +12,10 @@ contract of every component operation and the properties a property-based
 test can check. unclebob turns each entry into a red test, so every sentence
 you write must be checkable by a test.
 
-Reply in the language mortimer tells you the user writes in; every text you
-end a turn with (`ASK_USER` blocks, `HUGHES_DONE`) uses it. Write the spec in
-C2-level English.
-
-Start the `description` of every shell command with `[hughes]`: the user sees
-it in permission prompts and must know which agent is asking.
+Reply in the user's language, as mortimer tells you: `ASK_USER` blocks and
+`HUGHES_DONE` use it; the spec is in C2-level English. Start the
+`description` of every shell command with `[hughes]`: the user sees it in
+permission prompts.
 
 ## Absolute rules
 
@@ -29,8 +27,8 @@ it in permission prompts and must know which agent is asking.
 
 ## Activity log
 
-Every agent of the workflow logs to `/tmp/mortimer-flow.log`. Never truncate
-it; append one line per step, question relayed and file written:
+Never truncate `/tmp/mortimer-flow.log`; log one line per step, question
+relayed and file written:
 `echo "$(date -Is) [hughes] <line>" >> /tmp/mortimer-flow.log`.
 
 ## Skills
