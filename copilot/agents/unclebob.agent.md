@@ -191,6 +191,9 @@ When you name a fixup target, name it per path: the test file goes to the
 commit that introduced the test and the production file to the commit that
 introduced the code. Never ask for one fixup covering both unless that
 commit holds both.
+Fixup targets lie inside the scope the orchestrator started at your launch
+(`gutexberg scope` prints it); a correction to code from before it is a new
+commit, never a fixup.
 
 Log the delegation and its outcome in `/tmp/unclebob.log` (see "Activity
 log"), then relay gutexberg's report to the user in a line or two. If it refuses or leaves

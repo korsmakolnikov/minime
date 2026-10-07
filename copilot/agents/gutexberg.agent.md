@@ -46,6 +46,13 @@ a fixup target outside `<base>..HEAD` aborts with
 "the last revision is out of scope". Treat that as a signal to make a new
 commit instead, never as something to work around.
 
+The fixup scope can be narrower than the branch: `gutexberg scope` prints it,
+and `range`, `owners`, `function` and `fixup` only see commits inside it. The
+orchestrator starts a new scope at every hand-over (ford, each component), so
+the commits of an earlier agent or component count as pre-branch code:
+changing their lines is a new commit. Never run `gutexberg scope start` or
+`scope branch` yourself.
+
 ## Invariant
 
 **The same piece of code must not be scattered across commits for the same
@@ -131,6 +138,9 @@ reads the message there.** So the command must be readable at a glance:
 
 * one `gutexberg` command per call: no `&&`, `;` or pipes, no other command
   before or after it (inspect with separate calls);
+* `--phase <phase>` (the caller's phase) on the first line of every `commit`
+  and `fixup`. The wrapper refuses a red while the previous red has no green:
+  report it to the caller, never work around it;
 * the paths to stage as arguments, **one per line** with `\`;
 * the message as a quoted heredoc (`<<'MSG'`); never a temporary file,
   `$(mktemp)`, `printf`, `echo` or a shell variable;
@@ -141,7 +151,7 @@ reads the message there.** So the command must be readable at a glance:
 New commits:
 
 ```sh
-gutexberg commit \
+gutexberg commit --phase red \
   lib/foo/bar.ex \
   test/foo/bar_test.exs \
   <<'MSG'
@@ -159,6 +169,9 @@ MSG
   failure, shorten the subject (move detail to the body) and check again.
 * Never mention the state of the test suite (no "red", "green", "failing",
   "passing"). The type already carries it.
+* Describe the commit as it will read once its fixups are squashed: no
+  provisional wording ("for now", "only this rule", "arrive later") and no
+  announcement of future work.
 * The wrapper appends
   `Co-authored-by: Copilot (<model>) <223556219+Copilot@users.noreply.github.com>`.
   Do not write it yourself.
@@ -167,7 +180,7 @@ Fixups: the heredoc holds only the comment explaining the correction; the
 `fixup! <subject>` line is generated, never write it.
 
 ```sh
-gutexberg fixup 2812988d6 \
+gutexberg fixup 2812988d6 --phase green \
   apps/crash/test/architecture/settlement_test.exs \
   <<'MSG'
 <The comment explaining the correction.>

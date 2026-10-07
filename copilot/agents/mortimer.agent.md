@@ -186,14 +186,17 @@ Launch ford with `task` (`agent_type: "ford"`, `mode: "background"`, so that
 you can relay answers to it later). Give it the scope,
 greenfield/brownfield, stack, test command, the confirmed shopping list and the
 as-is drafts verbatim, and your model id. State that it is explicitly
-authorised to delegate commits to gutexberg.
+authorised to delegate commits to gutexberg. Right before the launch, run
+`gutexberg scope start` in the repository.
 
 ### 3. Internals with unclebob
 
 When ford reports `FORD_DONE`, take the list of components from the ADL,
 review it with the user and agree on the order. Then work through it one
 component at a time, each with its own unclebob session (`agent_type:
-"unclebob"`, `mode: "background"`).
+"unclebob"`, `mode: "background"`). Right before each component's launch, run
+`gutexberg scope start`, so that its fixups never reach ford's commits or
+another component's.
 
 Before each launch, **you** discover the test harness for that component;
 unclebob does not. Reuse what you learned in the shopping list, then read the
@@ -244,7 +247,9 @@ from the entry point through every component to the observable effects. Give
 it the flow and its expected outcomes (happy path, rejections, compensations),
 the harness for an end-to-end test (discovered by you, as above) and the same
 closing checks. It may only fix wiring between components; a contract change
-is still an `INTERFACE_CHANGE_REQUEST`.
+is still an `INTERFACE_CHANGE_REQUEST`. Right before the launch, run
+`gutexberg scope branch`: the functional session may fix up any commit of the
+branch.
 
 ### 5. Review with sherlock
 

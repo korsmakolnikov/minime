@@ -21,20 +21,25 @@ Usage: gutexberg <command> [args]
 
 Read-only:
   base                          Print the merge-base of HEAD and the base branch.
-  range                         List branch commits (<base>..HEAD), newest first.
-  last-revision <file>          Last branch commit touching <file> (empty if none).
-  function <file> <name>        Branch commits that touched function <name> in <file>.
-  owners [<file>...]            For each staged hunk, the branch commits owning the
+  range                         List the commits in scope (<scope>..HEAD), newest first.
+  scope                         Print the scope: "since <commit>" or "branch <base>".
+  last-revision <file>          Last commit in scope touching <file> (empty if none).
+  function <file> <name>        Commits in scope that touched function <name> in <file>.
+  owners [<file>...]            For each staged hunk, the commits in scope owning the
                                 lines it modifies. TSV: file, old-range, kind, owners.
                                 For pure insertions, owners are those of the
                                 neighbouring lines (a hint, not proof).
-  in-scope <rev>                Exit 0 if <rev> is a commit in <base>..HEAD.
+  in-scope <rev>                Exit 0 if <rev> is a commit in <scope>..HEAD.
   check-message [--fixup] [-F <file>] <<'MSG'
                                 Validate a message without committing, with the
                                 rules of commit (or of a fixup body with --fixup).
                                 Prints "ok (<n>/72)" or every problem found.
 
 Write:
+  scope start                   Start a new scope at HEAD for the current branch:
+                                fixups, amends and owners only see later commits.
+                                Run at every hand-over (ford, each component).
+  scope branch                  Widen the scope back to the whole branch.
   stage <path>...               git add the given paths.
   stage-patch <patch-file>      Stage only the hunks in <patch-file> (git apply --cached).
   unstage [<path>...]           Unstage paths (all if none given).
@@ -49,7 +54,10 @@ Write:
   amend [<path>...]             Stage the given paths and amend HEAD, keeping its
                                 message. Refused if HEAD is outside the branch.
 
-  commit and fixup also accept -F <file> instead of stdin, and --model <id>. The
+  commit and fixup also accept -F <file> instead of stdin, --model <id> and
+  --phase <phase> (red, green, blue, fix, style, characterisation, regression,
+  other). The phase is recorded; a red commit is refused while the last red,
+  green or characterisation commit in scope is a red. The
   model named in the trailer is --model, else $GUTEXBERG_MODEL, else the "model"
   of ~/.copilot/settings.json. Both print the new commit and its files.
 
@@ -78,6 +86,59 @@ base() {
   git merge-base "$(base_ref)" HEAD
 }
 
+state_dir() {
+  local dir
+  dir="$(git rev-parse --git-common-dir)/gutexberg"
+  mkdir -p "$dir"
+  echo "$dir"
+}
+
+scope_file() {
+  local branch
+  branch=$(git symbolic-ref --short -q HEAD || echo detached)
+  echo "$(state_dir)/scope-${branch//\//-}"
+}
+
+# The scope of fixups, amends and ownership: the commit recorded by
+# `scope start` when it still lies inside <base>..HEAD, else the branch base.
+scope() {
+  local b sha
+  b=$(base)
+  sha=$(cat "$(scope_file)" 2>/dev/null || true)
+  if [ -n "$sha" ] && git rev-parse -q --verify "$sha^{commit}" >/dev/null &&
+    { [ "$sha" = "$b" ] || git rev-list "$b..HEAD" | grep -qx "$sha"; }; then
+    echo "$sha"
+  else
+    echo "$b"
+  fi
+}
+
+PHASES='red green blue fix style characterisation regression other'
+
+check_phase() {
+  [ -z "$1" ] || [[ " $PHASES " == *" $1 "* ]] || die "Unknown phase '$1'. Phases: $PHASES."
+}
+
+record_phase() {
+  [ -z "$1" ] || echo "$(git rev-parse HEAD) $1" >>"$(state_dir)/phases"
+}
+
+# Refuses a new red while the last red, green or characterisation commit in
+# scope is a red: one failing test at a time.
+red_guard() {
+  local log sha phase
+  log="$(state_dir)/phases"
+  [ -f "$log" ] || return 0
+  for sha in $(git rev-list "$(scope)..HEAD"); do
+    phase=$(awk -v s="$sha" '$1 == s { p = $2 } END { print p }' "$log")
+    case "$phase" in
+    red) die "The previous red, $(git log -1 --format='%h %s' "$sha"), has no green yet: one failing test at a time." ;;
+    green | characterisation) return 0 ;;
+    esac
+  done
+  return 0
+}
+
 current_branch_guard() {
   local branch
   branch=$(git symbolic-ref --short -q HEAD || true)
@@ -90,7 +151,7 @@ current_branch_guard() {
 in_scope() {
   local rev="$1" sha
   sha=$(git rev-parse --verify -q "$rev^{commit}") || return 1
-  git rev-list "$(base)..HEAD" | grep -qx "$sha"
+  git rev-list "$(scope)..HEAD" | grep -qx "$sha"
 }
 
 default_model() {
@@ -104,16 +165,19 @@ default_model() {
 parse_commit_args() {
   MODEL=""
   MSG_FILE=""
+  PHASE=""
   PATHS=()
   while [ $# -gt 0 ]; do
     case "$1" in
     --model) MODEL="${2:-}"; shift 2 ;;
+    --phase) PHASE="${2:-}"; shift 2 ;;
     -F) MSG_FILE="${2:-}"; shift 2 ;;
     --) shift; PATHS+=("$@"); break ;;
     -*) die "Unknown option: $1" ;;
     *) PATHS+=("$1"); shift ;;
     esac
   done
+  check_phase "$PHASE"
   MODEL="${MODEL:-${GUTEXBERG_MODEL:-$(default_model)}}"
   [ -n "$MODEL" ] || die "No model: pass --model <id>, set GUTEXBERG_MODEL or a model in settings.json."
   if [ -z "$MSG_FILE" ]; then
@@ -219,7 +283,7 @@ check_message() {
 
 cmd_owners() {
   local b files=("$@")
-  b=$(base)
+  b=$(scope)
   if [ ${#files[@]} -eq 0 ]; then
     mapfile -t files < <(git diff --cached --name-only --diff-filter=M)
   fi
@@ -273,14 +337,22 @@ esac
 case "$cmd" in
 -h | --help | help) usage ;;
 base) base ;;
-range) git log --format='%h %s' "$(base)..HEAD" ;;
+range) git log --format='%h %s' "$(scope)..HEAD" ;;
+scope)
+  case "${1:-}" in
+  "") s=$(scope); [ "$s" = "$(base)" ] && echo "branch $(git rev-parse --short "$s")" || git log -1 --format='since %h %s' "$s" ;;
+  start) git rev-parse HEAD >"$(scope_file)"; git log -1 --format='since %h %s' HEAD ;;
+  branch) rm -f "$(scope_file)"; echo "branch $(git rev-parse --short "$(base)")" ;;
+  *) die "Usage: gutexberg scope [start|branch]" ;;
+  esac
+  ;;
 last-revision)
   [ $# -eq 1 ] || die "Usage: gutexberg last-revision <file>"
-  git log "$(base)..HEAD" -s --format=%h -- "$1" | head -n 1
+  git log "$(scope)..HEAD" -s --format=%h -- "$1" | head -n 1
   ;;
 function)
   [ $# -eq 2 ] || die "Usage: gutexberg function <file> <name>"
-  git log -L ":$2:$1" "$(base)..HEAD" --format=%h --no-patch | grep -v '^$' || true
+  git log -L ":$2:$1" "$(scope)..HEAD" --format=%h --no-patch | grep -v '^$' || true
   ;;
 owners) cmd_owners "$@" ;;
 check-message) check_message "$@" ;;
@@ -303,9 +375,11 @@ commit)
   parse_commit_args "$@"
   current_branch_guard
   validate_message "$MSG_FILE"
+  [ "$PHASE" != red ] || red_guard
   stage_paths "${PATHS[@]}"
   require_staged
   { strip_existing_trailer "$MSG_FILE"; echo; trailer; } | git commit -q -F -
+  record_phase "$PHASE"
   report
   ;;
 fixup)
@@ -324,6 +398,7 @@ fixup)
   body=$(fixup_body "$MSG_FILE")
   [ -n "$(tr -d '[:space:]' <<<"$body")" ] || die "The fixup needs a body explaining the correction."
   git commit -q --fixup="$(git rev-parse --short "$target")" -m "$body" -m "$(trailer)"
+  record_phase "$PHASE"
   report
   ;;
 amend)
