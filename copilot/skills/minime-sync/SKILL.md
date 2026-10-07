@@ -1,6 +1,6 @@
 ---
 name: minime-sync
-description: Mirrors the live Copilot setup in ~/.copilot (agents, skills, hooks, settings, global instructions), the autonomy settings in ~/.bash_copilot and the gutexberg and mortimer commands into ~/code/minime/copilot/, then records the change as a new commit through gutexberg. Use before a /restart and whenever an agent, skill, hook or setting has changed.
+description: Mirrors the live Copilot setup in ~/.copilot (agents, skills, hooks, settings, global instructions), the autonomy settings in ~/.bash_copilot and the gutexberg, mortimer and spec-check commands into ~/code/minime/copilot/, then records the change as a new commit through gutexberg. Use before a /restart and whenever an agent, skill, hook or setting has changed.
 ---
 
 # minime-sync
@@ -35,7 +35,7 @@ cd ~/code/minime \
   && cp -r ~/.copilot/hooks/. copilot/hooks/ \
   && cp ~/.copilot/settings.json ~/.copilot/copilot-instructions.md copilot/ \
   && cp ~/.bash_copilot copilot/bash_copilot \
-  && cp ~/.local/bin/gutexberg ~/.local/bin/mortimer copilot/bin/
+  && cp ~/.local/bin/gutexberg ~/.local/bin/mortimer ~/.local/bin/spec-check copilot/bin/
 ```
 
 Then look for files the live setup no longer has (renamed or deleted):

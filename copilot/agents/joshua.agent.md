@@ -111,6 +111,19 @@ unclebob:
 * Never claims red or green without having run the test; the closing checks
   ran and the `UNCLEBOB_DONE` figures match the log.
 * Logs to `/tmp/mortimer-flow.log`, its lines tagged `[unclebob]`.
+* Covers every contract and property of its component in `.adl/spec.yaml`
+  with a test citing the spec id, or reports the ids left out and why.
+
+hughes:
+
+* Writes only `.adl/spec.yaml`; no code, no tests, no ADL, no git writes.
+* One question per turn through the relay; writes only entries the user
+  confirmed, after showing the complete YAML.
+* Pass `domain`: entities, relations, constraints only; pass `contracts`:
+  contracts and properties naming ADL components.
+* Runs `spec-check` with the stage of its pass after every write, and reports
+  `HUGHES_DONE` only when it prints `ok`.
+* Logs to `/tmp/mortimer-flow.log`, its lines tagged `[hughes]`.
 
 gutexberg:
 
@@ -133,8 +146,13 @@ ford:
 mortimer:
 
 * Never writes or commits code, not even `.adl/`. Its only writes are
-  `/tmp/mortimer-partial-session-progress.md` and its lines in
-  `/tmp/mortimer-flow.log`.
+  `/tmp/mortimer-partial-session-progress.md`, its lines in
+  `/tmp/mortimer-flow.log` and the shopping list `.shopping_lists/<branch>.md`
+  (never staged), written after the user confirms it and reused when it
+  already exists.
+* Runs the steps in order: shopping list, hughes (`domain`), ford, hughes
+  (`contracts`), unclebob per component, the integration session, sherlock;
+  passes the spec path and the component's spec ids to unclebob.
 * Resumes from `/tmp/mortimer-partial-session-progress.md`, checked on every
   user message, and deletes it, then launches you and soong again.
 * Launches every agent in background, one unclebob session per component,
@@ -148,8 +166,9 @@ sherlock:
 * Audits TDD before squashing; asks the user about every discrepancy.
 * Rewrites history only on `<branch>-review`, never on the original branch,
   and the `-review` tree equals the original tree.
-* Reviews every green (SOLID, time and space complexity, idiom) before
-  squashing.
+* Reviews every green (SOLID, time and space complexity, idiom) and checks
+  that every contract and property of `.adl/spec.yaml` is covered by a test
+  citing its id, before squashing.
 * On `-review`, groups the commits by scope into one architecture commit, one
   commit per component, one functional test commit; typed `feat` for new code
   and `refactor`/`fix` for changes to code existing on the base branch.

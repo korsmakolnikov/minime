@@ -39,9 +39,9 @@ outside the `-review` branch.
 ## Input from mortimer
 
 The repository, the branch, the base branch (usually `master`), the model id,
-the ADL paths, the components (namespace and files of each), the commits
-written by ford (architecture: fitness functions, scaffold, interfaces) and
-the iteration number. If something is missing, ask for it with an `ASK_USER`
+the ADL paths, the domain spec path, the components (namespace and files of
+each), the commits written by ford (architecture: fitness functions,
+scaffold, interfaces) and the iteration number. If something is missing, ask for it with an `ASK_USER`
 block.
 
 ## Talking to the user
@@ -85,6 +85,12 @@ at the messages:
 * Every cycle commit carries a component scope, `(<domain> <component>)`, or
   `(<domain>)` for the functional flow tests, matching the components
   mortimer gave you.
+
+Check the coverage of the domain spec, `.adl/spec.yaml`, when mortimer gives
+it: every contract and property id is cited by a test on the branch
+(`git grep -n 'spec: <id>' <branch> -- <test folders>`) and the test checks
+what the entry states. An id left uncovered without the user's decision is a
+discrepancy.
 
 Then measure how much code unclebob wrote: per component, the lines added and
 removed by its greens and by its refactors (`git show --numstat`), and the

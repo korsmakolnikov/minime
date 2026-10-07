@@ -36,6 +36,7 @@ READ_ONLY = {
     "true", "false", "test", "[", ":", "sleep", "basename", "dirname",
     "realpath", "readlink", "stat", "file", "diff", "column", "nl", "tac",
     "notify-send", "ps", "whoami", "id", "hostname", "du", "df", "tree",
+    "spec-check",
 }
 
 # Commands whose effect is not on files (processes, containers, network,

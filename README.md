@@ -108,8 +108,9 @@ Agents and skills for the [GitHub Copilot CLI](https://docs.github.com/copilot/h
 
 | Agent | Role |
 |-------|------|
-| `mortimer` | Orchestrator, run as the main agent. Studies the code, gathers the preliminary findings, runs `ford`, then `unclebob` one component at a time, then `sherlock`, relays their questions to the user, keeps `joshua` informed and forwards its violations to `soong`. Never writes code or commits. Every agent logs to `/tmp/mortimer-flow.log`, each line tagged with the agent's name. |
+| `mortimer` | Orchestrator, run as the main agent. Studies the code, writes the preliminary findings (every unknown of the iteration) to `.shopping_lists/<branch>.md`, runs `hughes` for the domain, `ford`, `hughes` again for the contracts, then `unclebob` one component at a time, then `sherlock`, relays their questions to the user, keeps `joshua` informed and forwards its violations to `soong`. Never writes code or commits. Every agent logs to `/tmp/mortimer-flow.log`, each line tagged with the agent's name. |
 | `joshua` | Auditor. Runs in background beside `mortimer` for the whole session and checks every agent against its file and launch prompt. Read-only: violations never stop the workflow; `mortimer` prints them and forwards them to `soong`, and `joshua` also logs them to `/tmp/joshua-violations.md`. |
+| `hughes` | Interviews the user to write the domain spec, `.adl/spec.yaml`, validated by the `spec-check` command in `copilot/bin/`: entities, relations and constraints before `ford`; the contracts of the component operations and the properties for property-based tests after it. `unclebob` turns each entry into a red test. |
 | `ford` | Interviews the user to write the ADL, then generates fitness functions, scaffold and component interfaces. No business logic. |
 | `unclebob` | Implements the internals test-first, one red test at a time: every cycle is a red commit, a green commit and at least one refactor commit (empty when there is nothing to refactor). Refuses to work when the tests cannot run. Treats `ford`'s interfaces as a contract. |
 | `gutexberg` | The only actor that writes to git: Conventional Commits scoped by component (`feat(<domain> <component>): …`), a new commit for every change, Copilot co-author trailer naming the model. Uses the `gutexberg` command in `copilot/bin/`, which records each commit's phase and refuses any order other than red, green, refactor. |
@@ -123,6 +124,7 @@ Agents and skills for the [GitHub Copilot CLI](https://docs.github.com/copilot/h
 | `adl-fitness` | ADL assertions to ExUnit/pytest fitness functions, with standard-library helpers. |
 | `adl-scaffold` | Namespaces and interfaces, without logic. |
 | `adl-reverse` | As-is ADL drafts from the dependency graph of existing code. |
+| `domain-spec` | The domain spec format, its validator and how each entry becomes a test (StreamData, Hypothesis). |
 | `minime-sync` | Mirrors `~/.copilot` into `copilot/` and commits it through `gutexberg`; run it before a `/restart`. |
 
 Start with `mortimer` (the launcher in `copilot/bin/`: `copilot --agent mortimer` plus `--add-dir` for `~/.copilot/agents`, `~/.copilot/skills` and `~/code/minime`, since reaching them otherwise asks for path access, which the permission hook cannot answer; other options pass through), or `copilot --agent unclebob` for a plain TDD session. Follow the whole flow with `tail -f /tmp/mortimer-flow.log`.
@@ -146,7 +148,7 @@ For the Copilot workflow:
 ```sh
 make copilot-install   # installs or overwrites agents, skills and hooks in ~/.copilot/,
                        # settings and copilot-instructions.md in ~/.copilot/
-                       # and gutexberg and mortimer in ~/.local/bin/
+                       # and gutexberg, mortimer and spec-check in ~/.local/bin/
 ```
 
 The hooks in `copilot/hooks/` keep the agents unattended:

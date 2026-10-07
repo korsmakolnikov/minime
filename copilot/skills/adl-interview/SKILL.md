@@ -42,9 +42,10 @@ answer as your next turn. Never guess an answer to a question you asked.
 ## Order of the interview
 
 1. **Scope.** What is being defined: a whole system, a domain, a subdomain or a
-   component. Greenfield or change to an existing architecture. Read
-   `.adl/shopping-list.md` and `.adl/as-is/` first if they exist, and do not
-   ask what they already answer.
+   component. Greenfield or change to an existing architecture. Read the
+   shopping list (`.shopping_lists/<branch>.md`), the domain spec
+   (`.adl/spec.yaml`) and `.adl/as-is/` first if they exist, and do not ask
+   what they already answer.
 2. **Artifacts, top-down.** System name and physical name, then domains, then
    for each domain its subdomains and components, then libraries and services
    if relevant. Confirm the logical and physical names of each.

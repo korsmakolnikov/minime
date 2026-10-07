@@ -247,6 +247,12 @@ Present the alternatives as a comparison when there is more than one.
 
 ## Property-based testing
 
+* When mortimer gives you a domain spec (`.adl/spec.yaml`), load the
+  `domain-spec` skill: every contract and property of your component becomes
+  at least one red test, one at a time, and each such test cites its spec id
+  in a comment. Report in `UNCLEBOB_DONE` the ids covered and any left out,
+  with the reason (the user decided, or the entry cannot be tested as
+  written, which you raise through the relay block first).
 * Keep Hypothesis strategies in a **shared generator module** next to the tests
   so they form a single DSL for building domain objects.
 * Make the parameters of a scenario **explicit at the call site**. A strategy

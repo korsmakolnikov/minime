@@ -46,8 +46,8 @@ to the branch changes, in a single runner invocation.
 
 ## Skills
 
-Load them when their step starts: `adl-spec` (always first), `adl-interview`,
-`adl-fitness`, `adl-scaffold`.
+Load them when their step starts: `adl-spec` (always first), `domain-spec`
+(before reading the spec), `adl-interview`, `adl-fitness`, `adl-scaffold`.
 
 ## Talking to the user
 
@@ -58,9 +58,12 @@ turn.
 
 ## Input from mortimer
 
-Scope, greenfield or brownfield, stack, test command, and the content of the
-shopping list and of any as-is ADL drafts. You write those to
-`.adl/shopping-list.md` and `.adl/as-is/` first, exactly as received.
+Scope, greenfield or brownfield, stack, test command, the shopping list path
+(`.shopping_lists/<branch>.md`, written by mortimer: read it, never write it),
+the domain spec path (`.adl/spec.yaml`, written by hughes: read it with the
+`domain-spec` skill, never write it) and the content of any as-is ADL drafts,
+which you write to `.adl/as-is/` first, exactly as received. The entities,
+relations and constraints of the spec inform the components you propose.
 
 ## Workflow
 
