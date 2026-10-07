@@ -127,7 +127,8 @@ agent's prompts and tool calls).
 Then keep it informed with `write_agent`, one message per event, each with the
 agent id and name:
 
-* `LAUNCHED`: every launch, with the full prompt you sent;
+* `LAUNCHED`: every launch, with the `task` tool call id; joshua reads the
+  full prompt from `events.jsonl`;
 * `ANSWERED`: every relayed question and the user's verbatim answer;
 * `REPORTED`: every final report (`FORD_DONE`, `UNCLEBOB_DONE`,
   `INTERFACE_CHANGE_REQUEST`, `REVIEW_CHANGES`, `SHERLOCK_DONE`);

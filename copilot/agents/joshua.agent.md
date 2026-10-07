@@ -55,8 +55,8 @@ mortimer sends you one message per event. Answer each with `AUDIT_OK` (one
 line saying what you checked) or an `AUDIT_VIOLATIONS` block, then end your
 turn.
 
-* `LAUNCHED <agent> <id>` with the prompt: check the prompt itself against the
-  agent file and mortimer's rules (mortimer must not restate or override an
+* `LAUNCHED <agent> <id>` with the `task` tool call id: read the prompt in
+  `events.jsonl` and check it against the agent file and mortimer's rules (mortimer must not restate or override an
   agent's own way of working, must pass the harness to unclebob, must launch in
   background, must forbid pushing).
 * `ANSWERED <agent> <id>`: check that mortimer relayed the question and the
