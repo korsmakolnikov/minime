@@ -6,41 +6,39 @@ description: Generates architectural fitness functions (ExUnit or pytest tests) 
 # Fitness functions from ADL assertions
 
 Load `adl-spec` first. Every `ASSERT` becomes at least one test, and every
-artifact referenced by an assertion also gets an existence check, so that an
-assertion cannot pass on an empty tree.
+artifact an assertion references also gets an existence check, so that no
+assertion passes on an empty tree.
 
 ## Install the helper (once per project)
 
-The helpers live next to this file in `templates/`.
+The helpers are in `templates/`, next to this file.
 
-**Elixir**
-1. Copy `templates/adl_fitness.ex` to `test/support/adl_fitness.ex`.
-2. Make sure `mix.exs` compiles `test/support` in the test env:
-   `elixirc_paths: elixirc_paths(Mix.env())` with
-   `defp elixirc_paths(:test), do: ["lib", "test/support"]` and
-   `defp elixirc_paths(_), do: ["lib"]`. Leave it alone if it is already there.
+* **Elixir**: copy `templates/adl_fitness.ex` to
+  `test/support/adl_fitness.ex`, and make sure `mix.exs` compiles
+  `test/support` in the test env (`elixirc_paths: elixirc_paths(Mix.env())`
+  with `defp elixirc_paths(:test), do: ["lib", "test/support"]` and
+  `defp elixirc_paths(_), do: ["lib"]`), unless it already does.
+* **Python**: copy `templates/adl_fitness.py` next to the project's tests (for
+  example `tests/support/adl_fitness.py`), following their layout and import
+  style. It uses only the standard library: add no dependencies.
 
-**Python**
-1. Copy `templates/adl_fitness.py` next to the project's tests (for example
-   `tests/support/adl_fitness.py`), following the existing layout and import
-   style. Do not add dependencies: the helper uses only the standard library.
-
-Read the helper's docstrings for its limits (dynamic references are not seen).
-When an assertion needs more than static imports, propose a dedicated tool
-(`boundary` for Elixir, `import-linter` for Python) and record it in `REQUIRES`.
+The helpers' docstrings state their limits (dynamic references are not
+seen). When an assertion needs more than static imports, propose a dedicated
+tool (`boundary` for Elixir, `import-linter` for Python) and record it in
+`REQUIRES`.
 
 ## One test file per ADL file
 
 * Elixir: `test/architecture/<adl file name>_test.exs`, module
-  `<App>.Architecture.<Name>Test`.
-* Python: `tests/architecture/test_<adl file name>.py`.
-* Put the **full ADL text in the module doc / docstring**. `.adl/` is not
+  `<App>.Architecture.<Name>Test`; Python:
+  `tests/architecture/test_<adl file name>.py`.
+* The **full ADL text goes in the module doc / docstring**: `.adl/` is not
   committed, so the tests are the only versioned trace of the architecture.
-* One test per assertion, named after the assertion.
+* One test per assertion, named after it.
 
 ## Mapping
 
-Namespaces come from the physical-name mapping in `adl-spec`. Elixir functions
+Namespaces follow the physical-name mapping in `adl-spec`. Elixir functions
 take the OTP app (`:sysops`) first; Python functions take the source root and
 the root package first.
 
@@ -56,12 +54,12 @@ the root package first.
 | `a CONTAINS library` | custom test: the library is declared in `mix.exs`/`pyproject.toml` and referenced from `a` |
 | assertions on runtime behaviour, time, metrics, `SERVICES` deployment | not static. Report it; do not write a test that fakes it |
 
-`CONST` values become module attributes or module-level constants in the test.
+`CONST` values become module attributes or module-level constants.
 
 ## Verify
 
-1. Run the architecture tests alone. Before scaffolding they must fail on
-   `assert_defined` (the artifacts do not exist yet). That failure is expected.
-2. After scaffolding they must pass. Then run the full suite.
-3. Prove at least one dependency assertion can fail: temporarily add a
-   forbidden call, watch the test fail, revert it. Never commit the probe.
+1. Run the architecture tests alone: before scaffolding they must fail on
+   `assert_defined`, as expected.
+2. After scaffolding they must pass; then run the full suite.
+3. Prove at least one dependency assertion can fail: add a forbidden call,
+   watch the test fail, revert it. Never commit the probe.

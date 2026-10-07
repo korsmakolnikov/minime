@@ -11,24 +11,22 @@ logic.**
 
 ## Precondition
 
-The project's test runner must work. Run it before touching anything. If it
-does not run, stop and report (for greenfield, propose `mix new` or `uv init`
-and wait for approval).
+Run the project's test runner before touching anything. If it does not run,
+stop and report (for greenfield, propose `mix new` or `uv init` and wait for
+approval).
 
 ## Structure
 
 For each artifact, following the physical-name mapping:
 
-**Elixir**
-* Directory `lib/<path>/` and a namespace module at `lib/<path>.ex`
-  (`defmodule Sysops.Ticketing do @moduledoc "<logical name>: …" end`).
-* Components get their facade at `lib/<path>.ex`. Internals added later by
-  unclebob go under `lib/<path>/`.
-
-**Python**
-* Package `<source root>/<path>/` with an `__init__.py` whose docstring names
-  the logical artifact.
-* The component's public interface is exported from its `__init__.py`.
+* **Elixir**: directory `lib/<path>/` and a namespace module at
+  `lib/<path>.ex`
+  (`defmodule Sysops.Ticketing do @moduledoc "<logical name>: …" end`); a
+  component's facade is `lib/<path>.ex`, and unclebob's internals go under
+  `lib/<path>/`.
+* **Python**: package `<source root>/<path>/` whose `__init__.py` docstring
+  names the logical artifact and which exports the component's public
+  interface.
 
 ## Interfaces (designed with the user through `adl-interview`)
 
@@ -43,9 +41,9 @@ Write only what crosses the component boundary:
 
 * No private functions, no conditionals, no defaults that encode a business
   decision.
-* Stubs must raise explicitly, so that unclebob's first test of each operation
-  is a genuine red.
-* Keep names and types exactly as approved in the interview.
+* Stubs raise explicitly, so that unclebob's first test of each operation is
+  a genuine red.
+* Names and types exactly as approved in the interview.
 
 ## Verify
 

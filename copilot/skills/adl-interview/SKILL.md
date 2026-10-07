@@ -9,8 +9,8 @@ Load `adl-spec` first.
 
 ## Talking to the user
 
-If you have the `ask_user` tool, use it. If you do not (you are running as a
-sub-agent), end your turn with **exactly one** relay block and nothing after it:
+Use the `ask_user` tool if you have it. As a sub-agent without it, end your
+turn with **exactly one** relay block and nothing after it:
 
 ```
 ASK_USER
@@ -21,47 +21,42 @@ why: <one line on what the answer changes>
 END_ASK_USER
 ```
 
-Write the question in the user's language (the orchestrator tells you which
-one), but keep code snippets exactly as they will be written: comments, docs
-and descriptions in English. The orchestrator forwards the question verbatim,
-never translating code, and replies with the user's
+Write the question in the user's language (the orchestrator tells you which)
+and code snippets exactly as they will be written, comments and docs in
+English. The orchestrator forwards it verbatim and replies with the user's
 answer as your next turn. Never guess an answer to a question you asked.
 
 ## Principles
 
-* **One question per turn.** Prefer a concrete proposal the user can accept,
-  amend or reject over an open question ("I propose these three domains: …").
-* Ask about the **domain**, not about implementation details you can decide
-  yourself.
-* Challenge the design: point out cycles, a component that every other one
-  depends on, names that hide two responsibilities, assertions that cannot be
-  checked statically.
-* Never add an artifact or an assertion the user has not confirmed.
-* Before writing a file, show the complete ADL text and get an explicit yes.
+* **One question per turn**, preferably a concrete proposal the user can
+  accept, amend or reject ("I propose these three domains: …").
+* Ask about the **domain**; decide implementation details yourself.
+* Challenge the design: cycles, a component every other one depends on,
+  names hiding two responsibilities, assertions that cannot be checked
+  statically.
+* Never add an artifact or an assertion the user has not confirmed; show the
+  complete ADL text and get an explicit yes before writing a file.
 
 ## Order of the interview
 
-1. **Scope.** What is being defined: a whole system, a domain, a subdomain or a
-   component. Greenfield or change to an existing architecture. Read the
+1. **Scope.** A whole system, a domain, a subdomain or a component;
+   greenfield or a change to an existing architecture. First read the
    shopping list (`.shopping_lists/<branch>.md`), the domain spec
-   (`.adl/spec.yaml`) and `.adl/as-is/` first if they exist, and do not ask
-   what they already answer.
-2. **Artifacts, top-down.** System name and physical name, then domains, then
-   for each domain its subdomains and components, then libraries and services
-   if relevant. Confirm the logical and physical names of each.
+   (`.adl/spec.yaml`) and `.adl/as-is/` if they exist, and do not ask what
+   they answer.
+2. **Artifacts, top-down.** System, then domains, then each domain's
+   subdomains and components, then libraries and services if relevant,
+   confirming the logical and physical name of each.
 3. **Assertions.** Containment first (`CLASSES are only CONTAINED within …`),
-   then dependency rules between siblings, then cross-domain rules. Use
-   `FOREACH` when the same rule applies to every artifact of a collection.
-   For each assertion say whether it can become a static fitness function
-   (see `adl-fitness`). If it cannot, ask whether to keep it as documentation
-   and record the tooling it needs in `REQUIRES`.
-4. **Review.** Show each complete file and wait for approval. Then write it.
-5. **Component interfaces** (not ADL: they go straight into code). For each
-   component, one at a time:
-   * Its responsibility in one sentence.
-   * Its public operations: name, inputs, output, failure modes.
-   * The data types crossing the boundary.
-   * Facade (plain public functions) or port (behaviour/Protocol with
-     pluggable implementations).
-   Propose the signatures in the target language and get them approved before
-   writing them with the `adl-scaffold` skill.
+   then dependency rules between siblings, then cross-domain rules; `FOREACH`
+   when a rule applies to every artifact of a collection. Say whether each
+   can become a static fitness function (see `adl-fitness`); if not, ask
+   whether to keep it as documentation and record the tooling it needs in
+   `REQUIRES`.
+4. **Review.** Show each complete file and wait for approval, then write it.
+5. **Component interfaces** (not ADL: they go straight into code), one
+   component at a time: its responsibility in one sentence; its public
+   operations (name, inputs, output, failure modes); the data types crossing
+   the boundary; facade (plain public functions) or port (behaviour/Protocol
+   with pluggable implementations). Get the signatures, in the target
+   language, approved before writing them with the `adl-scaffold` skill.

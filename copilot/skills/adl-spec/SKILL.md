@@ -5,12 +5,11 @@ description: Reference for the Architecture Definition Language (ADL) by Mark Ri
 
 # ADL reference and project conventions
 
-ADL is pseudo-code for describing and governing the structure of a system. It
-is designed to be read by an LLM and turned into code and fitness functions.
-Source: https://www.developertoarchitect.com/downloads/adl-ref.pdf
-
-Use **pure ADL**. Do not invent keywords. Component interfaces are not part of
-ADL: they are defined directly in code (see the `adl-scaffold` skill).
+ADL is pseudo-code that describes and governs a system's structure, meant to
+be turned by an LLM into code and fitness functions
+(https://www.developertoarchitect.com/downloads/adl-ref.pdf). Use **pure
+ADL**, with no invented keywords. Component interfaces are not ADL: they are
+written directly in code (see the `adl-scaffold` skill).
 
 ## Metadata (stripped when the ADL is used as a code-generation prompt)
 
@@ -65,8 +64,8 @@ ASSERT(creation has NO DEPENDENCY on completion)
 
 ## The `.adl/` folder
 
-ADL files live in `.adl/` at the project root. The folder is **never
-committed** (the user ignores it globally). Never stage it.
+ADL files live in `.adl/` at the project root, **never committed** (the user
+ignores it globally): never stage it.
 
 ```
 .adl/
@@ -77,13 +76,12 @@ committed** (the user ignores it globally). Never stage it.
   as-is/                  reverse-engineered ADL of existing code (brownfield)
 ```
 
-* Each file opens with a title line `ADL:<TITLE IN CAPITALS>`, then a blank
-  line, then `DESCRIPTION`, optional `REQUIRES` / `PROMPT`, the `DEFINE` tree,
-  and the assertions.
-* Every file restates the enclosing `DEFINE SYSTEM` (and `DOMAIN`, when
+* Each file opens with a title line `ADL:<TITLE IN CAPITALS>`, a blank line,
+  `DESCRIPTION`, optional `REQUIRES` / `PROMPT`, the `DEFINE` tree and the
+  assertions, and restates the enclosing `DEFINE SYSTEM` (and `DOMAIN`, when
   relevant) so it can be read on its own.
-* Files under `as-is/` describe what the code is today and contain only
-  assertions that hold today. Target files describe what it must become.
+* Files under `as-is/` describe the code as it is, with only assertions that
+  hold today; target files describe what it must become.
 
 ## Physical name mapping
 
@@ -95,7 +93,7 @@ The path from `SYSTEM` down to an artifact gives its namespace.
 | Python | `sysops.ticketing.creation` | `<source root>/sysops/ticketing/creation/` (a package with `__init__.py`) |
 
 * The Elixir `SYSTEM` physical name is the OTP application name (`:sysops`).
-* The Python source root is whatever the project uses (`src/` or the
-  repository root). Read `pyproject.toml` to find it.
+* The Python source root is the project's own (`src/` or the repository
+  root; see `pyproject.toml`).
 * `SERVICE` maps to a separately deployable unit: an umbrella app or a
   separate Mix project in Elixir, a separate distribution in Python.

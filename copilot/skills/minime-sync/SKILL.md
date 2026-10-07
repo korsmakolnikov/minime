@@ -19,9 +19,8 @@ versioned, so the permission hook lets them through. **Never push.**
 cd ~/code/minime && git branch --show-current && git status --short
 ```
 
-* The branch must be `copilot`; otherwise stop and tell the user.
-* The tree must be clean; otherwise stop and show `git status`: uncommitted
-  work in the mirror is not yours to commit.
+Stop and tell the user if the branch is not `copilot`, or if the tree is not
+clean (show `git status`: uncommitted work in the mirror is not yours).
 
 ## 2. Copy
 
@@ -44,10 +43,10 @@ Then look for files the live setup no longer has (renamed or deleted):
 cd ~/code/minime && for d in agents skills hooks; do diff -rq ~/.copilot/$d copilot/$d; done
 ```
 
-Every `Only in copilot/…` line is a file removed or renamed live. If it was
-renamed, use `git mv old new` before copying (history follows the file);
-otherwise `git rm` it. Ask the user when you cannot tell which.
-`Only in ~/.copilot/…` lines must not remain after the copy.
+An `Only in copilot/…` line is a file removed or renamed live: if renamed,
+`git mv old new` before copying (history follows the file), otherwise
+`git rm` it; ask the user when you cannot tell. No `Only in ~/.copilot/…`
+line may remain after the copy.
 
 ## 3. Check
 
@@ -78,11 +77,10 @@ cd ~/code/minime && gutexberg check-message <<'MSG'
 MSG
 ```
 
-Then commit with one readable command (the user approves it in a permission
-prompt and reads the message there): the changed paths one per line, the
-message as a quoted heredoc; gutexberg appends the Copilot trailer. Add
-`--model <id>` only if your model differs from the one in
-`~/.copilot/settings.json`.
+Then commit with one readable command, since the user reads the message in
+the permission prompt: the changed paths one per line, the message as a
+quoted heredoc (gutexberg appends the Copilot trailer), and `--model <id>`
+only if your model differs from the one in `~/.copilot/settings.json`.
 
 ```sh
 cd ~/code/minime && gutexberg commit --phase other \

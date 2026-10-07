@@ -11,14 +11,10 @@ turns every entry into a red test.
 
 ## File
 
-One file, `.adl/spec.yaml`, next to the ADL. Like the rest of `.adl/` it is
-**never committed** (the user ignores the folder globally). Never stage it.
-
-The file grows in two passes:
-
-1. **Domain** (before ford): `entities`, `relations`, `constraints`.
-2. **Contracts** (after ford): `contracts` and `properties`, tied to the
-   components of the ADL.
+One file, `.adl/spec.yaml`, next to the ADL and, like it, **never
+committed**: never stage it. It grows in two passes: **domain** (before ford)
+adds `entities`, `relations` and `constraints`; **contracts** (after ford)
+adds `contracts` and `properties`, tied to the ADL components.
 
 ## Format
 
@@ -115,11 +111,10 @@ spec-check --stage contracts .adl/spec.yaml   # after the second pass
 ```
 
 It checks the structure, the kinds, the id format and uniqueness, the entity
-names relations refer to, and, at the `contracts` stage, that every
-`component` is defined in the `.adl/` files and that `contracts` and
-`properties` are present. It prints one line per problem and exits non-zero
-on any. It cannot judge whether a sentence is testable: that is the
-interview's job.
+names relations refer to and, at the `contracts` stage, that `contracts` and
+`properties` are present and every `component` is defined in the `.adl/`
+files. It prints one line per problem and exits non-zero on any. Whether a
+sentence is testable is the interview's job.
 
 ## From the spec to the tests (unclebob)
 
@@ -135,12 +130,11 @@ at a time, through the normal cycle:
 * Entity **invariants**, relation **rules** and **constraints** are tested
   where the component that enforces them is implemented, as a property when
   they quantify over values, as an example otherwise.
-* The test name says the behaviour in plain words; a comment in the test
-  cites the spec id (`# spec: tagging-twice-equals-tagging-once`) so that
-  coverage can be checked with `grep`.
+* The test name states the behaviour in plain words; a comment cites the spec
+  id (`# spec: tagging-twice-equals-tagging-once`), so coverage can be checked
+  with `grep`.
 * An entry that cannot be tested as written (an unclear sentence, a generator
-  that cannot be built) is raised with the user, not skipped silently.
+  that cannot be built) is raised with the user, never skipped silently.
 
-If the project lacks the property-based testing library (`stream_data` in
-`mix.exs`, `hypothesis` in the Python dependencies), adding it is a decision
-for the user.
+Adding a missing property-based testing library (`stream_data` in `mix.exs`,
+`hypothesis` in the Python dependencies) is the user's decision.
