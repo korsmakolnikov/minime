@@ -5,6 +5,6 @@
 #   AUTONOMY_UNCLEBOB   unclebob's edits of the code (tests and production)
 #   AUTONOMY_SOONG      soong's changes to agent and skill files, its mirror
 #                       commits in minime included
-export AUTONOMY_GUTEXBERG=0
-export AUTONOMY_UNCLEBOB=0
+export AUTONOMY_GUTEXBERG=1
+export AUTONOMY_UNCLEBOB=1
 export AUTONOMY_SOONG=0

@@ -1,6 +1,6 @@
 ---
 name: minime-sync
-description: Mirrors the live Copilot setup in ~/.copilot (agents, skills, hooks, settings, global instructions), the autonomy settings in ~/.bash_copilot and the gutexberg and soong-poll commands into ~/code/minime/copilot/, then records the change as a fixup of the copilot workflow feature commit through gutexberg. Use before a /restart and whenever an agent, skill, hook or setting has changed.
+description: Mirrors the live Copilot setup in ~/.copilot (agents, skills, hooks, settings, global instructions), the autonomy settings in ~/.bash_copilot and the gutexberg and mortimer commands into ~/code/minime/copilot/, then records the change as a new commit through gutexberg. Use before a /restart and whenever an agent, skill, hook or setting has changed.
 ---
 
 # minime-sync
@@ -35,7 +35,7 @@ cd ~/code/minime \
   && cp -r ~/.copilot/hooks/. copilot/hooks/ \
   && cp ~/.copilot/settings.json ~/.copilot/copilot-instructions.md copilot/ \
   && cp ~/.bash_copilot copilot/bash_copilot \
-  && cp ~/.local/bin/gutexberg ~/.local/bin/soong-poll copilot/bin/
+  && cp ~/.local/bin/gutexberg ~/.local/bin/mortimer copilot/bin/
 ```
 
 Then look for files the live setup no longer has (renamed or deleted):
@@ -64,27 +64,35 @@ cd ~/code/minime && git add -N . && git status --short && git diff --stat
 
 ## 4. Commit through gutexberg
 
-The target is the root commit of the branch:
+Every change is a new commit: never a fixup, never an amend. Write a
+Conventional Commits message with the `copilot` scope: a one-sentence subject
+(`feat(copilot): …`, `fix(copilot): …`, `docs(copilot): …`), a blank line and
+one or two C2-level English sentences saying what changed and why. Validate it
+first:
 
 ```sh
-cd ~/code/minime && git log --format=%h --grep='^feat: copilot workflow$' master..copilot
-```
+cd ~/code/minime && gutexberg check-message <<'MSG'
+<subject>
 
-Commit with one readable command (the user approves it in a permission
-prompt and reads the message there): the changed paths one per line, the body
-only as a quoted heredoc (gutexberg writes the `fixup! …` subject and the
-Copilot trailer itself), one or two C2-level English sentences saying what
-changed. Add `--model <id>` only if your model differs from the one in
-`~/.copilot/settings.json`.
-
-```sh
-cd ~/code/minime && gutexberg fixup <target> \
-  copilot/agents/foo.agent.md \
-  README.md \
-  <<'MSG'
 <body>
 MSG
 ```
 
-Never squash or autosquash the fixup: the user does it by hand. Report the new
-commit hash and confirm the tree is clean.
+Then commit with one readable command (the user approves it in a permission
+prompt and reads the message there): the changed paths one per line, the
+message as a quoted heredoc; gutexberg appends the Copilot trailer. Add
+`--model <id>` only if your model differs from the one in
+`~/.copilot/settings.json`.
+
+```sh
+cd ~/code/minime && gutexberg commit --phase other \
+  copilot/agents/foo.agent.md \
+  README.md \
+  <<'MSG'
+<subject>
+
+<body>
+MSG
+```
+
+Report the new commit hash and confirm the tree is clean.

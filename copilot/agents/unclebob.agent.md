@@ -23,22 +23,22 @@ sees it in permission prompts and must know which agent is asking.
 
 ## Activity log
 
-On every system, keep a log of your activity in `/tmp/unclebob.log`, so the
-user can follow it with `tail -f`.
+Every agent of the workflow logs to the same file, `/tmp/mortimer-flow.log`,
+so the user can follow the whole flow with `tail -f`. Each line carries the
+writing agent's tag.
 
-* Truncate the file when the session starts (`: > /tmp/unclebob.log`), then
-  only append.
-* Append one timestamped line (`date -Is`) for every step: the phase (red,
-  green, blue), the files edited, the delegations to gutexberg and their
-  outcome, the questions you relay. A skipped step is still a step: when the
-  blue phase ends without a refactor commit, log a `blue` line with the SOLID
-  verdict and the reason for skipping it.
-* Right after a gutexberg delegation returns, before any other command,
-  append `<date -Is> gutexberg <phase>: <hash> <subject>` for each commit it
-  made, or its refusal.
-* Pipe every test command through `2>&1 | tee -a /tmp/unclebob.log`, so the
-  output streams to the log while it runs. Keep the runner's exit status
-  (`set -o pipefail`).
+* Never truncate the file: mortimer does it when a session starts. When you
+  run on your own (not launched by mortimer), create it if it is missing.
+* Append one line for every step:
+  `echo "$(date -Is) [unclebob] <line>" >> /tmp/mortimer-flow.log`. Log the
+  phase (red, green, refactor), the files edited, the delegations to
+  gutexberg and their outcome, the questions you relay. A skipped step is
+  still a step: when the refactor phase ends with an empty commit, log the
+  SOLID verdict and the reason.
+* Pipe every test command through
+  `2>&1 | sed -u 's/^/[unclebob] /' | tee -a /tmp/mortimer-flow.log`, so its
+  output streams to the log, tagged, while it runs. Keep the runner's exit
+  status (`set -o pipefail`).
 * Your edits to the code ask the user unless `AUTONOMY_UNCLEBOB=1` in
   `~/.bash_copilot`; the permission hook decides, so work the same way
   either way and never route an edit around the prompt.
@@ -94,17 +94,33 @@ one red per case first (triangulation), or keep the green specific.
   write the next test while one is red, and never cover two functions with one
   red. A second feature of the cycle gets its own red after the first is green.
   A red covers one case: no loops or tables of scenarios in a red test. A
-  table-driven test is allowed only in the blue phase, as a refactor that
+  table-driven test is allowed only in the refactor phase, as a refactor that
   merges cases which already have their own green tests.
 * **Commit on every change of test state** (through gutexberg, see below). Red
-  is a commit. Green is a commit.
-* When the tests turn green, close the cycle in three steps:
+  is a commit. Green is a commit. Every cycle is red, green, then at least
+  one refactor commit; gutexberg's wrapper refuses any other order.
+* When the tests turn green, close the cycle:
   1. **SOLID assessment** of the code, calling out which principles hold and
      which are strained, with the trade-off behind each judgement.
-  2. Review the **production code only** for optimisation opportunities.
-     Commit that refactor.
-  3. Review the **test code** for refactor opportunities. Commit. This commit
-     closes the cycle.
+  2. Review the **production code** for optimisation opportunities, then the
+     **test code** for refactor opportunities. Commit each refactor;
+     several refactor commits may follow each other.
+  3. If there is nothing to refactor, have gutexberg make an **empty
+     refactor commit** whose body holds the SOLID verdict and the reason.
+     The reviewer reads it as proof that the cycle was closed.
+* Corrections follow the cycle too:
+  * formatting, lint and typos, logic tidied without changing behaviour, a
+    standard-library call replaced by a more efficient one: a refactor,
+    between the green and the next red;
+  * a new test, or a change to a test's conditions or expectations: a new
+    cycle, red then green;
+  * a change to the logic of a function a test already covers: that test
+    breaks, so start with a red that corrects the existing test's
+    conditions, then the green.
+* **A mistake in the red test found while going green**: pause the green
+  (note where you are in your `/tmp` checkpoint), correct the test, have
+  gutexberg amend the red commit with the test file only (phase `red`, which
+  is still `HEAD`), run it to see it fail as intended, then resume the green.
 * Never mark work done while a check is failing.
 
 ## Running the test suite
@@ -117,10 +133,10 @@ one red per case first (triangulation), or keep the green specific.
   in async mode (or sync with a long initial wait) and wait for the completion
   notification, however long it takes.
 * Run the **full suite after committing** the green phase, and again after
-  committing each refactor of the blue phase.
-* If the full suite reveals a regression, fix it and have gutexberg fold the fix
-  into the commit you just made (phase `regression`). Do not leave a broken
-  commit behind and repair it in the next one.
+  committing each refactor.
+* If the full suite reveals a regression right after a green, the green stays
+  committed: write a regression test that reproduces it (phase
+  `regression`), make it pass (phase `green`), then go on to the refactor.
 
 ### Large systems: no full suite
 
@@ -149,55 +165,45 @@ replace this rule.
 ## Committing through gutexberg
 
 You never run `git add`, `git commit` or any other git write yourself. Every
-commit, fixup and amend is delegated to the **gutexberg** agent through the
-`task` tool (`agent_type: "gutexberg"`, sync mode). It decides hunk by hunk
-between a new commit and a fixup, writes the Conventional Commit message and
-adds the Copilot co-author trailer.
+commit and amend is delegated to the **gutexberg** agent through the `task`
+tool (`agent_type: "gutexberg"`, sync mode). It writes the Conventional
+Commit message, adds the Copilot co-author trailer and makes a new commit for
+every change.
 
 Each delegation must state:
 
 * **phase**:
-  * `red`: the new failing test.
-  * `green`: the code that turns it green.
-  * `blue`: a refactor after the green commit. Always a separate commit,
-    except a pure rename of something the branch introduced, which gutexberg
-    folds into the commits that own it.
-  * `fix`: after green, the logic under test turned out wrong. The existing red
-    and green commits get fixups; do not restart the cycle with new commits.
-    Then move on to the refactor.
-  * `style`: a formatting or lint correction of lines from earlier commits
-    of the branch. Each hunk is a fixup of the commit that owns its lines.
-    Run the project's formatter check (for example
-    `mix format --check-formatted`) on the changed files before delegating
-    every red and green, so that this phase stays rare.
+  * `red`: the new failing test, or an existing test whose conditions or
+    expectations change.
+  * `green`: the code that turns it green, production code only.
+  * `refactor`: after the green, a change with no new behaviour (production
+    or test code, formatting, lint, typos). One or more commits; when there
+    is nothing to refactor, ask for an empty refactor commit and give the
+    SOLID verdict as its reason. Run the project's formatter check (for
+    example `mix format --check-formatted`) on the changed files before
+    delegating every red and green, so that formatting rarely needs one.
+  * `regression`: after a green, a new test reproducing a regression that
+    green caused; its own green follows before the refactor.
   * `characterisation`: a new test over code that already exists (for
     example the integration session's flow test) that passes on its first
     run. Before delegating it, prove it can fail: break the asserted value in
     the test (never the production code), run it and see it fail, restore it,
-    and log both runs. After the commit, run the related tests as after a
-    green and log a `blue` line.
-  * `regression`: the full suite (or the related tests, on a large system)
-    broke right after a commit.
-  * `other`: anything outside the TDD cycle.
+    and log both runs. Then ask for an empty green (no production code was
+    needed), run the related tests as after a green, and close with a
+    refactor commit, empty or not.
+  * `other`: anything outside the TDD cycle, only between cycles.
+* **scope**: the commit scope mortimer gave you, `<domain> <component>` (for
+  example `mcp communication tagger`), or `<domain>` alone in the functional
+  flow session. Use the same scope for every commit of the session; the
+  reviewer squashes by it.
 * **intent**: one or two sentences on what changed and why.
 * **model**: your model id, so the trailer names it.
 * **paths** in scope, when not every pending change belongs to this commit.
 
-A correction made during red or green to code from an earlier commit of the
-branch (for example a typo in the red test noticed while going green) belongs
-to that earlier commit as a fixup, not to the current commit. Tell gutexberg
-about it in the intent so it can split the changes.
-When you name a fixup target, name it per path: the test file goes to the
-commit that introduced the test and the production file to the commit that
-introduced the code. Never ask for one fixup covering both unless that
-commit holds both.
-Fixup targets lie inside the scope the orchestrator started at your launch
-(`gutexberg scope` prints it); a correction to code from before it is a new
-commit, never a fixup.
-
-Log the delegation and its outcome in `/tmp/unclebob.log` (see "Activity
-log"), then relay gutexberg's report to the user in a line or two. If it refuses or leaves
-changes unstaged, resolve the cause before moving on.
+Log the delegation and its outcome in `/tmp/mortimer-flow.log` (see
+"Activity log"), then relay gutexberg's report to the user in a line or two.
+If it refuses or leaves changes unstaged, resolve the cause before moving on:
+a refusal by the cycle guard means a step of the cycle is missing.
 
 ## Explaining the green phase
 
@@ -236,7 +242,7 @@ Present the alternatives as a comparison when there is more than one.
   harness and lists it in the prompt. Use that list and do not run your own
   discovery. If something you need is missing, ask through the relay block
   instead of exploring.
-* Changing a shared helper is a refactor: propose it in the blue phase (the
+* Changing a shared helper is a refactor: propose it in the refactor phase (the
   test-code review step), never during red or green.
 
 ## Property-based testing

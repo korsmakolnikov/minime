@@ -108,13 +108,13 @@ Agents and skills for the [GitHub Copilot CLI](https://docs.github.com/copilot/h
 
 | Agent | Role |
 |-------|------|
-| `mortimer` | Orchestrator, run as the main agent. Studies the code, gathers the preliminary findings, runs `ford`, then `unclebob` one component at a time, then `sherlock`, relays their questions to the user and keeps `joshua` informed. Never writes code or commits. |
-| `joshua` | Auditor. Runs in background beside `mortimer` for the whole session and checks every agent against its file and launch prompt. Read-only: violations never stop the workflow; `mortimer` prints them and `joshua` logs them for `soong`. |
+| `mortimer` | Orchestrator, run as the main agent. Studies the code, gathers the preliminary findings, runs `ford`, then `unclebob` one component at a time, then `sherlock`, relays their questions to the user, keeps `joshua` informed and forwards its violations to `soong`. Never writes code or commits. Every agent logs to `/tmp/mortimer-flow.log`, each line tagged with the agent's name. |
+| `joshua` | Auditor. Runs in background beside `mortimer` for the whole session and checks every agent against its file and launch prompt. Read-only: violations never stop the workflow; `mortimer` prints them and forwards them to `soong`, and `joshua` also logs them to `/tmp/joshua-violations.md`. |
 | `ford` | Interviews the user to write the ADL, then generates fitness functions, scaffold and component interfaces. No business logic. |
-| `unclebob` | Implements the internals test-first, one red test at a time. Refuses to work when the tests cannot run. Treats `ford`'s interfaces as a contract. |
-| `gutexberg` | The only actor that writes to git: Conventional Commits, fixups bounded to the branch, Copilot co-author trailer naming the model. Uses the `gutexberg` command in `copilot/bin/`. |
-| `sherlock` | Reviewer. Audits that the branch was built test-first, squashes it on `<branch>-review` (fixups folded, then an architecture commit, one commit per component and a functional test commit), then walks the user through each commit; requested changes go back to the original branch. |
-| `soong` | Maintainer of the agent files, run in its own session (`copilot --agent soong`). Polls the violations `joshua` logs in `/tmp/joshua-violations.md` (with the `soong-poll` command in `copilot/bin/`), proposes a fix to the agent and skill files for each, applies the approved ones and mirrors them here, then writes `restart=true` to `/tmp/soong-corrections.log`. At its checkpoints (before ford, before unclebob, after each component, before sherlock) `mortimer` reads that signal, saves its progress to `/tmp/mortimer-partial-session-progress.md` and asks for a `/restart`; it checks that file on every user message, so after the restart any message (or `mortimer --resume -i "continue"`) makes it resume from the file and delete it. |
+| `unclebob` | Implements the internals test-first, one red test at a time: every cycle is a red commit, a green commit and at least one refactor commit (empty when there is nothing to refactor). Refuses to work when the tests cannot run. Treats `ford`'s interfaces as a contract. |
+| `gutexberg` | The only actor that writes to git: Conventional Commits scoped by component (`feat(<domain> <component>): …`), a new commit for every change, Copilot co-author trailer naming the model. Uses the `gutexberg` command in `copilot/bin/`, which records each commit's phase and refuses any order other than red, green, refactor. |
+| `sherlock` | Reviewer. Audits that the branch was built test-first and reviews every green (SOLID, complexity, idiom), squashes it on `<branch>-review` by commit scope (an architecture commit, one commit per component and a functional test commit), then walks the user through each commit; requested changes go back to the original branch. |
+| `soong` | Maintainer of the agent files. Runs in background in `mortimer`'s session, beside `joshua`: proposes a fix to the agent and skill files for each violation `mortimer` forwards, applies the approved ones, mirrors them here and tells `mortimer` to restart. At its checkpoints (before ford, before unclebob, after each component, before sherlock) `mortimer` saves its progress to `/tmp/mortimer-partial-session-progress.md` and asks for a `/restart`; it checks that file on every user message, so after the restart any message (or `mortimer --resume -i "continue"`) makes it resume from the file and delete it. `soong` also watches that `mortimer` carries the restart out and that `joshua` never prompts the user, and alerts the user (desktop popup) when they do not. |
 
 | Skill | Role |
 |-------|------|
@@ -123,9 +123,9 @@ Agents and skills for the [GitHub Copilot CLI](https://docs.github.com/copilot/h
 | `adl-fitness` | ADL assertions to ExUnit/pytest fitness functions, with standard-library helpers. |
 | `adl-scaffold` | Namespaces and interfaces, without logic. |
 | `adl-reverse` | As-is ADL drafts from the dependency graph of existing code. |
-| `minime-sync` | Mirrors `~/.copilot` into `copilot/` and records it as a fixup through `gutexberg`; run it before a `/restart`. |
+| `minime-sync` | Mirrors `~/.copilot` into `copilot/` and commits it through `gutexberg`; run it before a `/restart`. |
 
-Start with `mortimer` (the launcher in `copilot/bin/`: `copilot --agent mortimer` plus `--add-dir` for `~/.copilot/agents` and `~/.copilot/skills`, since reading them otherwise asks for path access, which the permission hook cannot answer; other options pass through), or `copilot --agent unclebob` for a plain TDD session, and `copilot --agent soong` in a second terminal to fix the agents as `joshua` finds violations.
+Start with `mortimer` (the launcher in `copilot/bin/`: `copilot --agent mortimer` plus `--add-dir` for `~/.copilot/agents`, `~/.copilot/skills` and `~/code/minime`, since reaching them otherwise asks for path access, which the permission hook cannot answer; other options pass through), or `copilot --agent unclebob` for a plain TDD session. Follow the whole flow with `tail -f /tmp/mortimer-flow.log`.
 
 `copilot/copilot-instructions.md` holds the rules every agent follows; above all, no agent ever pushes.
 
@@ -146,7 +146,7 @@ For the Copilot workflow:
 ```sh
 make copilot-install   # installs or overwrites agents, skills and hooks in ~/.copilot/,
                        # settings and copilot-instructions.md in ~/.copilot/
-                       # and gutexberg and soong-poll in ~/.local/bin/
+                       # and gutexberg and mortimer in ~/.local/bin/
 ```
 
 The hooks in `copilot/hooks/` keep the agents unattended:
@@ -173,7 +173,7 @@ The hooks in `copilot/hooks/` keep the agents unattended:
 sets how much each agent may do without asking, read live by the hook and
 the agents. `0` asks, `1` proceeds:
 
-* `AUTONOMY_GUTEXBERG`: `gutexberg commit`, `fixup` and `amend`.
+* `AUTONOMY_GUTEXBERG`: `gutexberg commit` and `amend`.
 * `AUTONOMY_UNCLEBOB`: unclebob's code edits. The hook tells the agent behind
   an edit by finding the pending tool call on that file in the session's
   `events.jsonl` and following it to the task that launched the agent.

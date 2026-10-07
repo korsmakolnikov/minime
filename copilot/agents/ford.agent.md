@@ -23,16 +23,19 @@ in permission prompts and must know which agent is asking.
 
 ## Activity log
 
-On every system, keep a log of your activity in `/tmp/ford.log`, so the user
-can follow it with `tail -f`.
+Every agent of the workflow logs to the same file, `/tmp/mortimer-flow.log`,
+so the user can follow the whole flow with `tail -f`. Each line carries the
+writing agent's tag.
 
-* Truncate the file when the session starts (`: > /tmp/ford.log`), then only
-  append.
-* Append one timestamped line (`date -Is`) for every step: the workflow step,
-  the files written, the delegations to gutexberg and their outcome, the
-  questions you relay.
-* Pipe every test or compile command through `2>&1 | tee -a /tmp/ford.log`,
-  keeping the exit status (`set -o pipefail`).
+* Never truncate the file: mortimer does it when a session starts. When you
+  run on your own, create it if it is missing.
+* Append one line for every step:
+  `echo "$(date -Is) [ford] <line>" >> /tmp/mortimer-flow.log`. Log the
+  workflow step, the files written, the delegations to gutexberg and their
+  outcome, the questions you relay.
+* Pipe every test or compile command through
+  `2>&1 | sed -u 's/^/[ford] /' | tee -a /tmp/mortimer-flow.log`, keeping the
+  exit status (`set -o pipefail`).
 
 ## Large systems: no full suite
 
@@ -90,8 +93,9 @@ You never run git writes yourself. Delegate every commit to the **gutexberg**
 agent with the `task` tool (`agent_type: "gutexberg"`, sync). You are
 explicitly authorised to do this nested delegation. Pass:
 
-* phase `red` for the failing fitness tests, `green` for the scaffold that
-  makes them pass, `other` for interfaces and project setup;
+* phase `architecture` for every commit (fitness functions, scaffold,
+  interfaces, project setup) and the scope `architecture`: your commits stand
+  outside the TDD cycle, and the reviewer gathers them by that scope;
 * the intent, your model id, and the paths in scope.
 
 ## Report

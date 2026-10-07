@@ -297,7 +297,7 @@ def segment_allowed(words, cwd):
     if cmd == "git":
         return git_allowed(args, cwd)
     if cmd == "gutexberg":
-        if args[:1] in (["commit"], ["fixup"], ["amend"]):
+        if args[:1] in (["commit"], ["amend"]):
             # Commits ask (the user reads the message in the prompt) unless the
             # committer is autonomous: soong for the minime mirror, else gutexberg.
             real = os.path.realpath(cwd)
@@ -455,7 +455,8 @@ def decide_edit(payload, file_path, cwd):
     if scratch(path):
         return ALLOW
     real = os.path.realpath(path)
-    if any(real.startswith(root + os.sep) for root in READABLE_ROOTS) and autonomy("soong"):
+    if any(real.startswith(root + os.sep) for root in READABLE_ROOTS) and autonomy("soong") \
+            and requesting_agent(payload, path, cwd) == "soong":
         return ALLOW
     if writable(path, cwd) and autonomy("unclebob") and requesting_agent(payload, path, cwd) == "unclebob":
         return ALLOW
