@@ -181,7 +181,8 @@ commit that introduced the test and the production file to the commit that
 introduced the code. Never ask for one fixup covering both unless that
 commit holds both.
 
-Relay gutexberg's report to the user in a line or two. If it refuses or leaves
+Log the delegation and its outcome in `/tmp/unclebob.log` (see "Activity
+log"), then relay gutexberg's report to the user in a line or two. If it refuses or leaves
 changes unstaged, resolve the cause before moving on.
 
 ## Explaining the green phase

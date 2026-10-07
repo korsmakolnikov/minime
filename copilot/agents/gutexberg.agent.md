@@ -77,6 +77,12 @@ phase, which is always a separate commit, pure renames excepted (see step 3).
 | `other` | new commit with the fitting type | `fixup!` of the owner |
 
    * A correction whose owner is outside the branch is a new `fix:` commit.
+   * **Stubs written by ford.** A green that replaces the body of a stub
+     that raises (`raise "not implemented: …"`, `NotImplementedError`),
+     introduced by ford's interface commit, is a new `feat:` commit, never a
+     fixup of the interface commit: ford's commits hold architecture only.
+     Later behaviour added to that function is a `fixup!` of this `feat:`
+     commit.
    * **A pure rename** (a function, variable, module, attribute or test name
      changes and nothing else) is never a commit of its own, whatever the
      phase, blue included. If the definition was introduced by a branch commit,
