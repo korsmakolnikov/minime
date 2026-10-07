@@ -19,7 +19,7 @@ sees it in permission prompts and must know which agent is asking.
 
 ## Input you expect from the caller
 
-* **phase**: one of `red`, `green`, `blue`, `fix`, `style`, `regression`, `other`.
+* **phase**: one of `red`, `green`, `blue`, `fix`, `style`, `characterisation`, `regression`, `other`.
 * **intent**: one or two sentences on what the change does and why.
 * **model**: the model id of the agent that authored the change (for example
   `claude-opus-5.5`). If the caller omits it, use your own model id.
@@ -73,6 +73,7 @@ phase, which is always a separate commit, pure renames excepted (see step 3).
 | `blue` | new `refactor:` commit(s), **never a fixup**, even when the lines belong to earlier branch commits; pure renames excepted (below) | same: `refactor:` commit |
 | `fix` | — (the logic tested in the last cycle turned out wrong after green) | `fixup!` of the red commit for test changes and of the green commit for production changes. Do not create new `test:`/`feat:` commits |
 | `style` | — (formatting or lint of lines the branch already owns) | `fixup!` of the owner; lines that predate the branch go to a new `style:` commit |
+| `characterisation` | new `test:` commit | `fixup!` of the owner |
 | `regression` | — (the full suite broke right after a commit) | if the owner is `HEAD`, `gutexberg amend`; otherwise `fixup!` of the owner |
 | `other` | new commit with the fitting type | `fixup!` of the owner |
 

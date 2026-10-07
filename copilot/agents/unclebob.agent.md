@@ -170,6 +170,12 @@ Each delegation must state:
     Run the project's formatter check (for example
     `mix format --check-formatted`) on the changed files before delegating
     every red and green, so that this phase stays rare.
+  * `characterisation`: a new test over code that already exists (for
+    example the integration session's flow test) that passes on its first
+    run. Before delegating it, prove it can fail: break the asserted value in
+    the test (never the production code), run it and see it fail, restore it,
+    and log both runs. After the commit, run the related tests as after a
+    green and log a `blue` line.
   * `regression`: the full suite (or the related tests, on a large system)
     broke right after a commit.
   * `other`: anything outside the TDD cycle.
