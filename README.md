@@ -114,7 +114,7 @@ Agents and skills for the [GitHub Copilot CLI](https://docs.github.com/copilot/h
 | `unclebob` | Implements the internals test-first, one red test at a time. Refuses to work when the tests cannot run. Treats `ford`'s interfaces as a contract. |
 | `gutexberg` | The only actor that writes to git: Conventional Commits, fixups bounded to the branch, Copilot co-author trailer naming the model. Uses the `gutexberg` command in `copilot/bin/`. |
 | `sherlock` | Reviewer. Audits that the branch was built test-first, squashes it on `<branch>-review` (fixups folded, then an architecture commit, one commit per component and a functional test commit), then walks the user through each commit; requested changes go back to the original branch. |
-| `soong` | Maintainer of the agent files, run in its own session (`copilot --agent soong`). Polls the violations `joshua` logs in `/tmp/joshua-violations.md` (with the `soong-poll` command in `copilot/bin/`), proposes a fix to the agent and skill files for each, applies the approved ones and mirrors them here, then writes `restart=true` to `/tmp/soong-corrections.log`. At its checkpoints (before ford, before unclebob, after each component, before sherlock) `mortimer` reads that signal, saves its progress to `/tmp/mortimer-partial-session-progress.md` and asks for a `/restart`; it checks that file on every user message, so after the restart any message (or `copilot --agent mortimer --resume -i "continue"`) makes it resume from the file and delete it. |
+| `soong` | Maintainer of the agent files, run in its own session (`copilot --agent soong`). Polls the violations `joshua` logs in `/tmp/joshua-violations.md` (with the `soong-poll` command in `copilot/bin/`), proposes a fix to the agent and skill files for each, applies the approved ones and mirrors them here, then writes `restart=true` to `/tmp/soong-corrections.log`. At its checkpoints (before ford, before unclebob, after each component, before sherlock) `mortimer` reads that signal, saves its progress to `/tmp/mortimer-partial-session-progress.md` and asks for a `/restart`; it checks that file on every user message, so after the restart any message (or `mortimer --resume -i "continue"`) makes it resume from the file and delete it. |
 
 | Skill | Role |
 |-------|------|
@@ -125,7 +125,7 @@ Agents and skills for the [GitHub Copilot CLI](https://docs.github.com/copilot/h
 | `adl-reverse` | As-is ADL drafts from the dependency graph of existing code. |
 | `minime-sync` | Mirrors `~/.copilot` into `copilot/` and records it as a fixup through `gutexberg`; run it before a `/restart`. |
 
-Start with `copilot --agent mortimer` (or `copilot --agent unclebob` for a plain TDD session), and `copilot --agent soong` in a second terminal to fix the agents as `joshua` finds violations.
+Start with `mortimer` (the launcher in `copilot/bin/`: `copilot --agent mortimer` plus `--add-dir` for `~/.copilot/agents` and `~/.copilot/skills`, since reading them otherwise asks for path access, which the permission hook cannot answer; other options pass through), or `copilot --agent unclebob` for a plain TDD session, and `copilot --agent soong` in a second terminal to fix the agents as `joshua` finds violations.
 
 `copilot/copilot-instructions.md` holds the rules every agent follows; above all, no agent ever pushes.
 

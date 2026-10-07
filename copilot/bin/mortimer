@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# Starts the workflow orchestrator. The agent and skill folders are added to
+# the session's allowed paths: reading them otherwise raises a path-access
+# prompt that the permission hook cannot answer. Sub-agents share these paths.
+# Usage: mortimer [any other copilot option, e.g. --resume -i "continue"]
+exec copilot --agent mortimer \
+  --add-dir "$HOME/.copilot/agents" \
+  --add-dir "$HOME/.copilot/skills" \
+  "$@"
