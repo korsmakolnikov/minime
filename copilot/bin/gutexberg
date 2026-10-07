@@ -45,6 +45,15 @@ Write:
                                 Stage the given paths (tests only) and amend HEAD,
                                 keeping its message. Only a red, regression or
                                 characterisation HEAD can be amended.
+  squash --scope <scope> --from <commit> <<'MSG'
+                                Replace the unit <commit>..HEAD with one commit
+                                (sherlock, after the unit's review). Every commit
+                                of the unit carries <scope>, none is a squashed
+                                unit already, the commit before <commit> does not
+                                carry <scope> unless it is a squashed unit, the
+                                unit's cycle is closed and the work tree is clean.
+                                The message has the same scope; the tree does
+                                not change. The commit is recorded as a "unit".
 
 Phases and the TDD cycle (the last cycle commit of the branch decides):
   red, characterisation   a new test; the cycle must be closed (no cycle commit
@@ -54,15 +63,18 @@ Phases and the TDD cycle (the last cycle commit of the branch decides):
                           characterisation; --empty only after characterisation
   refactor                after green or refactor; --empty when there is nothing
                           to refactor
-  architecture            ford's work, scope "architecture", any time
+  architecture            ford's work, any time; scope "architecture", or that of
+                          the unit it belongs to
   other                   anything else, only while the cycle is closed
 
   red, regression and characterisation commits hold only test files; green
   commits hold none. Cycle commits need a scope: "(<domain> <component>)", or
   "(<domain>)" for the functional flow tests.
 
-  commit accepts -F <file> instead of stdin and --model <id>. The model named
-  in the trailer is --model, else $GUTEXBERG_MODEL, else the "model" of
+  A squashed unit ends the cycle history: the cycle guard does not look past it.
+
+  commit and squash accept -F <file> instead of stdin and --model <id>. The
+  model named in the trailer is --model, else $GUTEXBERG_MODEL, else the "model" of
   ~/.copilot/settings.json. Each commit is appended to /tmp/mortimer-flow.log
   when that file exists.
 
@@ -115,13 +127,19 @@ record_phase() {
   echo "$(git rev-parse HEAD) $1" >>"$(phase_log)"
 }
 
-# The phase of the newest cycle commit in the branch, or "none".
+# The scope of a Conventional Commits subject, empty when it has none.
+subject_scope() {
+  sed -nE "s/^($TYPES)\(([^)]*)\)!?: .*/\2/p" <<<"$1"
+}
+
+# The phase of the newest cycle commit since the last squashed unit, or "none".
 last_cycle_phase() {
   local sha phase
   for sha in $(git rev-list "$(base)..HEAD"); do
     phase=$(phase_of "$sha")
     case "$phase" in
     red | green | refactor | regression | characterisation) echo "$phase"; return ;;
+    unit) break ;;
     esac
   done
   echo none
@@ -169,8 +187,8 @@ check_subject_scope() {
   local phase="$1" subject="$2"
   case "$phase" in
   architecture)
-    [[ "$subject" =~ ^($TYPES)\(architecture\) ]] ||
-      die "An architecture commit has the scope (architecture): '$subject'" ;;
+    [[ "$subject" =~ ^($TYPES)$SCOPE_RE ]] ||
+      die "An architecture commit needs a scope: (architecture), or that of the unit it belongs to: '$subject'" ;;
   red | green | refactor | regression | characterisation)
     [[ "$subject" =~ ^($TYPES)$SCOPE_RE ]] ||
       die "A $phase commit needs the scope (<domain> <component>), or (<domain>) for the flow tests: '$subject'" ;;
@@ -297,7 +315,7 @@ git rev-parse --is-inside-work-tree >/dev/null 2>&1 || die "Not inside a git wor
 # Write commands share the index: serialise them, so that parallel calls cannot
 # mix their files into one commit.
 case "$CMD" in
-stage | stage-patch | unstage | commit | amend)
+stage | stage-patch | unstage | commit | amend | squash)
   exec 9>"$(git rev-parse --git-common-dir)/gutexberg.lock"
   flock 9
   ;;
@@ -358,6 +376,69 @@ amend)
   git commit -q --amend --no-edit
   record_phase "$PHASE"
   flow_log "amend $PHASE"
+  report
+  ;;
+squash)
+  SCOPE=""
+  FROM=""
+  MODEL=""
+  MSG_FILE=""
+  while [ $# -gt 0 ]; do
+    case "$1" in
+    --scope) SCOPE="${2:-}"; shift 2 ;;
+    --from) FROM="${2:-}"; shift 2 ;;
+    --model) MODEL="${2:-}"; shift 2 ;;
+    -F) MSG_FILE="${2:-}"; shift 2 ;;
+    *) die "Usage: gutexberg squash --scope <scope> --from <commit> <<'MSG'" ;;
+    esac
+  done
+  [ -n "$SCOPE" ] && [ -n "$FROM" ] || die "Usage: gutexberg squash --scope <scope> --from <commit> <<'MSG'"
+  MODEL="${MODEL:-${GUTEXBERG_MODEL:-$(default_model)}}"
+  [ -n "$MODEL" ] || die "No model: pass --model <id>, set GUTEXBERG_MODEL or a model in settings.json."
+  if [ -z "$MSG_FILE" ]; then
+    [ -t 0 ] && die "The message is missing: pass it on stdin (heredoc) or with -F <file>."
+    MSG_FILE=$(mktemp)
+    trap 'rm -f "$MSG_FILE"' EXIT
+    cat >"$MSG_FILE"
+  fi
+  current_branch_guard
+  validate_message "$MSG_FILE"
+  [ "$(subject_scope "$(sed -n 1p "$MSG_FILE")")" = "$SCOPE" ] ||
+    die "The message must carry the scope ($SCOPE): '$(sed -n 1p "$MSG_FILE")'"
+  git diff --quiet && git diff --cached --quiet ||
+    die "The work tree has uncommitted changes: a squash needs a clean tree."
+  from=$(git rev-parse --verify -q "$FROM^{commit}") || die "Unknown commit '$FROM'."
+  git rev-list "$(base)..HEAD" | grep -qx "$from" || die "$FROM is outside the branch (<base>..HEAD)."
+  [ -z "$(git rev-list --merges "$from^..HEAD")" ] || die "The unit contains merge commits."
+  for sha in $(git rev-list "$from^..HEAD"); do
+    subject=$(git log -1 --format=%s "$sha")
+    [ "$(subject_scope "$subject")" = "$SCOPE" ] ||
+      die "$(git rev-parse --short "$sha") does not carry the scope ($SCOPE): '$subject'"
+    [ "$(phase_of "$sha")" != unit ] ||
+      die "$(git rev-parse --short "$sha") is a squashed unit already: start the unit after it."
+  done
+  before=$(git rev-parse "$from^")
+  if git rev-list "$(base)..HEAD" | grep -qx "$before" &&
+    [ "$(subject_scope "$(git log -1 --format=%s "$before")")" = "$SCOPE" ] &&
+    [ "$(phase_of "$before")" != unit ]; then
+    die "$(git rev-parse --short "$before") before $FROM also carries ($SCOPE): the unit starts earlier."
+  fi
+  case "$(last_cycle_phase)" in
+  none | refactor) ;;
+  *) die "The unit's cycle is open (last cycle commit: $(last_cycle_phase)): close it with a refactor first." ;;
+  esac
+  count=$(git rev-list --count "$from^..HEAD")
+  tip=$(git rev-parse HEAD)
+  git reset -q --soft "$before"
+  if ! { strip_existing_trailer "$MSG_FILE"; echo; trailer; } | git commit -q --allow-empty -F -; then
+    git reset -q --soft "$tip"
+    die "The commit failed; the branch is back at $(git rev-parse --short "$tip")."
+  fi
+  [ "$(git rev-parse HEAD^{tree})" = "$(git rev-parse "$tip^{tree}")" ] ||
+    die "The squashed tree differs from $(git rev-parse --short "$tip"): inspect, then 'git reset --hard $tip' restores the unit."
+  record_phase unit
+  flow_log "squash of $count commits (previous tip $(git rev-parse --short "$tip")) into"
+  echo "Squashed $count commits; the previous tip $(git rev-parse --short "$tip") stays reachable in the reflog."
   report
   ;;
 *) usage; exit 1 ;;

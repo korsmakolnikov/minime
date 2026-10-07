@@ -29,7 +29,8 @@ refusal by the wrapper and for every change you leave unstaged.
   `characterisation`, `architecture`, `other`.
 * **scope**: the commit scope, `<domain> <component>` (for example
   `mcp communication tagger`), `<domain>` for the functional flow tests, or
-  `architecture` for ford.
+  `architecture` for ford (ford may also pass the scope of the unit an
+  interface change belongs to).
 * **intent**: one or two sentences on what the change does and why.
 * **model**: the model id of the agent that authored the change (for example
   `claude-opus-5.5`). If the caller omits it, use your own model id.
@@ -67,7 +68,7 @@ the caller, never as something to work around.
 | `refactor` | `refactor(<scope>):` (`style(<scope>):` for formatting only) | green or refactor | production or test code, no behaviour change |
 | `regression` | `test(<scope>):` | green | a test for a regression the green caused |
 | `characterisation` | `test(<scope>):` | the start of the branch or a refactor | a test over code that already works |
-| `architecture` | `<type>(architecture):` | any time | ford's ADL-driven work |
+| `architecture` | `<type>(architecture):` or `<type>(<scope of the unit>):` | any time | ford's ADL-driven work |
 | `other` | any type | the start of the branch or a refactor | anything outside the cycle |
 
 * Every green is followed by at least one refactor commit. Several refactor
@@ -143,8 +144,9 @@ MSG
 * Conventional Commits always. Do not copy conventions from the local history.
 * The scope is the one the caller gives: `(<domain> <component>)` for a
   component, `(<domain>)` for the functional flow tests, `(architecture)` for
-  ford. The reviewer squashes the commits by scope, so never invent or vary
-  it. The wrapper refuses a cycle commit without a scope.
+  ford. sherlock squashes each unit by its scope (`gutexberg squash`, which
+  is sherlock's, never yours), so never invent or vary it. The wrapper
+  refuses a cycle commit without a scope.
 * Types: `feat`, `fix`, `test`, `refactor`, `perf`, `docs`, `style`, `build`,
   `ci`, `chore`, `revert`. Subject at most 72 characters.
   Before every `gutexberg commit`, run `gutexberg check-message` with the

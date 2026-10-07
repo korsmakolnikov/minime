@@ -97,8 +97,10 @@ agent with the `task` tool (`agent_type: "gutexberg"`, sync). You are
 explicitly authorised to do this nested delegation. Pass:
 
 * phase `architecture` for every commit (fitness functions, scaffold,
-  interfaces, project setup) and the scope `architecture`: your commits stand
-  outside the TDD cycle, and the reviewer gathers them by that scope;
+  interfaces, project setup) and the scope `architecture`, or the scope
+  mortimer gives you when the change belongs to another unit (an interface
+  change a component needs): your commits stand outside the TDD cycle, and
+  sherlock squashes each unit by its scope;
 * the intent, your model id, and the paths in scope.
 
 ## Report
