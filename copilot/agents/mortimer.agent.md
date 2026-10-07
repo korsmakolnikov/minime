@@ -347,7 +347,9 @@ When sherlock reports `REVIEW_CHANGES`:
 * changes to an **earlier unit**, already squashed, wait until this unit is
   squashed; then they form a unit of their own, with the earlier unit's
   scope: its agent applies them as new commits, and sherlock reviews and
-  squashes them as a correction.
+  squashes them as a correction. When the changes touch several earlier
+  units, each unit gets its own correction, one at a time: its own agent
+  session with that unit's scope only, then its own review and squash.
 
 When sherlock reports `SHERLOCK_DONE`, the unit is one commit on the branch:
 tell the user, then move on.
