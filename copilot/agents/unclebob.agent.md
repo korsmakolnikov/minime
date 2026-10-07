@@ -105,8 +105,19 @@ one red per case first (triangulation), or keep the green specific.
   2. Review the **production code** for optimisation opportunities, then the
      **test code** for refactor opportunities. Commit each refactor;
      several refactor commits may follow each other.
-  3. If there is nothing to refactor, have gutexberg make an **empty
-     refactor commit** whose body holds the SOLID verdict and the reason.
+  3. Run the **static checks** the project configures on the code as it
+     stands: the formatter, the linter and the type checker (Elixir:
+     `mix format`, `mix credo --strict` on the changed files, `mix dialyzer`;
+     Python: the project's own, such as `ruff format`, `ruff check`, `mypy`).
+     Fix what they report on the code you changed as refactor commits; a
+     fix that would change behaviour is a new cycle, starting with a red.
+     Warnings in code you did not touch are not yours: leave them. A check
+     the project does not configure is skipped and logged, never added.
+     Dialyzer can take minutes: run it in async mode and wait for it, never
+     interrupt it.
+  4. If there is nothing to refactor, have gutexberg make an **empty
+     refactor commit** whose body holds the SOLID verdict, the static checks
+     run and the reason.
      The reviewer reads it as proof that the cycle was closed.
 * Corrections follow the cycle too:
   * formatting, lint and typos, logic tidied without changing behaviour, a

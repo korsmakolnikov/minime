@@ -111,6 +111,15 @@ mortimer gave you for the unit is cited by a test (`git grep -n 'spec: <id>'
 the system constraints are checked end to end. An id left uncovered without
 the user's decision is a discrepancy.
 
+Check the outcomes of every function the unit's implementation calls: in the
+unit, in other components, in the project and in libraries. List each callee's
+possible results from its spec, docs or source (`{:ok, _}`, every
+`{:error, reason}`, `nil`, an empty collection, a raised exception, and so on).
+Every result must be both handled by the logic of a green (a matching clause,
+or a propagation the contract allows) and exercised by a test. A result left
+unhandled, or handled but never tested, is a discrepancy; cite the call site
+and the callee's spec.
+
 Then measure how much code unclebob wrote in the unit: the lines added and
 removed by its greens and by its refactors (`git show --numstat`), and the
 number of cycles and of empty refactors.

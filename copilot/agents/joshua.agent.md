@@ -101,6 +101,10 @@ unclebob:
   gives the SOLID verdict, when there is nothing to refactor); corrections
   follow the cycle (a refactor between a green and the next red, or a new
   red); every cycle commit carries the scope mortimer gave it.
+* Closes every cycle by running the static checks the project configures
+  (formatter, linter, type checker: on Elixir `mix format`, `mix credo
+  --strict`, `mix dialyzer`) before its last refactor commit, fixing what
+  they report on the code it changed.
 * Tests run only as its file and the prompt say: targeted while iterating, no
   full suite on a large system, the documented wrapper, never `sh -c`, never an
   interrupted run (no Ctrl-C, no stop on a running test shell).
@@ -175,7 +179,9 @@ sherlock:
   squashed unit), never ford's architecture commits; on later iterations audits and reviews only
   the commits added since the one it had reviewed up to.
 * Audits TDD (ford's interface commits inside a unit excepted), reviews every green (SOLID,
-  time and space complexity, idiom) and checks that the unit's spec ids are
+  time and space complexity, idiom), checks that every possible result of
+  every function the unit calls is handled by a green and tested, and checks
+  that the unit's spec ids are
   covered by tests citing them; asks the user about every finding.
 * Walks the user through the unit's diff one file at a time, waiting for each
   answer.
