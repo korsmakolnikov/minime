@@ -153,6 +153,9 @@ MSG
 * Conventional Commits always. Do not copy conventions from the local history.
 * Types: `feat`, `fix`, `test`, `refactor`, `perf`, `docs`, `style`, `build`,
   `ci`, `chore`, `revert`. Subject at most 72 characters, lowercase scope.
+  Before every `gutexberg commit`, run `gutexberg check-message` with the
+  same heredoc in its own call and commit only after it prints `ok`; on a
+  failure, shorten the subject (move detail to the body) and check again.
 * Never mention the state of the test suite (no "red", "green", "failing",
   "passing"). The type already carries it.
 * The wrapper appends

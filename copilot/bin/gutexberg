@@ -29,6 +29,10 @@ Read-only:
                                 For pure insertions, owners are those of the
                                 neighbouring lines (a hint, not proof).
   in-scope <rev>                Exit 0 if <rev> is a commit in <base>..HEAD.
+  check-message [--fixup] [-F <file>] <<'MSG'
+                                Validate a message without committing, with the
+                                rules of commit (or of a fixup body with --fixup).
+                                Prints "ok (<n>/72)" or every problem found.
 
 Write:
   stage <path>...               git add the given paths.
@@ -160,17 +164,57 @@ strip_existing_trailer() {
   grep -v "^Co-authored-by: Copilot" "$1" | sed -e :a -e '/^\n*$/{$d;N;ba' -e '}'
 }
 
-validate_message() {
+message_problems() {
   local file="$1" subject blank body
-  [ -f "$file" ] || die "Message file '$file' not found."
   subject=$(sed -n 1p "$file")
   blank=$(sed -n 2p "$file")
   body=$(sed -n '3,$p' "$file" | grep -v "^Co-authored-by: Copilot" | grep -v '^[[:space:]]*$' || true)
   [[ "$subject" =~ $CONVENTIONAL_RE ]] ||
-    die "Subject is not a Conventional Commit sentence without a trailing period: '$subject'"
-  [ "${#subject}" -le 72 ] || die "Subject is longer than 72 characters."
-  [ -z "$blank" ] || die "Line 2 of the message must be blank."
-  [ -n "$body" ] || die "The message needs a body after the blank line."
+    echo "Subject is not a Conventional Commit sentence without a trailing period: '$subject'"
+  [ "${#subject}" -le 72 ] ||
+    echo "Subject is ${#subject} characters, $((${#subject} - 72)) over the limit of 72: '$subject'"
+  [ -z "$blank" ] || echo "Line 2 of the message must be blank."
+  [ -n "$body" ] || echo "The message needs a body after the blank line."
+  return 0
+}
+
+fixup_body() {
+  strip_existing_trailer "$1" | grep -v '^fixup! ' | sed -e '/./,$!d'
+}
+
+validate_message() {
+  local file="$1" problems
+  [ -f "$file" ] || die "Message file '$file' not found."
+  problems=$(message_problems "$file")
+  [ -z "$problems" ] || die "$problems"
+}
+
+check_message() {
+  local fixup="" file="" problems subject
+  while [ $# -gt 0 ]; do
+    case "$1" in
+    --fixup) fixup=1; shift ;;
+    -F) file="${2:-}"; shift 2 ;;
+    *) die "Usage: gutexberg check-message [--fixup] [-F <file>] <<'MSG'" ;;
+    esac
+  done
+  if [ -z "$file" ]; then
+    [ -t 0 ] && die "The message is missing: pass it on stdin (heredoc) or with -F <file>."
+    CHECK_FILE=$(mktemp)
+    trap 'rm -f "$CHECK_FILE"' EXIT
+    file=$CHECK_FILE
+    cat >"$file"
+  fi
+  [ -f "$file" ] || die "Message file '$file' not found."
+  if [ -n "$fixup" ]; then
+    [ -n "$(fixup_body "$file" | tr -d '[:space:]')" ] || die "The fixup needs a body explaining the correction."
+    echo "ok"
+    return
+  fi
+  problems=$(message_problems "$file")
+  [ -z "$problems" ] || die "$problems"
+  subject=$(sed -n 1p "$file")
+  echo "ok (${#subject}/72)"
 }
 
 cmd_owners() {
@@ -239,6 +283,7 @@ function)
   git log -L ":$2:$1" "$(base)..HEAD" --format=%h --no-patch | grep -v '^$' || true
   ;;
 owners) cmd_owners "$@" ;;
+check-message) check_message "$@" ;;
 in-scope)
   [ $# -eq 1 ] || die "Usage: gutexberg in-scope <rev>"
   in_scope "$1"
@@ -276,7 +321,7 @@ fixup)
   require_staged
   outside=$(comm -23 <(git diff --cached --name-only | sort) <(target_files "$target"))
   [ -z "$outside" ] || die "These staged files are not in $target, so they cannot be a fixup of it: $outside"
-  body=$(strip_existing_trailer "$MSG_FILE" | grep -v '^fixup! ' | sed -e '/./,$!d')
+  body=$(fixup_body "$MSG_FILE")
   [ -n "$(tr -d '[:space:]' <<<"$body")" ] || die "The fixup needs a body explaining the correction."
   git commit -q --fixup="$(git rev-parse --short "$target")" -m "$body" -m "$(trailer)"
   report
