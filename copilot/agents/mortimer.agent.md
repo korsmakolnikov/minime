@@ -222,8 +222,12 @@ the full suite are defined in its agent file. Refer to them, nothing more.
 Do not copy rules from unclebob's or gutexberg's files into the launch prompt,
 not even to reinforce them after a violation: soong fixes violations in the
 agent files. Mark the component's test command as the one for the closing
-run; on a large system, the related tests after each commit follow
-unclebob's own rule.
+run. On a large system, also pass the complete related-tests command, as
+unclebob's "Large systems" rule defines it: every test file changed in
+`<base>..HEAD` and in the working tree, the mirrored test of every changed
+source module, every test file that references a changed module (found with
+`grep -rlw <Module.Name>` in the test folders), and the architecture tests,
+in one runner invocation. Compute it again before each launch.
 
 On `INTERFACE_CHANGE_REQUEST`, go back to ford with the request, then resume
 unclebob.

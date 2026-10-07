@@ -141,8 +141,10 @@ runner invocation. Never run the full suite there, and never fall back to a
 whole OTP app or package instead: on crash the apps are too coupled to be
 tested one at a time.
 
-A test command the orchestrator gives you for the component's closing run
-does not replace this rule.
+When the orchestrator passes a related-tests command, use it, and add the
+tests of every source module you change afterwards (its mirrored test and the
+tests that reference it). A command given only for the closing run does not
+replace this rule.
 
 ## Committing through gutexberg
 
