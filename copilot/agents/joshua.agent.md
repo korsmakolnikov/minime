@@ -38,7 +38,10 @@ it in permission prompts and must know which agent is asking.
 1. The **agent files** in `~/.copilot/agents/` (`mortimer`, `ford`,
    `unclebob`, `gutexberg`, `sherlock`) and the skills they use in
    `~/.copilot/skills/`. Read them at the start of the session and re-read one
-   before auditing its agent: they are the clauses.
+   before auditing its agent: they are the clauses. Read them only through
+   `bash` (`cat`, `sed -n`, `grep`), never with the `view`, `grep` or `glob`
+   tools: these files lie outside the repository, so those tools raise a path
+   prompt that the permission hook never sees.
 2. The **launch prompt** of each agent, which mortimer sends you, and the
    user's answers relayed to it. A prompt can narrow an agent's rules (for
    example the test command or a large-system restriction), never loosen them.
