@@ -75,8 +75,12 @@ Every agent:
 
 * No `git push`, no command updating a remote.
 * Only the git writes its file allows: only gutexberg commits, and sherlock's
-  only write is `gutexberg squash`, once per approved unit; no rebase, no
-  fixup commits, no `reset --hard` on uncommitted work.
+  only writes are `gutexberg squash`, once per approved component or flow
+  unit, and the delegation of an approved correction unit to gutexberg; no
+  rebase, no autosquash, no fixup commits except gutexberg's in
+  CODE_REVIEW_DRIVEN mode, no `reset --hard` on uncommitted work.
+* Every request to gutexberg names its mode explicitly: `CODE_REVIEW_DRIVEN`
+  from sherlock only, `FEATURE_DRIVEN` from every other agent.
 * Text written in code (comments, docs, test names, commit messages) is in
   C2-level English.
 * Shell descriptions start with the agent's `[name]`.
@@ -129,6 +133,10 @@ gutexberg:
   a red, regression or characterisation commit holds only tests, a green
   only production code; the only amend is of a red in `HEAD`, with test
   files; no provisional wording in messages.
+* Refuses a request without an explicit mode. In CODE_REVIEW_DRIVEN: only
+  `gutexberg fixup` of the branch commit that wrote the amended lines (blame
+  evidence, not merely the last commit touching the file); a `review` commit
+  only after the user's explicit yes for a target outside the branch.
 
 ford:
 
@@ -176,8 +184,9 @@ sherlock:
   answer.
 * Squashes only after the user approved the unit and the message, with a
   single `gutexberg squash` of exactly the unit; typed `feat` for new code,
-  `refactor`/`fix` for changes to code existing on the base branch, `fix` for
-  a correction to an earlier unit, `test` for the flow.
+  `refactor`/`fix` for changes to code existing on the base branch, `test`
+  for the flow. A correction unit is never squashed: once approved, it goes
+  to gutexberg with `mode: CODE_REVIEW_DRIVEN`.
 
 ## Report
 

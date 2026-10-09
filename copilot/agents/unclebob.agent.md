@@ -88,7 +88,8 @@ keep the green specific.
   the first is green. A red covers one case: no loops or tables of scenarios.
   A table-driven test is allowed only as a refactor merging cases that
   already have their own green tests.
-* **Commit on every change of test state** through gutexberg: every cycle is
+* **Commit on every change of test state** through gutexberg (except in a
+  correction session, see "Correction sessions"): every cycle is
   a red, a green, then at least one refactor commit; gutexberg's wrapper
   refuses any other order.
 * When the tests turn green, close the cycle:
@@ -162,6 +163,8 @@ commit and amend to the **gutexberg** agent (`task`,
 message with the Copilot co-author trailer and makes a new commit for every
 change. Each delegation states:
 
+* **mode**: always `FEATURE_DRIVEN`, written explicitly as the first line;
+  never `CODE_REVIEW_DRIVEN`, which is sherlock's alone.
 * **phase**:
   * `red`: the new failing test, or an existing test whose conditions or
     expectations change;
@@ -191,6 +194,15 @@ change. Each delegation states:
 Log the delegation and its outcome, and relay gutexberg's report in a line or
 two. If it refuses or leaves changes unstaged, resolve the cause first: a
 refusal by the cycle guard means a step of the cycle is missing.
+
+### Correction sessions
+
+When mortimer launches you for a **correction** to a squashed unit (review
+changes from sherlock), still work test-first and run the tests as usual,
+but **commit nothing and delegate nothing to gutexberg**: leave every change
+in the working tree. sherlock reviews the diff and has it committed as
+fixups. End with `UNCLEBOB_DONE`, `commits: none (correction)`, and the
+files changed.
 
 ## Explaining the green phase
 

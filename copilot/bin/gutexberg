@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # gutexberg: the single write path to git used by the gutexberg agent.
 # Every change is a new commit; the TDD cycle (red, green, refactor) is
-# enforced from the phase recorded for each commit.
+# enforced from the phase recorded for each commit. Code-review corrections
+# are fixups of a branch commit, or review commits with the user's consent.
 
 set -euo pipefail
 
@@ -13,7 +14,7 @@ SCOPE_RE='\(([a-z0-9._/-]+( [a-z0-9._/-]+)*)\)'
 CONVENTIONAL_RE="^($TYPES)($SCOPE_RE)?!?: [^ ].*[^.]\$"
 TEST_PATH_RE='(^|/)(test|tests|spec|__tests__)/|_test\.[a-z]+$|(^|/)test_[^/]*\.py$|\.(test|spec)\.[a-z]+$'
 FLOW_LOG=/tmp/mortimer-flow.log
-PHASES='red green refactor regression characterisation architecture other'
+PHASES='red green refactor regression characterisation architecture review other'
 
 die() {
   >&2 echo -e "${RED}$*${NC}"
@@ -54,6 +55,12 @@ Write:
                                 unit's cycle is closed and the work tree is clean.
                                 The message has the same scope; the tree does
                                 not change. The commit is recorded as a "unit".
+  fixup --target <commit> [<path>...] <<'MSG'
+                                Stage the given paths, then commit everything staged
+                                as "fixup! <subject of <commit>>" (code review). The
+                                target must lie in <base>..HEAD. Stdin holds only
+                                the body; the Copilot trailer is appended. The
+                                commit is recorded as a "fixup"; never autosquashed.
 
 Phases and the TDD cycle (the last cycle commit of the branch decides):
   red, characterisation   a new test; the cycle must be closed (no cycle commit
@@ -65,6 +72,9 @@ Phases and the TDD cycle (the last cycle commit of the branch decides):
                           to refactor
   architecture            ford's work, any time; scope "architecture", or that of
                           the unit it belongs to
+  review                  a code-review correction whose target commit lies
+                          outside the branch, any time, with the user's consent;
+                          scope of the unit it corrects
   other                   anything else, only while the cycle is closed
 
   red, regression and characterisation commits hold only test files; green
@@ -154,11 +164,11 @@ last_cycle_phase() {
 
 allowed_after() {
   case "$1" in
-  none) echo "red characterisation architecture other" ;;
-  red | regression) echo "green architecture" ;;
-  characterisation) echo "green architecture" ;;
-  green) echo "refactor regression architecture" ;;
-  refactor) echo "refactor red characterisation architecture other" ;;
+  none) echo "red characterisation architecture review other" ;;
+  red | regression) echo "green architecture review" ;;
+  characterisation) echo "green architecture review" ;;
+  green) echo "refactor regression architecture review" ;;
+  refactor) echo "refactor red characterisation architecture review other" ;;
   esac
 }
 
@@ -196,6 +206,9 @@ check_subject_scope() {
   architecture)
     [[ "$subject" =~ ^($TYPES)$SCOPE_RE ]] ||
       die "An architecture commit needs a scope: (architecture), or that of the unit it belongs to: '$subject'" ;;
+  review)
+    [[ "$subject" =~ ^($TYPES)$SCOPE_RE ]] ||
+      die "A review commit needs the scope of the unit it corrects: '$subject'" ;;
   red | green | refactor | regression | characterisation)
     [[ "$subject" =~ ^($TYPES)$SCOPE_RE ]] ||
       die "A $phase commit needs the scope (<domain> <component>), or (<domain>) for the flow tests: '$subject'" ;;
@@ -325,7 +338,7 @@ PHASE_LOG="$COMMON_DIR/gutexberg/phases"
 # Write commands share the index: serialise them, so that parallel calls cannot
 # mix their files into one commit.
 case "$CMD" in
-stage | stage-patch | unstage | commit | amend | squash)
+stage | stage-patch | unstage | commit | amend | squash | fixup)
   exec 9>"$COMMON_DIR/gutexberg.lock"
   flock 9
   ;;
@@ -450,6 +463,39 @@ squash)
   record_phase unit
   flow_log "squash of $count commits (previous tip $(git rev-parse --short "$tip")) into"
   echo "Squashed $count commits; the previous tip $(git rev-parse --short "$tip") stays reachable in the reflog."
+  report
+  ;;
+fixup)
+  TARGET=""
+  MODEL=""
+  MSG_FILE=""
+  PATHS=()
+  while [ $# -gt 0 ]; do
+    case "$1" in
+    --target) TARGET="${2:-}"; shift 2 ;;
+    --model) MODEL="${2:-}"; shift 2 ;;
+    -F) MSG_FILE="${2:-}"; shift 2 ;;
+    --) shift; PATHS+=("$@"); break ;;
+    -*) die "Unknown option: $1" ;;
+    *) PATHS+=("$1"); shift ;;
+    esac
+  done
+  [ -n "$TARGET" ] || die "Usage: gutexberg fixup --target <commit> [<path>...] <<'MSG'"
+  resolve_model
+  read_message
+  current_branch_guard
+  target=$(git rev-parse --verify -q "$TARGET^{commit}") || die "Unknown commit '$TARGET'."
+  load_base
+  in_branch "$target" ||
+    die "$TARGET is outside the branch (<base>..HEAD): a fixup targets only branch commits. Ask the user for a distinct review commit."
+  body=$(strip_existing_trailer "$MSG_FILE")
+  [ -n "$(tr -d '[:space:]' <<<"$body")" ] || die "The fixup needs a body: why the change was made."
+  [[ "$(sed -n 1p <<<"$body")" != fixup!* ]] || die "Stdin holds only the body: the wrapper writes the fixup! subject."
+  stage_paths "${PATHS[@]}"
+  require_staged
+  { echo "fixup! $(git log -1 --format=%s "$target")"; echo; echo "$body"; echo; trailer; } | git commit -q -F -
+  record_phase fixup
+  flow_log "fixup of $(git rev-parse --short "$target")"
   report
   ;;
 *) usage; exit 1 ;;

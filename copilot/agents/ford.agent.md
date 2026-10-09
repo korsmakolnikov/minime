@@ -92,12 +92,18 @@ You never run git writes yourself. Delegate every commit to the **gutexberg**
 agent (`task`, `agent_type: "gutexberg"`, sync); you are explicitly
 authorised to do this nested delegation. Pass:
 
+* `mode: FEATURE_DRIVEN`, always explicit, as the first line; never
+  `CODE_REVIEW_DRIVEN`, which is sherlock's alone;
 * phase `architecture` for every commit (fitness functions, scaffold,
   interfaces, project setup), outside the TDD cycle, and the scope
   `architecture`, or the component's scope mortimer gives you for an
   interface change a component needs: those commits join the component's
   unit, which sherlock squashes by its scope;
 * the intent, your model id, and the paths in scope.
+
+In a **correction** session (review changes to a squashed unit), commit
+nothing: leave the changes in the working tree for sherlock, which has them
+committed as fixups.
 
 ## Report
 

@@ -298,7 +298,7 @@ def segment_allowed(words, cwd):
     if cmd == "git":
         return git_allowed(args, cwd)
     if cmd == "gutexberg":
-        if args[:1] in (["commit"], ["amend"], ["squash"]):
+        if args[:1] in (["commit"], ["amend"], ["squash"], ["fixup"]):
             # Commits ask (the user reads the message in the prompt) unless the
             # committer is autonomous: soong for the minime mirror, else gutexberg.
             real = os.path.realpath(cwd)

@@ -280,11 +280,13 @@ diff, the approval of the squash. On `REVIEW_CHANGES`:
   usual; then launch sherlock with the next iteration;
 * changes to an **earlier, squashed unit** wait for this unit's squash, then
   form a correction unit with the earlier unit's scope, one earlier unit at a
-  time: its own agent session with that scope only, its own review and
-  squash.
+  time: its own agent session with that scope only, told that it is a
+  correction session (changes left uncommitted), then sherlock with the kind
+  `correction` and the `REVIEW_CHANGES`; sherlock has them committed as
+  fixups, and nothing is squashed.
 
-On `SHERLOCK_DONE` the unit is one commit on the branch: tell the user and
-move on.
+On `SHERLOCK_DONE` the unit is one commit on the branch (for a correction,
+its fixups): tell the user and move on.
 
 ## Relaying
 
