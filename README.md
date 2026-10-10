@@ -126,6 +126,7 @@ Agents and skills for the [GitHub Copilot CLI](https://docs.github.com/copilot/h
 | `adl-reverse` | As-is ADL drafts from the dependency graph of existing code. |
 | `domain-spec` | The domain spec format, its validator and how each entry becomes a test (StreamData, Hypothesis). |
 | `minime-sync` | Mirrors `~/.copilot` into `copilot/` and commits it through `gutexberg`; run it before a `/restart`. |
+| `datadog-experiment-downloader` | Downloads a Datadog LLM Observability experiment with `pup`: summary, events and the agent loop of every trace, in parallel and resumable. |
 
 Start with `mortimer` (the launcher in `copilot/bin/`: `copilot --agent mortimer` plus `--add-dir` for `~/.copilot/agents`, `~/.copilot/skills` and `~/code/minime`, since reaching them otherwise asks for path access, which the permission hook cannot answer; other options pass through), or `copilot --agent unclebob` for a plain TDD session. Follow the whole flow with `tail -f /tmp/mortimer-flow.log`.
 
