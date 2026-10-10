@@ -153,8 +153,12 @@ of an empty commit, a scope, wording.
    functional flow. If a unit mixes new and changed code, ask the user.
 2. Message: Conventional Commits with the unit's scope, a one-sentence
    subject, a blank line and a body describing the unit as it stands (no
-   history of the cycles, no provisional wording). Check it with
-   `gutexberg check-message`.
+   history of the cycles, no provisional wording). The subject is at most 72
+   characters, planned before you write it: count the prefix
+   `<type>(<scope>): ` first, then write a description that fits the rest,
+   aiming at 50 characters overall (the unit's main capability only; the
+   details go in the body). Check it with `gutexberg check-message`; on a
+   failure, shorten it by the characters reported.
 3. Ask the user to approve the squash, showing the message, with choices
    "squash" and free text for changes to the message.
 4. Squash with one readable command:

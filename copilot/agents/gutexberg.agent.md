@@ -244,10 +244,16 @@ MSG
   squashes each unit by it (`gutexberg squash` is sherlock's, never yours).
   The wrapper refuses a cycle commit without a scope.
 * Types: `feat`, `fix`, `test`, `refactor`, `perf`, `docs`, `style`, `build`,
-  `ci`, `chore`, `revert`. Subject at most 72 characters: before every
+  `ci`, `chore`, `revert`.
+* **Subject at most 72 characters, planned before you write it.** The prefix
+  `<type>(<scope>): ` uses part of the budget: count it first (for example
+  `feat(mcp communication tagger): ` is 32), and write a description that
+  fits the rest, aiming at 50 characters overall. Name only the main action
+  and object (an imperative verb, the object, at most one qualifier); the
+  how, the why and any list go in the body. Then, before every
   `gutexberg commit`, run `gutexberg check-message` with the same heredoc in
-  its own call, and commit only after it prints `ok`; on a failure, move
-  detail to the body and check again.
+  its own call, and commit only after it prints `ok`; on a failure, shorten
+  the description by the characters it reports and check again.
 * Never mention the state of the test suite (no "red", "green", "failing",
   "passing"): the type carries it.
 * Describe the commit as it will read once the unit is squashed: no

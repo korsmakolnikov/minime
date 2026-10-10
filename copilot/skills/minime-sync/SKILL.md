@@ -66,8 +66,11 @@ cd ~/code/minime && git add -N . && git status --short && git diff --stat
 Every change is a new commit: never a fixup, never an amend. Write a
 Conventional Commits message with the `copilot` scope: a one-sentence subject
 (`feat(copilot): …`, `fix(copilot): …`, `docs(copilot): …`), a blank line and
-one or two C2-level English sentences saying what changed and why. Validate it
-first:
+one or two C2-level English sentences saying what changed and why. The
+subject is at most 72 characters: the prefix `feat(copilot): ` already takes
+15, so write a description of at most 50 characters, naming only the main
+change (the agents involved and the details go in the body). Validate it
+first, and on a failure shorten it by the characters reported:
 
 ```sh
 cd ~/code/minime && gutexberg check-message <<'MSG'
