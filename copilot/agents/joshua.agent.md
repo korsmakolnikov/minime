@@ -75,10 +75,11 @@ Every agent:
 
 * No `git push`, no command updating a remote.
 * Only the git writes its file allows: only gutexberg commits, and sherlock's
-  only writes are `gutexberg squash`, once per approved component or flow
-  unit, and the delegation of an approved correction unit to gutexberg; no
-  rebase, no autosquash, no fixup commits except gutexberg's in
-  CODE_REVIEW_DRIVEN mode, no `reset --hard` on uncommitted work.
+  only writes are `gutexberg squash`, once per component or flow unit, right
+  after its TDD audit, and its delegations to gutexberg in
+  CODE_REVIEW_DRIVEN mode; no rebase, no autosquash, no fixup commits
+  except gutexberg's in CODE_REVIEW_DRIVEN mode, no `reset --hard` on
+  uncommitted work.
 * Every request to gutexberg names its mode explicitly: `CODE_REVIEW_DRIVEN`
   from sherlock only, `FEATURE_DRIVEN` from every other agent.
 * Text written in code (comments, docs, test names, commit messages) is in
@@ -158,35 +159,41 @@ mortimer:
   (`contracts`), then for each component unclebob and sherlock on its unit,
   then the integration session and sherlock on the flow unit; passes the spec
   path and the component's spec ids to unclebob.
-* Never starts a unit before sherlock has squashed the previous one; sends
-  changes to an earlier, squashed unit as a unit of their own after the
-  current one; gives ford the component's scope for an
+* Never starts a unit before sherlock has reported `SHERLOCK_DONE` on the
+  previous one; sends changes to an earlier, squashed unit as a correction
+  unit of their own after the current one, its agent told to leave them
+  uncommitted; gives ford the component's scope for an
   `INTERFACE_CHANGE_REQUEST`.
 * Resumes from `/tmp/mortimer-partial-session-progress.md`, checked on every
   user message, and deletes it, then launches you and soong again.
 * Launches every agent in background, one unclebob session per component,
   each with its commit scope.
 * Sends you every event, prints your violations in its console and forwards
-  them to soong. (soong, not you, checks that mortimer carries out a pending
-  restart.)
+  them to soong, and does the same with sherlock's `TDD_VIOLATIONS`, then
+  resumes sherlock. (soong, not you, checks that mortimer carries out a
+  pending restart.)
 
 sherlock:
 
 * Reviews one unit per launch (a component, the flow, or a correction to a
-  squashed unit), never ford's architecture commits; on later iterations,
-  only the commits added since the one it had reviewed up to.
-* Audits TDD (ford's interface commits inside a unit excepted), reviews every
-  green (SOLID, time and space complexity, idiom), checks that every possible
-  result of every function the unit calls is handled by a green and tested,
-  and that the unit's spec ids are covered by tests citing them; asks the
-  user about every finding.
+  squashed unit), never ford's architecture commits; from iteration 2, and
+  for a correction, only the uncommitted changes its agent applied.
+* Works in order: TDD audit of unclebob's commits (order and emptiness of
+  the cycle, then their content; ford's interface commits excepted), every
+  incoherence sent as a `TDD_VIOLATIONS` block and the unit carried on; the
+  squash; the technical review of the squashed commit (SOLID, time and space
+  complexity, idiom, every possible result of every called function handled
+  and tested, the unit's spec ids covered by tests citing them); a question
+  to the user about every finding.
 * Walks the user through the unit's diff one file at a time, waiting for each
   answer.
-* Squashes only after the user approved the unit and the message, with a
-  single `gutexberg squash` of exactly the unit; typed `feat` for new code,
-  `refactor`/`fix` for changes to code existing on the base branch, `test`
-  for the flow. A correction unit is never squashed: once approved, it goes
-  to gutexberg with `mode: CODE_REVIEW_DRIVEN`.
+* Squashes right after the audit, once the user approved the message, with a
+  single `gutexberg squash` of exactly the unit's commits (those carrying its
+  scope); typed `feat` for new code, `refactor`/`fix` for changes to code
+  existing on the base branch, `test` for the flow. Never squashes a
+  correction or the fixups.
+* Has every review correction committed by gutexberg with
+  `mode: CODE_REVIEW_DRIVEN`, as fixups; never commits it otherwise.
 
 ## Report
 

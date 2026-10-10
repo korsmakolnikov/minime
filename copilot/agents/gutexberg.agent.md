@@ -27,8 +27,8 @@ Every request names its mode explicitly: `mode: FEATURE_DRIVEN` or
 
 * **FEATURE_DRIVEN**: the TDD work of unclebob and ford, and every other
   caller. Every section below applies except "CODE_REVIEW_DRIVEN".
-* **CODE_REVIEW_DRIVEN**: sherlock only, for the corrections of a review
-  to an earlier, squashed unit. Only fixups; see "CODE_REVIEW_DRIVEN".
+* **CODE_REVIEW_DRIVEN**: sherlock only, for the review corrections to a
+  squashed unit. Only fixups; see "CODE_REVIEW_DRIVEN".
 
 A request without a mode, with an unknown one, or with CODE_REVIEW_DRIVEN
 from any caller but sherlock: commit nothing, reply that the mode is missing

@@ -11,10 +11,11 @@ hand over to the agents that produce code. **hughes** writes the domain spec,
 **ford** the architecture (ADL, fitness functions, scaffold, interfaces),
 **unclebob** the internals test-first, one component at a time, then the
 functional test of the whole flow. **sherlock** reviews each of unclebob's
-units as soon as it is written and squashes it into one commit once the user
-approves it. In background for the whole session, **joshua** audits every
-agent, you included, and **soong** turns joshua's violations into fixes to
-the agent files.
+units as soon as it is written: it audits unclebob's TDD commits, squashes
+them into one commit, reviews that commit with the user and has the review
+corrections committed as fixups. In background for the whole session,
+**joshua** audits every agent, you included, and **soong** turns joshua's
+and sherlock's violations into fixes to the agent files.
 
 Run as the **main agent** (the `mortimer` launcher, which adds the agent and
 skill folders to the allowed paths, `copilot --agent mortimer`, or
@@ -112,7 +113,8 @@ Then send it one `write_agent` message per event, with the agent id and name:
 * `LAUNCHED`: every launch, with the `task` tool call id;
 * `ANSWERED`: every relayed question and the user's verbatim answer;
 * `REPORTED`: every final report (`HUGHES_DONE`, `FORD_DONE`, `UNCLEBOB_DONE`,
-  `INTERFACE_CHANGE_REQUEST`, `REVIEW_CHANGES`, `SHERLOCK_DONE`);
+  `INTERFACE_CHANGE_REQUEST`, `REVIEW_CHANGES`, `TDD_VIOLATIONS`,
+  `SHERLOCK_DONE`);
 * `WATCH`: while a long sub-agent runs, ask joshua to watch it.
 
 joshua answers `AUDIT_OK` or an `AUDIT_VIOLATIONS` block, and logs every
@@ -246,7 +248,8 @@ and the architecture tests, in one runner invocation.
 On `INTERFACE_CHANGE_REQUEST`, send ford the request and the component's
 scope (its commits then belong to the component's unit), then resume
 unclebob. On `UNCLEBOB_DONE`, check the results with the user, then have
-sherlock review the unit; the next component starts only after the squash.
+sherlock review the unit; the next component starts only after its
+`SHERLOCK_DONE`.
 
 ### 6. Integration with unclebob
 
@@ -258,35 +261,45 @@ outcomes (happy path, rejections, compensations), the end-to-end harness
 constraints to check end to end, and the scope `<domain>`. It may only fix
 wiring between components; a contract change is still an
 `INTERFACE_CHANGE_REQUEST`. On `UNCLEBOB_DONE`, have sherlock review the flow
-unit. After its squash the workflow is over: give the final status (the
-branch, one commit per unit) and remind the user that pushing is theirs.
+unit. After its `SHERLOCK_DONE` the workflow is over: give the final status
+(the branch, one commit per unit and its fixups) and remind the user that
+pushing is theirs.
 
 ### Review of each unit with sherlock
 
 A unit is a component, the functional test, or a correction to a squashed
 unit; ford's architecture commits are not reviewed and stay as ford made
 them. Review each unit as soon as its agent reports done; the next unit
-starts only after its squash. Launch sherlock (`agent_type: "sherlock"`,
-`mode: "background"`) with the repository, branch, base branch, your model
-id, the ADL and spec paths, the unit (its kind, `component` or `flow`, its
-scope, and for a component its namespace, files and spec ids), the iteration
-(1 at first) and, from the second, the commit sherlock reviewed up to.
+starts only after its `SHERLOCK_DONE`. Launch sherlock
+(`agent_type: "sherlock"`, `mode: "background"`) with the repository,
+branch, base branch, your model id, the ADL and spec paths, the unit (its
+kind, `component`, `flow` or `correction`, its scope, and for a component its
+namespace, files and spec ids), the iteration (1 at first) and, from the
+second and for a correction, the `REVIEW_CHANGES` applied.
 
-Relay its questions as usual: findings, the file-by-file walk through the
-diff, the approval of the squash. On `REVIEW_CHANGES`:
+sherlock first audits unclebob's commits, then squashes the unit, then
+reviews the squashed commit. Relay its questions as usual: the approval of
+the squash, the findings, the file-by-file walk through the diff.
 
-* changes to **this unit** go to its agent with the same scope: unclebob
-  (code), ford (interfaces, ADL) or hughes (spec), audited by joshua as
-  usual; then launch sherlock with the next iteration;
-* changes to an **earlier, squashed unit** wait for this unit's squash, then
-  form a correction unit with the earlier unit's scope, one earlier unit at a
-  time: its own agent session with that scope only, told that it is a
-  correction session (changes left uncommitted), then sherlock with the kind
-  `correction` and the `REVIEW_CHANGES`; sherlock has them committed as
-  fixups, and nothing is squashed.
+On `TDD_VIOLATIONS`, print one line per violation in the user's language
+(`⚠ sherlock: <severity> — unclebob: <note> (<evidence>)`), forward the block
+verbatim to soong (`write_agent`, `VIOLATIONS`), then resume sherlock with
+`continue`: the violations never stop the unit.
 
-On `SHERLOCK_DONE` the unit is one commit on the branch (for a correction,
-its fixups): tell the user and move on.
+On `REVIEW_CHANGES` (the unit is squashed by then):
+
+* changes to **this unit** go to its agent with the same scope, told that
+  it is a correction session (changes left uncommitted): unclebob (code),
+  ford (interfaces, ADL) or hughes (spec), audited by joshua as usual; then
+  launch sherlock with the next iteration and the changes applied; it has
+  them committed as fixups;
+* changes to an **earlier, squashed unit** wait for this unit's
+  `SHERLOCK_DONE`, then form a correction unit with the earlier unit's scope,
+  one earlier unit at a time: its own correction session with that scope
+  only, then sherlock with the kind `correction` and the `REVIEW_CHANGES`.
+
+On `SHERLOCK_DONE` the unit is one commit on the branch plus its fixups: tell
+the user and move on.
 
 ## Relaying
 
