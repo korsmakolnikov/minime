@@ -15,7 +15,8 @@ COPILOT_SKILLS   := $(wildcard $(COPILOT_SRC_DIR)/skills/*)
 COPILOT_BINS     := $(wildcard $(COPILOT_SRC_DIR)/bin/*)
 
 # One-off migration from the old agent names (mortimer, sherlock, gutexberg,
-# soong) to kent, martin, linus and argyris; drop it once every machine ran it.
+# soong) to kent, martin, linus and argyris, and from .adl/ to .sources/;
+# drop it once every machine ran it.
 OLD_AGENTS       := mortimer sherlock gutexberg soong
 OLD_BINS         := gutexberg mortimer
 PROJECTS_DIR     ?= $(HOME)/code
@@ -125,6 +126,21 @@ update:
 	@if git config --global --get-regexp '^gutexberg\.' >/dev/null 2>&1; then \
 		git config --global --rename-section gutexberg linus; \
 		echo "Renamed global git config gutexberg.* to linus.*"; \
+	fi
+	@for a in $$(find $(PROJECTS_DIR) -maxdepth 3 -type d -name .adl -prune 2>/dev/null); do \
+		if [ -e "$${a%/.adl}/.sources" ]; then \
+			echo "WARNING: $${a%/.adl} has both .adl/ and .sources/: merge them by hand."; \
+		else \
+			mv "$$a" "$${a%/.adl}/.sources"; echo "Moved $$a to .sources/"; \
+		fi; \
+	done
+	@ignore="$$(git config --global --path --get core.excludesFile || echo $${XDG_CONFIG_HOME:-$(HOME)/.config}/git/ignore)"; \
+	if [ -f "$$ignore" ]; then \
+		for e in .sources/ .documentation/; do \
+			grep -qxF "$$e" "$$ignore" || { echo "$$e" >> "$$ignore"; echo "Added $$e to the global git ignore file $$ignore"; }; \
+		done; \
+	else \
+		echo "WARNING: no global git ignore file ($$ignore): keep .sources/ and .documentation/ out of git by hand."; \
 	fi
 	@if [ -e /tmp/mortimer-partial-session-progress.md ] && [ ! -e /tmp/kent-partial-session-progress.md ]; then \
 		mv /tmp/mortimer-partial-session-progress.md /tmp/kent-partial-session-progress.md; \

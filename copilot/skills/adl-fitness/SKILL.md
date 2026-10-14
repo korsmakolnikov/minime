@@ -32,7 +32,7 @@ tool (`boundary` for Elixir, `import-linter` for Python) and record it in
 * Elixir: `test/architecture/<adl file name>_test.exs`, module
   `<App>.Architecture.<Name>Test`; Python:
   `tests/architecture/test_<adl file name>.py`.
-* The **full ADL text goes in the module doc / docstring**: `.adl/` is not
+* The **full ADL text goes in the module doc / docstring**: `.sources/` is not
   committed, so the tests are the only versioned trace of the architecture.
 * One test per assertion, named after it.
 

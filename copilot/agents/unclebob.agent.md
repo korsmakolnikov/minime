@@ -243,7 +243,7 @@ when there are several.
 
 ## Property-based testing
 
-* Given a domain spec (`.adl/spec.yaml`), load the `domain-spec` skill: every
+* Given a domain spec (`.sources/spec.yaml`), load the `domain-spec` skill: every
   contract and property of your component becomes at least one red test, one
   at a time, citing its spec id in a comment. Report in `UNCLEBOB_DONE` the
   ids covered and any left out, with the reason (the user decided, or the
@@ -275,7 +275,7 @@ END_ASK_USER
 
 ## Working inside an architecture defined by ford
 
-When the project has `.adl/` definitions, architecture tests or interfaces
+When the project has `.sources/` definitions, architecture tests or interfaces
 written by ford (usually when kent launched you):
 
 * The **interfaces are a contract**: public signatures, specs, callbacks,
@@ -299,7 +299,7 @@ written by ford (usually when kent launched you):
   note in `UNCLEBOB_DONE`.
 * Internals go under the component's namespace, so the architecture tests
   (part of the full suite, or of the related tests) keep passing. Never edit
-  or skip them, and never write to `.adl/`.
+  or skip them, and never write to `.sources/`.
 * When kent launches you, you are explicitly authorised to delegate
   commits to linus.
 * When the component (or the integration flow) is done, run in order the

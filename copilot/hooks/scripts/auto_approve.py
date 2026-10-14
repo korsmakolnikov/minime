@@ -4,7 +4,9 @@
 Rule: an operation is approved when every effect it has falls inside a folder
 versioned with git (a work tree path that is not git-ignored), because git can
 always bring it back. /tmp is the other approved place: agents may run and
-write anything there. Command substitutions are approved when their own
+write anything there, and so is the `.documentation/` folder at the root of a
+work tree, where simon writes the architecture documentation that git
+ignores. Command substitutions are approved when their own
 command is. Anything else, or anything the hook cannot reason about, falls
 through to the normal permission prompt. `git push`, network clients and
 cluster commands are always denied, and git commands that throw away
@@ -124,6 +126,13 @@ def scratch(path):
     return path == "/dev/null" or path == "/tmp" or path.startswith("/tmp/")
 
 
+def documentation(path):
+    """Inside the `.documentation/` folder at the root of a work tree."""
+    root = work_tree(path)
+    folder = os.path.join(root, ".documentation") if root else None
+    return bool(folder) and (path == folder or path.startswith(folder + os.sep))
+
+
 def versioned(path):
     """Inside a git work tree, not in .git, not git-ignored."""
     root = work_tree(path)
@@ -145,7 +154,7 @@ def writable(path, cwd):
     if SUBST in path:
         return False
     path = resolve(path, cwd)
-    return scratch(path) or versioned(path)
+    return scratch(path) or versioned(path) or documentation(path)
 
 
 def strip_heredocs(command):
@@ -529,7 +538,7 @@ def requesting_agent(payload, path, cwd, wait=AGENT_LOOKUP_WAIT):
 
 def decide_edit(payload, file_path, cwd):
     path = resolve(file_path, cwd)
-    if scratch(path):
+    if scratch(path) or documentation(path):
         return ALLOW
     real = os.path.realpath(path)
     if any(real.startswith(root + os.sep) for root in READABLE_ROOTS) and autonomy("argyris") \

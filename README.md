@@ -104,22 +104,23 @@ README.md                 with the CI badge
 
 # Copilot workflow
 
-Agents and skills for the [GitHub Copilot CLI](https://docs.github.com/copilot/how-tos/use-copilot-agents/use-copilot-cli), in `copilot/`. Architecture is defined with the [Architecture Definition Language](https://www.developertoarchitect.com/downloads/adl-ref.pdf) (ADL) by Mark Richards and Neal Ford; ADL files live in `.adl/` at the root of each project and are not committed.
+Agents and skills for the [GitHub Copilot CLI](https://docs.github.com/copilot/how-tos/use-copilot-agents/use-copilot-cli), in `copilot/`. Architecture is defined with the [Architecture Definition Language](https://www.developertoarchitect.com/downloads/adl-ref.pdf) (ADL) by Mark Richards and Neal Ford; the ADL files and the domain spec live in `.sources/` at the root of each project, and the architecture documentation in `.documentation/<branch>/`; neither is committed.
 
 | Agent | Role |
 |-------|------|
-| `kent` | Orchestrator, run as the main agent. Studies the code, writes the preliminary findings (every unknown of the iteration) to `.shopping_lists/<branch>.md`, runs `hughes` for the domain, `ford`, `hughes` again for the contracts, then `unclebob` one component at a time and the functional test, with `martin` reviewing and squashing each unit as soon as it is written, relays their questions to the user, keeps `joshua` informed and forwards its violations to `argyris`. Never writes code or commits. Every agent logs to `/tmp/kent-flow.log`, each line tagged with the agent's name. |
+| `kent` | Orchestrator, run as the main agent. Studies the code, writes the preliminary findings (every unknown of the iteration) to `.shopping_lists/<branch>.md`, runs `hughes` for the domain, `ford`, `hughes` again for the contracts, then `unclebob` one component at a time and the functional test, with `martin` reviewing and squashing each unit as soon as it is written, relays their questions to the user, keeps `joshua` informed, forwards its violations to `argyris` and every change of the sources to `simon`. Never writes code or commits. Every agent logs to `/tmp/kent-flow.log`, each line tagged with the agent's name. |
 | `joshua` | Auditor. Runs in background beside `kent` for the whole session and checks every agent against its file and launch prompt. Read-only: violations never stop the workflow; `kent` prints them and forwards them to `argyris`, and `joshua` also logs them to `/tmp/joshua-violations.md`. |
-| `hughes` | Interviews the user to write the domain spec, `.adl/spec.yaml`, validated by the `spec-check` command in `copilot/bin/`: entities, relations and constraints before `ford`; the contracts of the component operations and the properties for property-based tests after it. `unclebob` turns each entry into a red test. |
+| `hughes` | Interviews the user to write the domain spec, `.sources/spec.yaml`, validated by the `spec-check` command in `copilot/bin/`: entities, relations and constraints before `ford`; the contracts of the component operations and the properties for property-based tests after it. `unclebob` turns each entry into a red test. |
 | `ford` | Interviews the user to write the ADL, then generates fitness functions, scaffold and component interfaces. No business logic. |
 | `unclebob` | Implements the internals test-first, one red test at a time: every cycle is a red commit, a green commit and at least one refactor commit (empty when there is nothing to refactor). Refuses to work when the tests cannot run. Treats `ford`'s interfaces as a contract. |
 | `linus` | The only actor that writes to git: Conventional Commits scoped by component (`feat(<domain> <component>): …`), a new commit for every change, Copilot co-author trailer naming the model. Uses the `linus` command in `copilot/bin/`, which records each commit's phase, refuses any order other than red, green, refactor, and squashes a unit only when the range is exactly that unit and its cycle is closed. Two modes, always named by the caller: `FEATURE_DRIVEN` (every agent) and `CODE_REVIEW_DRIVEN` (`martin` only: fixups of the branch commit that wrote the amended lines). |
 | `martin` | Reviewer, run after every unit `unclebob` writes: each component, then the final functional test, and each correction to a squashed unit. First audits from the commits that the unit was built test-first and sends every incoherence to `argyris`; then squashes the unit into one commit with `linus squash`; then reviews that commit (SOLID, complexity, idiom, outcomes of every called function, spec coverage) and walks the user through its diff, file by file. The requested changes are applied by the unit's agent, uncommitted, and `linus` commits them as fixups of the unit's commit. The workflow ends with the review of the functional test. |
+| `simon` | Architecture documenter. Runs in background beside `kent` for the whole session: whenever `ford` or `hughes` change the sources, writes for the user, in `.documentation/<branch>/`, a [Structurizr](https://structurizr.com) DSL workspace of the C4 model and `architecture.md`, with the domain model, the component interfaces, the architecture rules, the contracts and the sequence diagrams in Mermaid. Every element cites its source, and `joshua` checks that nothing diverges from what `ford` and `hughes` wrote. Flowcharts only on request. |
 | `argyris` | Maintainer of the agent files. Runs in background in `kent`'s session, beside `joshua`: proposes a fix to the agent and skill files for each violation `kent` forwards, applies the approved ones, mirrors them here and tells `kent` to restart. Before its next launch of `hughes`, `ford`, `unclebob` or `martin`, `kent` saves its progress to `/tmp/kent-partial-session-progress.md` and asks for a `/restart`; it checks that file on every user message, so after the restart any message (or `kent --resume -i "continue"`) makes it resume from the file and delete it. `argyris` also watches that `kent` carries the restart out and that `joshua` never prompts the user, and alerts the user (desktop popup) when they do not. |
 
 | Skill | Role |
 |-------|------|
-| `adl-spec` | ADL reference, `.adl/` layout, mapping of physical names to Elixir and Python namespaces. |
+| `adl-spec` | ADL reference, `.sources/` layout, mapping of physical names to Elixir and Python namespaces. |
 | `adl-interview` | Interview protocol for the ADL and the component interfaces. |
 | `adl-fitness` | ADL assertions to ExUnit/pytest fitness functions, with standard-library helpers. |
 | `adl-scaffold` | Namespaces and interfaces, without logic. |
@@ -132,7 +133,7 @@ Sub-agents cannot talk to the user: they end their turn with one `ASK_USER` bloc
 
 Start with `kent` (the launcher in `copilot/bin/`: `copilot --agent kent` plus `--add-dir` for the root of the repository it starts in, `~/.copilot` and `~/code/minime`, since reaching them otherwise asks for path access, which the permission hook cannot answer; other options pass through), or `copilot --agent unclebob` for a plain TDD session. Follow the whole flow with `tail -f /tmp/kent-flow.log`.
 
-The names: `kent` after Kent Beck, `ford` after Neal Ford (ADL, fitness functions), `hughes` after John Hughes (QuickCheck), `unclebob` after Robert C. Martin, `martin` after Martin Fowler (refactoring), `linus` after Linus Torvalds (git), `argyris` after Chris Argyris (double-loop learning: fix the rules, not only the action), `joshua` after the WOPR of WarGames.
+The names: `kent` after Kent Beck, `ford` after Neal Ford (ADL, fitness functions), `hughes` after John Hughes (QuickCheck), `unclebob` after Robert C. Martin, `martin` after Martin Fowler (refactoring), `linus` after Linus Torvalds (git), `argyris` after Chris Argyris (double-loop learning: fix the rules, not only the action), `simon` after Simon Brown (the C4 model), `joshua` after the WOPR of WarGames.
 
 `copilot/copilot-instructions.md` holds the rules every agent follows; above all, no agent ever pushes, and no agent runs a bare `cd`, which would move the session's directory into a subfolder.
 
@@ -164,7 +165,8 @@ The hooks in `copilot/hooks/` keep the agents unattended:
   only under `/tmp`: code edits reach the user unless an autonomy setting
   says otherwise (below). Command
   substitutions (`$(...)`, backticks, `<(...)`) are approved when their own
-  command is. Commands run in a container (`docker exec`,
+  command is. Writes under `.documentation/` at the root of a repository are
+  approved like those under `/tmp`. Commands run in a container (`docker exec`,
   `docker compose exec`, `edgar exec`) are judged like host commands, and
   only in the containers listed in `COPILOT_CONTAINERS` (below). Reads
   (`view`, `grep`, `glob`) of `~/.copilot/agents`, `~/.copilot/skills` and

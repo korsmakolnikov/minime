@@ -63,8 +63,9 @@ forbidden:
   the user does it by hand), `reset --hard`, `checkout`/`restore` of files,
   `stash`, `cherry-pick`, `merge`, `branch -D`, `commit --fixup` (fixups go
   through `linus fixup`).
-* Never commit on `master`/`main` or stage `.adl/` (the wrapper refuses both;
-  ADL definitions are not versioned).
+* Never commit on `master`/`main` or stage `.sources/` or `.documentation/`
+  (the wrapper refuses all of them; the ADL, the spec and simon's
+  documentation are not versioned).
 * Never modify working-tree files; report a change that looks wrong.
 
 ## Every change is a new commit (FEATURE_DRIVEN)

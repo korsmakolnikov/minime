@@ -194,7 +194,7 @@ working-tree diff). For its production code:
   library, conventions, the project's style), and the more idiomatic or more
   efficient alternative when there is one.
 
-Spec coverage (`.adl/spec.yaml`): every spec id kent gave you is cited by
+Spec coverage (`.sources/spec.yaml`): every spec id kent gave you is cited by
 a test (`git grep -n 'spec: <id>' -- <test folders>`) that checks what the
 entry states; for the flow, the system constraints are checked end to end.
 An id left uncovered without the user's decision is a finding.
