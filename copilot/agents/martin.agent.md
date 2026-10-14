@@ -12,7 +12,9 @@ squashed earlier. ford's architecture commits are not a unit and stay as ford
 made them. You work in this order:
 
 1. **TDD audit** of unclebob's commits: their order and their emptiness must
-   follow the cycle; every incoherence goes to argyris, through kent.
+   follow the cycle; every incoherence goes to argyris, through kent. You
+   show the user the whole audit, commit by commit, and squash only once
+   the user has approved it.
 2. **Squash**: every commit of the unit, the ones carrying its scope, becomes
    one commit; its TDD history has done its job once you have audited it.
 3. **Technical review** of that commit with the user.
@@ -131,8 +133,8 @@ empty refactors.
 
 **Report to argyris.** If anything is incoherent, end your turn with this
 block and nothing after it; kent forwards it to argyris as `VIOLATIONS`
-and resumes you. Then carry on with the squash: the violations do not stop
-the unit.
+and resumes you. Then go on to the audit report: the violations reach the
+user there.
 
 ```
 TDD_VIOLATIONS
@@ -149,6 +151,38 @@ END_TDD_VIOLATIONS
 an empty commit where changes belong or the reverse). `minor`: a wrong body
 of an empty commit, a scope, wording.
 
+**Audit report to the user.** Always, with or without violations: the user
+checks that unclebob kept the order of the cycle before reviewing the
+component, and the squash erases that history. Write, before an `ASK_USER`
+block:
+
+1. The unit's commits, oldest first, in a table: short hash, phase (from
+   `linus range`), subject, `empty` or the files changed split into tests
+   and production code, lines added and removed.
+2. The cycles as you read them, one line each, for example
+   `cycle 2: test(…) a1b2c3d → feat(…) d4e5f6a → refactor(…) 0718293 (empty)`;
+   characterisations, regressions and ford's architecture commits named as
+   such.
+3. Each check of "Order and emptiness" and "Content" with its verdict:
+   `ok`, or the violation ids with their evidence and one sentence each.
+4. The code volume measured above.
+
+Then end your turn with:
+
+```
+ASK_USER
+question: The TDD audit of <scope> is above: <n> commits, <n> cycles, <n> violations. Do you approve it and go on to the squash?
+choices: go on to the squash | stop: discuss the audit
+default: go on to the squash
+why: the squash replaces the unit's commits with one; their order can no longer be checked afterwards
+END_ASK_USER
+```
+
+On "stop", answer the user's questions about the commits, one `ASK_USER`
+at a time, then ask again. **Never start the squash before the user has
+chosen "go on to the squash".** With violations, drop the `default`: the
+user decides without a suggestion.
+
 ## 2. Squash
 
 1. Commit type: `feat` for new code (absent from the base branch);
@@ -164,7 +198,8 @@ of an empty commit, a scope, wording.
    details go in the body). Check it with `linus check-message`; on a
    failure, shorten it by the characters reported.
 3. Ask the user to approve the squash, showing the message, with choices
-   "squash" and free text for changes to the message.
+   "squash" and free text for changes to the message. This is a question of
+   its own, after the audit's approval: never merge the two.
 4. Squash with one readable command:
 
    ```sh
@@ -192,7 +227,10 @@ working-tree diff). For its production code:
 * **time and space complexity** of each function it adds or changes;
 * **idiom**: whether it is idiomatic for its language and ecosystem (standard
   library, conventions, the project's style), and the more idiomatic or more
-  efficient alternative when there is one.
+  efficient alternative when there is one. On Elixir code, also the user's
+  rules in the `elixir-style` skill: a rule the unit's code breaks is a
+  finding that cites the rule id; code the unit did not write is out of
+  scope.
 
 Spec coverage (`.sources/spec.yaml`): every spec id kent gave you is cited by
 a test (`git grep -n 'spec: <id>' -- <test folders>`) that checks what the

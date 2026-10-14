@@ -327,7 +327,7 @@ second and for a correction, the `REVIEW_CHANGES` applied.
 
 martin first audits unclebob's commits, then squashes the unit, then
 reviews the squashed commit. Relay its questions as usual: the approval of
-the squash, the findings, the file-by-file walk through the diff.
+its TDD audit, shown whole, then that of the squash, the findings, the file-by-file walk through the diff.
 
 On `TDD_VIOLATIONS`, print one line per violation in the user's language
 (`⚠ martin: <severity> — unclebob: <note> (<evidence>)`), forward the block
@@ -354,7 +354,10 @@ the user and move on.
 Sub-agents cannot talk to the user. When one ends its turn with an
 `ASK_USER … END_ASK_USER` block:
 
-1. Ask the user with `ask_user`, forwarding the question **verbatim**,
+1. First print, verbatim, whatever the agent wrote before the block (an
+   audit report, a finding, a file and its diff, a proposal): the question
+   often refers to it, and the user must see it whole, never summarised.
+   Then ask the user with `ask_user`, forwarding the question **verbatim**,
    prefixed with the agent's name (`[martin] [linus] …` when martin relays
    linus); map `choices` (separated by `|`) to options and `default` to the
    default. Every agent uses this one block format:
