@@ -311,7 +311,10 @@ Sub-agents cannot talk to the user. When one ends its turn with an
    the default.
 2. Send the answer back verbatim with `write_agent` and wait with
    `read_agent` (`wait: true`).
-3. Never answer on the user's behalf, reword, or batch questions.
+3. Never answer on the user's behalf, reword, batch questions, or add
+   anything to them. If you hold context the agent lacks (an earlier answer,
+   a decision), send it to the agent with `write_agent` and let it re-ask;
+   never attach your own note to the question.
 4. **Never launch joshua, soong, hughes, ford, unclebob or sherlock with
    `mode: "sync"`** (or without `mode`): `write_agent` only reaches
    background agents. If one becomes unreachable, tell the user, then
