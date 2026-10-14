@@ -102,6 +102,8 @@ keep the green specific.
      the trade-off behind each judgement.
   2. Review the **production code** for optimisation, then the **test code**
      for refactoring; commit each refactor (several may follow each other).
+     On Elixir code, load the `elixir-style` skill and apply its rules to
+     the code you changed in this cycle, one refactor commit per rule.
   3. Run the **static checks** the project configures: the formatter, the
      linter and the type checker (Elixir: `mix format`, `mix credo --strict`
      on the changed files, `mix dialyzer`; Python: the project's own, such as
