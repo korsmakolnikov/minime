@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# Starts the workflow orchestrator. The agent and skill folders, and the minime
+# mirror that soong commits to, are added to the session's allowed paths:
+# reaching them otherwise raises a path-access prompt that the permission hook
+# cannot answer. Sub-agents share these paths.
+# Usage: mortimer [any other copilot option, e.g. --resume -i "continue"]
+exec copilot --agent mortimer \
+  --add-dir "$HOME/.copilot/agents" \
+  --add-dir "$HOME/.copilot/skills" \
+  --add-dir "$HOME/code/minime" \
+  "$@"

@@ -1,0 +1,10 @@
+# Autonomy of the Copilot workflow agents: 0 asks the user, 1 lets the agent
+# proceed on its own. Read live by ~/.copilot/hooks/scripts/auto_approve.py
+# and by the agents, so changes apply without restarting.
+#   AUTONOMY_GUTEXBERG  commits, fixups and amends
+#   AUTONOMY_UNCLEBOB   unclebob's edits of the code (tests and production)
+#   AUTONOMY_SOONG      soong's changes to agent and skill files, its mirror
+#                       commits in minime included
+export AUTONOMY_GUTEXBERG=1
+export AUTONOMY_UNCLEBOB=1
+export AUTONOMY_SOONG=0

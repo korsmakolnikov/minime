@@ -1,0 +1,502 @@
+#!/usr/bin/env bash
+# gutexberg: the single write path to git used by the gutexberg agent.
+# Every change is a new commit; the TDD cycle (red, green, refactor) is
+# enforced from the phase recorded for each commit. Code-review corrections
+# are fixups of a branch commit, or review commits with the user's consent.
+
+set -euo pipefail
+
+RED='\033[0;31m'
+NC='\033[0m'
+COPILOT_EMAIL='223556219+Copilot@users.noreply.github.com'
+TYPES='feat|fix|test|refactor|perf|docs|style|build|ci|chore|revert'
+SCOPE_RE='\(([a-z0-9._/-]+( [a-z0-9._/-]+)*)\)'
+CONVENTIONAL_RE="^($TYPES)($SCOPE_RE)?!?: [^ ].*[^.]\$"
+TEST_PATH_RE='(^|/)(test|tests|spec|__tests__)/|_test\.[a-z]+$|(^|/)test_[^/]*\.py$|\.(test|spec)\.[a-z]+$'
+FLOW_LOG=/tmp/mortimer-flow.log
+PHASES='red green refactor regression characterisation architecture review other'
+
+die() {
+  >&2 echo -e "${RED}$*${NC}"
+  exit 1
+}
+
+usage() {
+  cat <<'EOF'
+Usage: gutexberg <command> [args]
+
+Read-only:
+  base                          Print the merge-base of HEAD and the base branch.
+  range                         List branch commits (<base>..HEAD), newest first,
+                                with the phase recorded for each.
+  next                          Print the phases a new commit may have now.
+  check-message [-F <file>] <<'MSG'
+                                Validate a message without committing.
+                                Prints "ok (<n>/72)" or every problem found.
+
+Write:
+  stage <path>...               git add the given paths.
+  stage-patch <patch-file>      Stage only the hunks in <patch-file> (git apply --cached).
+  unstage [<path>...]           Unstage paths (all if none given).
+  commit --phase <phase> [--empty] [<path>...] <<'MSG'
+                                Stage the given paths, then commit everything staged.
+                                The message comes from stdin: the subject line, a
+                                blank line and a body. The Copilot trailer is appended.
+  amend --phase <phase> [<path>...]
+                                Stage the given paths (tests only) and amend HEAD,
+                                keeping its message. Only a red, regression or
+                                characterisation HEAD can be amended.
+  squash --scope <scope> --from <commit> <<'MSG'
+                                Replace the unit <commit>..HEAD with one commit
+                                (sherlock, after the unit's review). Every commit
+                                of the unit carries <scope>, none is a squashed
+                                unit already, the commit before <commit> does not
+                                carry <scope> unless it is a squashed unit, the
+                                unit's cycle is closed and the work tree is clean.
+                                The message has the same scope; the tree does
+                                not change. The commit is recorded as a "unit".
+  fixup --target <commit> [<path>...] <<'MSG'
+                                Stage the given paths, then commit everything staged
+                                as "fixup! <subject of <commit>>" (code review). The
+                                target must lie in <base>..HEAD. Stdin holds only
+                                the body; the Copilot trailer is appended. The
+                                commit is recorded as a "fixup"; never autosquashed.
+
+Phases and the TDD cycle (the last cycle commit of the branch decides):
+  red, characterisation   a new test; the cycle must be closed (no cycle commit
+                          yet, or the last one is a refactor)
+  regression              a new test after a green that broke other tests
+  green                   production code after red, regression or
+                          characterisation; --empty only after characterisation
+  refactor                after green or refactor; --empty when there is nothing
+                          to refactor
+  architecture            ford's work, any time; scope "architecture", or that of
+                          the unit it belongs to
+  review                  a code-review correction whose target commit lies
+                          outside the branch, any time, with the user's consent;
+                          scope of the unit it corrects
+  other                   anything else, only while the cycle is closed
+
+  red, regression and characterisation commits hold only test files; green
+  commits hold none. Cycle commits need a scope: "(<domain> <component>)", or
+  "(<domain>)" for the functional flow tests.
+
+  A squashed unit ends the cycle history: the cycle guard does not look past it.
+
+  commit and squash accept -F <file> instead of stdin and --model <id>. The
+  model named in the trailer is --model, else $GUTEXBERG_MODEL, else the "model" of
+  ~/.copilot/settings.json. Each commit is appended to /tmp/mortimer-flow.log
+  when that file exists.
+
+The base branch is $GUTEXBERG_BASE, else `git config gutexberg.base`, else the first
+existing ref among origin/master, origin/main, master, main.
+EOF
+}
+
+base_ref() {
+  local ref="${GUTEXBERG_BASE:-$(git config --get gutexberg.base || true)}"
+  if [ -n "$ref" ]; then
+    git rev-parse --verify -q "$ref^{commit}" >/dev/null || die "Base ref '$ref' does not exist."
+    echo "$ref"
+    return
+  fi
+  for ref in origin/master origin/main master main; do
+    if git rev-parse --verify -q "$ref^{commit}" >/dev/null; then
+      echo "$ref"
+      return
+    fi
+  done
+  die "Cannot find a base branch. Set GUTEXBERG_BASE or 'git config gutexberg.base'."
+}
+
+# Sets BASE once: the merge-base does not move while the branch grows.
+load_base() {
+  [ -n "${BASE:-}" ] || BASE=$(git merge-base "$(base_ref)" HEAD)
+}
+
+# True when the commit lies in <base>..HEAD.
+in_branch() {
+  git merge-base --is-ancestor "$1" HEAD && ! git merge-base --is-ancestor "$1" "$BASE"
+}
+
+current_branch_guard() {
+  local branch
+  branch=$(git symbolic-ref --short -q HEAD || true)
+  [ -n "$branch" ] || die "Detached HEAD: refusing to write."
+  case "$branch" in
+  master | main) die "Refusing to commit on '$branch'. Work on a feature branch." ;;
+  esac
+}
+
+phase_of() {
+  awk -v s="$1" '$1 == s { p = $2 } END { print p }' "$PHASE_LOG" 2>/dev/null || true
+}
+
+record_phase() {
+  mkdir -p "${PHASE_LOG%/*}"
+  echo "$(git rev-parse HEAD) $1" >>"$PHASE_LOG"
+}
+
+# One line per commit of <range>, newest first: "<sha> <short> <phase> <subject>",
+# with "-" for a commit whose phase was never recorded. Two processes in all,
+# whatever the length of the range.
+log_with_phases() {
+  git log --format='%H %h %s' "$1" |
+    awk -v plog="$PHASE_LOG" '
+      BEGIN { while ((getline line < plog) > 0) { split(line, f, " "); p[f[1]] = f[2] } }
+      { sha = $1; short = $2; sub(/^[^ ]+ [^ ]+ /, ""); print sha, short, (sha in p ? p[sha] : "-"), $0 }'
+}
+
+# The scope of a Conventional Commits subject, empty when it has none.
+subject_scope() {
+  if [[ "$1" =~ ^($TYPES)\(([^\)]*)\)!?:\  ]]; then echo "${BASH_REMATCH[2]}"; fi
+}
+
+# The phase of the newest cycle commit since the last squashed unit, or "none".
+last_cycle_phase() {
+  load_base
+  log_with_phases "$BASE..HEAD" | awk '
+    stop { next }
+    $3 ~ /^(red|green|refactor|regression|characterisation)$/ { phase = $3; stop = 1; next }
+    $3 == "unit" { stop = 1 }
+    END { print (phase == "" ? "none" : phase) }'
+}
+
+allowed_after() {
+  case "$1" in
+  none) echo "red characterisation architecture review other" ;;
+  red | regression) echo "green architecture review" ;;
+  characterisation) echo "green architecture review" ;;
+  green) echo "refactor regression architecture review" ;;
+  refactor) echo "refactor red characterisation architecture review other" ;;
+  esac
+}
+
+cycle_guard() {
+  local phase="$1" empty="$2" last allowed label
+  last=$(last_cycle_phase)
+  allowed=$(allowed_after "$last")
+  label="a $last commit"
+  [ "$last" != none ] || label="the start of the branch"
+  [[ " $allowed " == *" $phase "* ]] ||
+    die "A $phase commit cannot follow $label (gutexberg range shows the phases). Allowed now: $allowed."
+  if [ -n "$empty" ]; then
+    [ "$phase" = refactor ] || { [ "$phase" = green ] && [ "$last" = characterisation ]; } ||
+      die "--empty is only for a refactor, or for the green after a characterisation."
+  fi
+}
+
+check_paths() {
+  local phase="$1" files tests others
+  files=$(git diff --cached --name-only)
+  tests=$(grep -E "$TEST_PATH_RE" <<<"$files" || true)
+  others=$(grep -vE "$TEST_PATH_RE" <<<"$files" || true)
+  case "$phase" in
+  red | regression | characterisation)
+    [ -z "$others" ] || die "A $phase commit holds only test files. Not tests: $others" ;;
+  green)
+    [ -z "$tests" ] || die "A green commit holds only production code. Test files: $tests" ;;
+  esac
+  return 0
+}
+
+check_subject_scope() {
+  local phase="$1" subject="$2"
+  case "$phase" in
+  architecture)
+    [[ "$subject" =~ ^($TYPES)$SCOPE_RE ]] ||
+      die "An architecture commit needs a scope: (architecture), or that of the unit it belongs to: '$subject'" ;;
+  review)
+    [[ "$subject" =~ ^($TYPES)$SCOPE_RE ]] ||
+      die "A review commit needs the scope of the unit it corrects: '$subject'" ;;
+  red | green | refactor | regression | characterisation)
+    [[ "$subject" =~ ^($TYPES)$SCOPE_RE ]] ||
+      die "A $phase commit needs the scope (<domain> <component>), or (<domain>) for the flow tests: '$subject'" ;;
+  esac
+  return 0
+}
+
+default_model() {
+  local settings="${COPILOT_HOME:-$HOME/.copilot}/settings.json"
+  [ -f "$settings" ] || return 0
+  sed -nE 's/^[[:space:]]*"model"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/p' "$settings" | head -n 1
+}
+
+# Parses --phase, --empty, --model, -F and the paths to stage; reads the
+# message from stdin when there is no -F.
+parse_commit_args() {
+  MODEL=""
+  MSG_FILE=""
+  PHASE=""
+  EMPTY=""
+  PATHS=()
+  while [ $# -gt 0 ]; do
+    case "$1" in
+    --model) MODEL="${2:-}"; shift 2 ;;
+    --phase) PHASE="${2:-}"; shift 2 ;;
+    --empty) EMPTY=1; shift ;;
+    -F) MSG_FILE="${2:-}"; shift 2 ;;
+    --) shift; PATHS+=("$@"); break ;;
+    -*) die "Unknown option: $1" ;;
+    *) PATHS+=("$1"); shift ;;
+    esac
+  done
+  [ -n "$PHASE" ] || die "The phase is missing: pass --phase <phase> ($PHASES)."
+  [[ " $PHASES " == *" $PHASE "* ]] || die "Unknown phase '$PHASE'. Phases: $PHASES."
+  resolve_model
+  [ "$CMD" != commit ] || read_message
+}
+
+resolve_model() {
+  MODEL="${MODEL:-${GUTEXBERG_MODEL:-$(default_model)}}"
+  [ -n "$MODEL" ] || die "No model: pass --model <id>, set GUTEXBERG_MODEL or a model in settings.json."
+}
+
+# Reads the message from stdin into a temporary MSG_FILE, unless -F gave one.
+read_message() {
+  [ -z "$MSG_FILE" ] || return 0
+  [ -t 0 ] && die "The message is missing: pass it on stdin (heredoc) or with -F <file>."
+  MSG_FILE=$(mktemp)
+  trap 'rm -f "$MSG_FILE"' EXIT
+  cat >"$MSG_FILE"
+}
+
+stage_paths() {
+  [ $# -eq 0 ] || git add -- "$@"
+}
+
+report() {
+  git log -1 --format='%h %s'
+  git diff-tree --no-commit-id --name-only -r HEAD | sed 's/^/  /'
+}
+
+flow_log() {
+  [ -f "$FLOW_LOG" ] || return 0
+  echo "$(date -Is) [gutexberg] $1 $(git log -1 --format='%h %s')" >>"$FLOW_LOG"
+}
+
+trailer() {
+  echo "Co-authored-by: Copilot ($MODEL) <$COPILOT_EMAIL>"
+}
+
+require_staged() {
+  git diff --cached --quiet && die "Nothing is staged."
+  if git diff --cached --name-only | grep -qE '(^|/)\.adl/'; then
+    die "Staged changes include .adl/ files, which are never committed. Unstage them."
+  fi
+  return 0
+}
+
+strip_existing_trailer() {
+  grep -v "^Co-authored-by: Copilot" "$1" | sed -e :a -e '/^\n*$/{$d;N;ba' -e '}'
+}
+
+message_problems() {
+  local file="$1" subject blank body
+  subject=$(sed -n 1p "$file")
+  blank=$(sed -n 2p "$file")
+  body=$(sed -n '3,$p' "$file" | grep -v "^Co-authored-by: Copilot" | grep -v '^[[:space:]]*$' || true)
+  [[ "$subject" =~ $CONVENTIONAL_RE ]] ||
+    echo "Subject is not a Conventional Commit sentence without a trailing period: '$subject'"
+  [ "${#subject}" -le 72 ] ||
+    echo "Subject is ${#subject} characters, $((${#subject} - 72)) over the limit of 72: '$subject'"
+  [ -z "$blank" ] || echo "Line 2 of the message must be blank."
+  [ -n "$body" ] || echo "The message needs a body after the blank line."
+  return 0
+}
+
+validate_message() {
+  local file="$1" problems
+  [ -f "$file" ] || die "Message file '$file' not found."
+  problems=$(message_problems "$file")
+  [ -z "$problems" ] || die "$problems"
+}
+
+check_message() {
+  MSG_FILE=""
+  while [ $# -gt 0 ]; do
+    case "$1" in
+    -F) MSG_FILE="${2:-}"; shift 2 ;;
+    *) die "Usage: gutexberg check-message [-F <file>] <<'MSG'" ;;
+    esac
+  done
+  read_message
+  validate_message "$MSG_FILE"
+  local subject
+  subject=$(sed -n 1p "$MSG_FILE")
+  echo "ok (${#subject}/72)"
+}
+
+CMD="${1:-}"
+[ -n "$CMD" ] || { usage; exit 1; }
+shift
+
+git rev-parse --is-inside-work-tree >/dev/null 2>&1 || die "Not inside a git work tree."
+COMMON_DIR=$(git rev-parse --git-common-dir)
+PHASE_LOG="$COMMON_DIR/gutexberg/phases"
+
+# Write commands share the index: serialise them, so that parallel calls cannot
+# mix their files into one commit.
+case "$CMD" in
+stage | stage-patch | unstage | commit | amend | squash | fixup)
+  exec 9>"$COMMON_DIR/gutexberg.lock"
+  flock 9
+  ;;
+esac
+
+case "$CMD" in
+-h | --help | help) usage ;;
+base) load_base; echo "$BASE" ;;
+range)
+  load_base
+  while read -r _ short phase subject; do
+    printf '%s [%s] %s\n' "$short" "${phase#-}" "$subject"
+  done < <(log_with_phases "$BASE..HEAD")
+  ;;
+next)
+  last=$(last_cycle_phase)
+  echo "last cycle commit: $last; allowed: $(allowed_after "$last")"
+  ;;
+check-message) check_message "$@" ;;
+stage)
+  [ $# -ge 1 ] || die "Usage: gutexberg stage <path>..."
+  git add -- "$@"
+  ;;
+stage-patch)
+  [ $# -eq 1 ] || die "Usage: gutexberg stage-patch <patch-file>"
+  git apply --cached --unidiff-zero --whitespace=nowarn "$1"
+  ;;
+unstage)
+  if [ $# -eq 0 ]; then git reset -q; else git reset -q -- "$@"; fi
+  ;;
+commit)
+  parse_commit_args "$@"
+  current_branch_guard
+  validate_message "$MSG_FILE"
+  check_subject_scope "$PHASE" "$(sed -n 1p "$MSG_FILE")"
+  cycle_guard "$PHASE" "$EMPTY"
+  stage_paths "${PATHS[@]}"
+  if [ -n "$EMPTY" ]; then
+    git diff --cached --quiet || die "--empty commits nothing: unstage the staged changes first."
+  else
+    require_staged
+    check_paths "$PHASE"
+  fi
+  { strip_existing_trailer "$MSG_FILE"; echo; trailer; } | git commit -q ${EMPTY:+--allow-empty} -F -
+  record_phase "$PHASE"
+  flow_log "$PHASE"
+  report
+  ;;
+amend)
+  parse_commit_args "$@"
+  current_branch_guard
+  load_base
+  head=$(git rev-parse HEAD)
+  in_branch "$head" || die "HEAD is outside the branch: refusing to amend."
+  head_phase=$(phase_of "$head")
+  case "$head_phase" in
+  red | regression | characterisation) ;;
+  *) die "Only a red, regression or characterisation HEAD can be amended; HEAD is '${head_phase:-unrecorded}'." ;;
+  esac
+  [ "$PHASE" = "$head_phase" ] || die "HEAD is a $head_phase commit, not $PHASE."
+  stage_paths "${PATHS[@]}"
+  require_staged
+  check_paths "$PHASE"
+  git commit -q --amend --no-edit
+  record_phase "$PHASE"
+  flow_log "amend $PHASE"
+  report
+  ;;
+squash)
+  SCOPE=""
+  FROM=""
+  MODEL=""
+  MSG_FILE=""
+  while [ $# -gt 0 ]; do
+    case "$1" in
+    --scope) SCOPE="${2:-}"; shift 2 ;;
+    --from) FROM="${2:-}"; shift 2 ;;
+    --model) MODEL="${2:-}"; shift 2 ;;
+    -F) MSG_FILE="${2:-}"; shift 2 ;;
+    *) die "Usage: gutexberg squash --scope <scope> --from <commit> <<'MSG'" ;;
+    esac
+  done
+  [ -n "$SCOPE" ] && [ -n "$FROM" ] || die "Usage: gutexberg squash --scope <scope> --from <commit> <<'MSG'"
+  resolve_model
+  read_message
+  current_branch_guard
+  validate_message "$MSG_FILE"
+  [ "$(subject_scope "$(sed -n 1p "$MSG_FILE")")" = "$SCOPE" ] ||
+    die "The message must carry the scope ($SCOPE): '$(sed -n 1p "$MSG_FILE")'"
+  git diff --quiet && git diff --cached --quiet ||
+    die "The work tree has uncommitted changes: a squash needs a clean tree."
+  from=$(git rev-parse --verify -q "$FROM^{commit}") || die "Unknown commit '$FROM'."
+  load_base
+  in_branch "$from" || die "$FROM is outside the branch (<base>..HEAD)."
+  [ -z "$(git rev-list --merges "$from^..HEAD")" ] || die "The unit contains merge commits."
+  count=0
+  while read -r _ short phase subject; do
+    count=$((count + 1))
+    [ "$(subject_scope "$subject")" = "$SCOPE" ] ||
+      die "$short does not carry the scope ($SCOPE): '$subject'"
+    [ "$phase" != unit ] || die "$short is a squashed unit already: start the unit after it."
+  done < <(log_with_phases "$from^..HEAD")
+  before=$(git rev-parse "$from^")
+  if in_branch "$before" &&
+    [ "$(subject_scope "$(git log -1 --format=%s "$before")")" = "$SCOPE" ] &&
+    [ "$(phase_of "$before")" != unit ]; then
+    die "$(git rev-parse --short "$before") before $FROM also carries ($SCOPE): the unit starts earlier."
+  fi
+  last=$(last_cycle_phase)
+  case "$last" in
+  none | refactor) ;;
+  *) die "The unit's cycle is open (last cycle commit: $last): close it with a refactor first." ;;
+  esac
+  tip=$(git rev-parse HEAD)
+  git reset -q --soft "$before"
+  if ! { strip_existing_trailer "$MSG_FILE"; echo; trailer; } | git commit -q --allow-empty -F -; then
+    git reset -q --soft "$tip"
+    die "The commit failed; the branch is back at $(git rev-parse --short "$tip")."
+  fi
+  [ "$(git rev-parse HEAD^{tree})" = "$(git rev-parse "$tip^{tree}")" ] ||
+    die "The squashed tree differs from $(git rev-parse --short "$tip"): inspect, then 'git reset --hard $tip' restores the unit."
+  record_phase unit
+  flow_log "squash of $count commits (previous tip $(git rev-parse --short "$tip")) into"
+  echo "Squashed $count commits; the previous tip $(git rev-parse --short "$tip") stays reachable in the reflog."
+  report
+  ;;
+fixup)
+  TARGET=""
+  MODEL=""
+  MSG_FILE=""
+  PATHS=()
+  while [ $# -gt 0 ]; do
+    case "$1" in
+    --target) TARGET="${2:-}"; shift 2 ;;
+    --model) MODEL="${2:-}"; shift 2 ;;
+    -F) MSG_FILE="${2:-}"; shift 2 ;;
+    --) shift; PATHS+=("$@"); break ;;
+    -*) die "Unknown option: $1" ;;
+    *) PATHS+=("$1"); shift ;;
+    esac
+  done
+  [ -n "$TARGET" ] || die "Usage: gutexberg fixup --target <commit> [<path>...] <<'MSG'"
+  resolve_model
+  read_message
+  current_branch_guard
+  target=$(git rev-parse --verify -q "$TARGET^{commit}") || die "Unknown commit '$TARGET'."
+  load_base
+  in_branch "$target" ||
+    die "$TARGET is outside the branch (<base>..HEAD): a fixup targets only branch commits. Ask the user for a distinct review commit."
+  body=$(strip_existing_trailer "$MSG_FILE")
+  [ -n "$(tr -d '[:space:]' <<<"$body")" ] || die "The fixup needs a body: why the change was made."
+  [[ "$(sed -n 1p <<<"$body")" != fixup!* ]] || die "Stdin holds only the body: the wrapper writes the fixup! subject."
+  stage_paths "${PATHS[@]}"
+  require_staged
+  { echo "fixup! $(git log -1 --format=%s "$target")"; echo; echo "$body"; echo; trailer; } | git commit -q -F -
+  record_phase fixup
+  flow_log "fixup of $(git rev-parse --short "$target")"
+  report
+  ;;
+*) usage; exit 1 ;;
+esac
