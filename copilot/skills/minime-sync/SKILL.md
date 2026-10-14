@@ -6,8 +6,9 @@ description: Mirrors the live Copilot setup in ~/.copilot (agents, skills, hooks
 # minime-sync
 
 `~/.copilot` is the live setup; `~/code/minime/copilot/` is its versioned
-mirror on the `copilot` branch, installed elsewhere with
-`make copilot-install`. This skill copies live → mirror and commits.
+mirror on `master`, installed elsewhere with `make copilot-install`. This
+skill copies live → mirror and commits on a sync branch off `master`
+(gutexberg refuses to commit on `master`); the user pushes it and merges it.
 
 Start every shell description with the calling agent's `[name]`. Run every
 command from `~/code/minime` (`cd ~/code/minime && …`): the destinations are
@@ -19,8 +20,13 @@ versioned, so the permission hook lets them through. **Never push.**
 cd ~/code/minime && git branch --show-current && git status --short
 ```
 
-Stop and tell the user if the branch is not `copilot`, or if the tree is not
-clean (show `git status`: uncommitted work in the mirror is not yours).
+Stop and tell the user if the tree is not clean (show `git status`:
+uncommitted work in the mirror is not yours). Then, by branch:
+
+* `master`: start a sync branch from it,
+  `cd ~/code/minime && git switch -c copilot-sync-$(date +%Y%m%d-%H%M)`.
+* `copilot-sync-*`: an earlier sync not merged yet; keep committing on it.
+* Anything else: stop and ask the user, since it is someone else's work.
 
 ## 2. Copy
 
@@ -96,4 +102,5 @@ cd ~/code/minime && gutexberg commit --phase other \
 MSG
 ```
 
-Report the new commit hash and confirm the tree is clean.
+Report the new commit hash and the sync branch, confirm the tree is clean,
+and remind the user to push the branch and merge it into `master`.
