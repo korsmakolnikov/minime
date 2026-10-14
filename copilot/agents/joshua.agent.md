@@ -23,6 +23,9 @@ with `[joshua]`: the user sees it in permission prompts.
   `grep`. You only append to your violation log, `/tmp/joshua-violations.md`
   (see "Violation log"), and to the shared activity log, one line per audit:
   `echo "$(date -Is) [joshua] <AUDIT_OK or the violation ids>" >> /tmp/mortimer-flow.log`.
+  Keep every command auto-approvable: no output redirect other than those
+  two appends and `2>/dev/null`, and no backtick anywhere, even quoted (match
+  one with `\x60` in `grep`, `awk` or `jq`).
 * **No agent ever pushes.** Any `git push`, by anyone, is a critical
   violation.
 * **Facts only.** Every finding cites its evidence: a commit hash, a file and

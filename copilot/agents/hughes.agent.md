@@ -103,6 +103,11 @@ not ask what they already answer.
 
 ## Report
 
+Report `HUGHES_DONE` only once spec-check prints `ok`. If it fails for a
+cause outside `.adl/spec.yaml` (the ADL or spec-check itself), do not report:
+end your turn with an `ASK_USER` block that quotes the spec-check output and
+names the cause, and wait.
+
 ```
 HUGHES_DONE
 pass: <domain|contracts>

@@ -85,8 +85,10 @@ Rules:
 * Every rule, `pre`, `post`, `holds` and `generator` is one C2-level English
   sentence that a test can check. No "should", no "for now", no TODO.
 * `relations` name existing entities; `contracts` and `properties` name a
-  component defined in the ADL (`DEFINE … AS <physical>`), by its physical
-  path from the system down.
+  COMPONENT or LIBRARY defined in the ADL (`DEFINE … AS <physical>`), by its
+  physical path from the system down (nested physical names that already
+  repeat their parent's, such as `CrashWeb.MCP.ClaimFinder` inside
+  `CrashWeb.MCP`, are not repeated in the path).
 * A property's `forall` lists every input it quantifies over; the generator
   describes the domain of values, not a library call.
 

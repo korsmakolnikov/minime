@@ -77,18 +77,28 @@ def rules(where, value, key):
 
 
 def adl_components(folder):
-    """Physical names defined in the target ADL, and those of components."""
-    names, components = set(), set()
+    """Full physical paths defined in the target ADL, and those of components and libraries."""
+    paths, components = set(), set()
     for path in folder.rglob("*.adl"):
         if "as-is" in path.relative_to(folder).parts:
             continue
+        stack = []  # (indent, physical, full path)
         for line in path.read_text().splitlines():
-            m = re.search(r"\bDEFINE\s+(\w+)\s+.*?\bAS\s+([A-Za-z0-9_]+)", line)
-            if m:
-                names.add(m.group(2))
-                if m.group(1).upper() == "COMPONENT":
-                    components.add(m.group(2))
-    return names, components
+            m = re.match(r"(\s*)DEFINE\s+(\w+)\s+.*?\bAS\s+([A-Za-z0-9_.]+)", line)
+            if not m:
+                continue
+            indent, kind, physical = len(m.group(1)), m.group(2).upper(), m.group(3)
+            while stack and stack[-1][0] >= indent:
+                stack.pop()
+            parent = stack[-1][2] if stack else ""
+            if stack and physical.startswith(stack[-1][1] + "."):
+                parent = stack[-2][2] if len(stack) > 1 else ""
+            full = f"{parent}.{physical}" if parent else physical
+            stack.append((indent, physical, full))
+            paths.add(full)
+            if kind in ("COMPONENT", "LIBRARY"):
+                components.add(full)
+    return paths, components
 
 
 def component(where, value, system, adl):
@@ -100,12 +110,11 @@ def component(where, value, system, adl):
         problem(where, f"component '{value}' does not start with the system '{system}'")
     if adl is None:
         return
-    names, components = adl
-    missing = [s for s in segments if s not in names]
-    if missing:
-        problem(where, f"component '{value}': {', '.join(missing)} not defined in the ADL")
-    elif segments[-1] not in components:
-        problem(where, f"'{segments[-1]}' is not a COMPONENT in the ADL")
+    paths, components = adl
+    if value not in paths:
+        problem(where, f"component '{value}' is not defined in the ADL")
+    elif value not in components:
+        problem(where, f"'{value}' is not a COMPONENT or LIBRARY in the ADL")
 
 
 def main():
