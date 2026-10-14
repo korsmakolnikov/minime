@@ -4,9 +4,11 @@
 Rule: an operation is approved when every effect it has falls inside a folder
 versioned with git (a work tree path that is not git-ignored), because git can
 always bring it back. /tmp is the other approved place: agents may run and
-write anything there, and so is the `.documentation/` folder at the root of a
-work tree, where simon writes the architecture documentation that git
-ignores. Command substitutions are approved when their own
+write anything there, and so are the workflow folders at the root of a work
+tree, which git ignores: `.sources/` (the input: ADL, spec, shopping lists),
+`.documentation/` (simon's output) and the legacy `.adl/` and
+`.shopping_lists/` that kent moves into `.sources/`. Files may be removed
+from all of them but `.sources/`, which nothing could restore. Command substitutions are approved when their own
 command is. Anything else, or anything the hook cannot reason about, falls
 through to the normal permission prompt. `git push`, network clients and
 cluster commands are always denied, and git commands that throw away
@@ -126,11 +128,20 @@ def scratch(path):
     return path == "/dev/null" or path == "/tmp" or path.startswith("/tmp/")
 
 
-def documentation(path):
-    """Inside the `.documentation/` folder at the root of a work tree."""
+WORKFLOW_FOLDERS = (".sources", ".documentation", ".adl", ".shopping_lists")
+# Folders whose files may also be removed: the output, which simon rebuilds,
+# and the legacy input kent moves away. `.sources/` is not versioned, so
+# nothing removed there could be brought back.
+REMOVABLE_FOLDERS = (".documentation", ".adl", ".shopping_lists")
+
+
+def workflow_folder(path, names=WORKFLOW_FOLDERS):
+    """Inside one of the named folders at the root of a work tree."""
     root = work_tree(path)
-    folder = os.path.join(root, ".documentation") if root else None
-    return bool(folder) and (path == folder or path.startswith(folder + os.sep))
+    if not root:
+        return False
+    folders = [os.path.join(root, name) for name in names]
+    return any(path == folder or path.startswith(folder + os.sep) for folder in folders)
 
 
 def versioned(path):
@@ -144,6 +155,10 @@ def versioned(path):
     return ignored is not None and ignored.returncode == 1
 
 
+def removable(path):
+    return scratch(path) or workflow_folder(path, REMOVABLE_FOLDERS) or tracked(path)
+
+
 def tracked(path):
     root = work_tree(path)
     result = git(root, "ls-files", "--error-unmatch", path) if root else None
@@ -154,7 +169,7 @@ def writable(path, cwd):
     if SUBST in path:
         return False
     path = resolve(path, cwd)
-    return scratch(path) or versioned(path) or documentation(path)
+    return scratch(path) or versioned(path) or workflow_folder(path)
 
 
 def strip_heredocs(command):
@@ -366,8 +381,8 @@ def segment_allowed(words, cwd):
         return sed_read_only(args) or ask("sed may write files")
     paths = [a for a in args if not a.startswith("-")]
     if cmd == "rm":
-        return bool(paths) and all(SUBST not in p and (scratch(resolve(p, cwd)) or tracked(resolve(p, cwd))) for p in paths) \
-            or ask("rm of untracked files outside /tmp")
+        return bool(paths) and all(SUBST not in p and removable(resolve(p, cwd)) for p in paths) \
+            or ask("rm of untracked files outside /tmp, .documentation/ and the legacy folders")
     if cmd in ("cp", "install", "ln"):
         return bool(paths) and writable(paths[-1], cwd) or ask(f"{cmd} writes outside versioned folders and /tmp")
     if cmd in PATH_ARGS:
@@ -538,7 +553,7 @@ def requesting_agent(payload, path, cwd, wait=AGENT_LOOKUP_WAIT):
 
 def decide_edit(payload, file_path, cwd):
     path = resolve(file_path, cwd)
-    if scratch(path) or documentation(path):
+    if scratch(path) or workflow_folder(path):
         return ALLOW
     real = os.path.realpath(path)
     if any(real.startswith(root + os.sep) for root in READABLE_ROOTS) and autonomy("argyris") \

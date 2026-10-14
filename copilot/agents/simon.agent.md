@@ -68,7 +68,7 @@ Answer each message with `SIMON_UPDATED` (see "Report") and end your turn.
   `FORD_DONE` report lists, read from the files as they are now.
 * The reports kent forwards, for the responsibilities and the components'
   order.
-* The shopping list, `.shopping_lists/<branch>.md`, for the scope only.
+* The shopping list, `.sources/shopping_lists/<branch>.md`, for the scope only.
 
 ## Files
 

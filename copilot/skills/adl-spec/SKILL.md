@@ -64,8 +64,8 @@ ASSERT(creation has NO DEPENDENCY on completion)
 
 ## The `.sources/` folder
 
-The sources of the iteration, the ADL files written by ford and the domain
-spec written by hughes, live in `.sources/` at the project root, **never
+The input of the workflow, the ADL files written by ford, the domain spec
+written by hughes and kent's shopping lists, lives in `.sources/` at the project root, **never
 committed** (the user ignores it globally): never stage it. simon documents
 them in `.documentation/<branch>/`, never committed either.
 
@@ -76,6 +76,7 @@ them in `.documentation/<branch>/`, never committed either.
   <domain>.adl            one file per domain
   <domain>.<subdomain>.adl
   as-is/                  reverse-engineered ADL of existing code (brownfield)
+  shopping_lists/<branch>.md   kent's findings for each branch
 ```
 
 * Each file opens with a title line `ADL:<TITLE IN CAPITALS>`, a blank line,

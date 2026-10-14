@@ -155,9 +155,11 @@ kent:
 
 * Never writes or commits code, not even `.sources/`. Its only writes are
   `/tmp/kent-partial-session-progress.md`, its lines in
-  `/tmp/kent-flow.log` and the shopping list `.shopping_lists/<branch>.md`
+  `/tmp/kent-flow.log`, the shopping list `.sources/shopping_lists/<branch>.md`
   (never staged), written after the user confirms it and reused when it
-  already exists.
+  already exists, and the move of the legacy `.adl/` and `.shopping_lists/`
+  into `.sources/` at the start of a session: copied without overwriting,
+  removed only when nothing differs or the user chose each conflicting file.
 * Runs the steps in order: shopping list, hughes (`domain`), ford, hughes
   (`contracts`), then for each component unclebob and martin on its unit,
   then the integration session and martin on the flow unit; passes the spec

@@ -65,7 +65,7 @@ END_ASK_USER
 
 * The pass: `domain` or `contracts`.
 * The repository, the branch, the shopping list path
-  (`.shopping_lists/<branch>.md`), the stack and the user's language.
+  (`.sources/shopping_lists/<branch>.md`), the stack and the user's language.
 * For `contracts`: the ADL paths and ford's `FORD_DONE` report (components,
   interfaces).
 

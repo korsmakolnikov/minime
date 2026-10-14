@@ -60,7 +60,7 @@ turn.
 ## Input from kent
 
 Scope, greenfield or brownfield, stack, test command, the shopping list path
-(`.shopping_lists/<branch>.md`, written by kent: read it, never write it),
+(`.sources/shopping_lists/<branch>.md`, written by kent: read it, never write it),
 the domain spec path (`.sources/spec.yaml`, written by hughes: read it with the
 `domain-spec` skill, never write it) and the content of any as-is ADL drafts,
 which you write to `.sources/as-is/` first, exactly as received. The entities,

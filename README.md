@@ -104,11 +104,11 @@ README.md                 with the CI badge
 
 # Copilot workflow
 
-Agents and skills for the [GitHub Copilot CLI](https://docs.github.com/copilot/how-tos/use-copilot-agents/use-copilot-cli), in `copilot/`. Architecture is defined with the [Architecture Definition Language](https://www.developertoarchitect.com/downloads/adl-ref.pdf) (ADL) by Mark Richards and Neal Ford; the ADL files and the domain spec live in `.sources/` at the root of each project, and the architecture documentation in `.documentation/<branch>/`; neither is committed.
+Agents and skills for the [GitHub Copilot CLI](https://docs.github.com/copilot/how-tos/use-copilot-agents/use-copilot-cli), in `copilot/`. Architecture is defined with the [Architecture Definition Language](https://www.developertoarchitect.com/downloads/adl-ref.pdf) (ADL) by Mark Richards and Neal Ford; the workflow's input (ADL files, domain spec, shopping lists) lives in `.sources/` at the root of each project, and its output, the architecture documentation, in `.documentation/<branch>/`; neither is committed. `kent` moves the `.adl/` and `.shopping_lists/` of earlier versions into `.sources/` at the start of a session, without overwriting anything and asking about every file that differs.
 
 | Agent | Role |
 |-------|------|
-| `kent` | Orchestrator, run as the main agent. Studies the code, writes the preliminary findings (every unknown of the iteration) to `.shopping_lists/<branch>.md`, runs `hughes` for the domain, `ford`, `hughes` again for the contracts, then `unclebob` one component at a time and the functional test, with `martin` reviewing and squashing each unit as soon as it is written, relays their questions to the user, keeps `joshua` informed, forwards its violations to `argyris` and every change of the sources to `simon`. Never writes code or commits. Every agent logs to `/tmp/kent-flow.log`, each line tagged with the agent's name. |
+| `kent` | Orchestrator, run as the main agent. Studies the code, writes the preliminary findings (every unknown of the iteration) to `.sources/shopping_lists/<branch>.md`, runs `hughes` for the domain, `ford`, `hughes` again for the contracts, then `unclebob` one component at a time and the functional test, with `martin` reviewing and squashing each unit as soon as it is written, relays their questions to the user, keeps `joshua` informed, forwards its violations to `argyris` and every change of the sources to `simon`. Never writes code or commits. Every agent logs to `/tmp/kent-flow.log`, each line tagged with the agent's name. |
 | `joshua` | Auditor. Runs in background beside `kent` for the whole session and checks every agent against its file and launch prompt. Read-only: violations never stop the workflow; `kent` prints them and forwards them to `argyris`, and `joshua` also logs them to `/tmp/joshua-violations.md`. |
 | `hughes` | Interviews the user to write the domain spec, `.sources/spec.yaml`, validated by the `spec-check` command in `copilot/bin/`: entities, relations and constraints before `ford`; the contracts of the component operations and the properties for property-based tests after it. `unclebob` turns each entry into a red test. |
 | `ford` | Interviews the user to write the ADL, then generates fitness functions, scaffold and component interfaces. No business logic. |
@@ -165,8 +165,10 @@ The hooks in `copilot/hooks/` keep the agents unattended:
   only under `/tmp`: code edits reach the user unless an autonomy setting
   says otherwise (below). Command
   substitutions (`$(...)`, backticks, `<(...)`) are approved when their own
-  command is. Writes under `.documentation/` at the root of a repository are
-  approved like those under `/tmp`. Commands run in a container (`docker exec`,
+  command is. Writes under the workflow folders at the root of a repository
+  (`.sources/`, `.documentation/`, and the legacy `.adl/` and
+  `.shopping_lists/`) are approved like those under `/tmp`; removals too,
+  except in `.sources/`, which nothing could restore. Commands run in a container (`docker exec`,
   `docker compose exec`, `edgar exec`) are judged like host commands, and
   only in the containers listed in `COPILOT_CONTAINERS` (below). Reads
   (`view`, `grep`, `glob`) of `~/.copilot/agents`, `~/.copilot/skills` and
