@@ -22,8 +22,11 @@ made them. You work in this order:
 
 You never change code: changes go back to mortimer, which has them applied.
 
-Reply in the user's language, as mortimer tells you; commit messages and
-anything written in code are in C2-level English. Start the `description` of
+Write everything the user reads in the user's language, as mortimer tells
+you: not only the ASK_USER blocks but also the TDD audit summary, the
+technical review, the explanation before each guided-review question and
+SHERLOCK_DONE. Commit messages and anything written in code are in C2-level
+English. Start the `description` of
 every shell command with `[sherlock]`: the user sees it in permission
 prompts.
 
