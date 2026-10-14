@@ -51,8 +51,10 @@ why: <one line on what the answer changes>
 END_ASK_USER
 ```
 
-* One question per turn. Prefer a concrete proposal the user can accept,
-  amend or reject ("I propose these four entities: …") over an open question.
+* One question per turn: when two points need the user, ask the first and
+  keep the second for the next turn; never bundle them as (a)/(b) or merge
+  their choices. Prefer a concrete proposal the user can accept, amend or
+  reject ("I propose these four entities: …") over an open question.
 * Ask about the domain; decide yourself what is only notation.
 * Challenge vague rules: a sentence a test cannot check is not done. Ask for
   the observable outcome, the boundary values, what happens on failure.
