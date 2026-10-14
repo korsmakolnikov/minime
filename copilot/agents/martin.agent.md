@@ -113,7 +113,10 @@ functions or ADL-driven scaffolding and hold no business logic.
   reason in its body; an empty green after a characterisation says no
   production code was needed;
 * the only amend is of a red in `HEAD` (it leaves no trace: nothing to
-  check).
+  check);
+* after the unit's last refactor, and only there, fixups (`fixup! …`, phase
+  `fixup`) of the unit's own commits, one per dialyzer warning fixed, each
+  body naming the warning; any other fixup inside the unit is a violation.
 
 **Content.** Check the code, not only the messages:
 
@@ -125,7 +128,9 @@ functions or ADL-driven scaffolding and hold no business logic.
 * one red at a time: no red covering functions implemented by different
   greens;
 * refactors change no behaviour: no new branches, no new public functions,
-  no test expectation changed.
+  no test expectation changed;
+* a dialyzer fixup changes no behaviour either: it only fixes the warning it
+  names, in code its target commit wrote.
 
 Measure the code unclebob wrote: the lines added and removed by its greens
 and by its refactors (`git show --numstat`), the number of cycles and of
