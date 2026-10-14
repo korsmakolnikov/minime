@@ -234,16 +234,17 @@ Pass unclebob:
 * that the interfaces are a contract: if one must change, it stops and
   reports `INTERFACE_CHANGE_REQUEST`;
 * that it is explicitly authorised to delegate commits to gutexberg;
+* on a system listed in unclebob's "Large systems" table (crash among them),
+  the complete related-tests command, computed again before each launch:
+  every test file changed in `<base>..HEAD` and in the working tree, the
+  mirrored test of every changed source module, every test file referencing
+  a changed module (`grep -rlw <Module.Name>` in the test folders), and the
+  architecture tests, in one runner invocation;
 * your model id.
 
 Never restate or override rules from unclebob's or gutexberg's files (commit
 cadence, when to run which tests), not even after a violation: soong fixes
-the agent files. On a large system, also pass the complete related-tests
-command, as unclebob's "Large systems" rule defines it, computed again before
-each launch: every test file changed in `<base>..HEAD` and in the working
-tree, the mirrored test of every changed source module, every test file
-referencing a changed module (`grep -rlw <Module.Name>` in the test folders),
-and the architecture tests, in one runner invocation.
+the agent files.
 
 On `INTERFACE_CHANGE_REQUEST`, send ford the request and the component's
 scope (its commits then belong to the component's unit), then resume
