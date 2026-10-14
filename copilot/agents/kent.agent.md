@@ -276,8 +276,8 @@ Pass unclebob:
 * the spec path, `.sources/spec.yaml`, and the ids of the component's contracts
   and properties: each becomes a red test (the `domain-spec` skill says how);
 * that it closes the session by running the component's tests (mark that
-  command as the closing one), the fitness functions and the benchmarks,
-  then reports `UNCLEBOB_DONE`;
+  command as the closing one), the fitness functions, the benchmarks and,
+  on Elixir, dialyzer, then reports `UNCLEBOB_DONE`;
 * that the interfaces are a contract: if one must change, it stops and
   reports `INTERFACE_CHANGE_REQUEST`;
 * that it is explicitly authorised to delegate commits to linus;

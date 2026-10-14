@@ -48,8 +48,9 @@ Write:
                                 characterisation HEAD can be amended.
   squash --scope <scope> --from <commit> <<'MSG'
                                 Replace the unit <commit>..HEAD with one commit
-                                (martin, after the unit's review). Every commit
-                                of the unit carries <scope>, none is a squashed
+                                (martin, after the unit's TDD audit). Every commit
+                                of the unit carries <scope> (a fixup carries that
+                                of the commit it fixes), none is a squashed
                                 unit already, the commit before <commit> does not
                                 carry <scope> unless it is a squashed unit, the
                                 unit's cycle is closed and the work tree is clean.
@@ -57,7 +58,8 @@ Write:
                                 not change. The commit is recorded as a "unit".
   fixup --target <commit> [<path>...] <<'MSG'
                                 Stage the given paths, then commit everything staged
-                                as "fixup! <subject of <commit>>" (code review). The
+                                as "fixup! <subject of <commit>>" (code review, or
+                                dialyzer at the close of a unit). The
                                 target must lie in <base>..HEAD. Stdin holds only
                                 the body; the Copilot trailer is appended. The
                                 commit is recorded as a "fixup"; never autosquashed.
@@ -147,9 +149,12 @@ log_with_phases() {
       { sha = $1; short = $2; sub(/^[^ ]+ [^ ]+ /, ""); print sha, short, (sha in p ? p[sha] : "-"), $0 }'
 }
 
-# The scope of a Conventional Commits subject, empty when it has none.
+# The scope of a Conventional Commits subject, empty when it has none. A
+# "fixup! <subject>" carries the scope of the subject it fixes.
 subject_scope() {
-  if [[ "$1" =~ ^($TYPES)\(([^\)]*)\)!?:\  ]]; then echo "${BASH_REMATCH[2]}"; fi
+  local subject="$1"
+  while [[ "$subject" == "fixup! "* ]]; do subject="${subject#fixup! }"; done
+  if [[ "$subject" =~ ^($TYPES)\(([^\)]*)\)!?:\  ]]; then echo "${BASH_REMATCH[2]}"; fi
 }
 
 # The phase of the newest cycle commit since the last squashed unit, or "none".

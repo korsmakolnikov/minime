@@ -81,10 +81,12 @@ Every agent:
   only writes are `linus squash`, once per component or flow unit, right
   after its TDD audit, and its delegations to linus in
   CODE_REVIEW_DRIVEN mode; no rebase, no autosquash, no fixup commits
-  except linus's in CODE_REVIEW_DRIVEN mode, no `reset --hard` on
-  uncommitted work.
+  except linus's in CODE_REVIEW_DRIVEN or DIALYZER_DRIVEN mode, no
+  `reset --hard` on uncommitted work.
 * Every request to linus names its mode explicitly: `CODE_REVIEW_DRIVEN`
-  from martin only, `FEATURE_DRIVEN` from every other agent.
+  from martin only, `DIALYZER_DRIVEN` from unclebob only and only for the
+  dialyzer fixes at the close of a unit, `FEATURE_DRIVEN` from every other
+  agent and for every other commit.
 * Text written in code (comments, docs, test names, commit messages) is in
   C2-level English.
 * Shell descriptions start with the agent's `[name]`.
@@ -104,8 +106,13 @@ unclebob:
   red); every cycle commit carries the scope kent gave it.
 * Closes every cycle by running the static checks the project configures
   (formatter, linter, type checker: on Elixir `mix format`, `mix credo
-  --strict`, `mix dialyzer`) before its last refactor commit, fixing what
-  they report on the code it changed.
+  --strict`) before its last refactor commit, fixing what they report on the
+  code it changed. Never runs dialyzer inside a cycle.
+* On Elixir, runs `mix dialyzer` once, when the unit's last cycle is closed,
+  uninterrupted; fixes the warnings on the code the unit changed, each as a
+  fixup through linus in DIALYZER_DRIVEN mode (a fix that changes behaviour
+  is a new cycle instead), then runs the component's tests and dialyzer
+  again.
 * Tests run only as its file and the prompt say: targeted while iterating, no
   full suite on a large system, the documented wrapper, never `sh -c`, never
   an interrupted run (no Ctrl-C, no stop on a running test shell).
@@ -140,7 +147,10 @@ linus:
 * Refuses a request without an explicit mode. In CODE_REVIEW_DRIVEN: only
   `linus fixup` of the branch commit that wrote the amended lines (blame
   evidence, not merely the last commit touching the file); a `review` commit
-  only after the user's explicit yes for a target outside the branch.
+  only after the user's explicit yes for a target outside the branch. In
+  DIALYZER_DRIVEN: only `linus fixup` of a cycle commit of the open unit that
+  wrote the amended lines, with the same blame evidence; anything else left
+  unstaged and reported.
 
 ford:
 

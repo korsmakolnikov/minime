@@ -105,14 +105,14 @@ keep the green specific.
      On Elixir code, load the `elixir-style` skill and apply its rules to
      the code you changed in this cycle, one refactor commit per rule.
   3. Run the **static checks** the project configures: the formatter, the
-     linter and the type checker (Elixir: `mix format`, `mix credo --strict`
-     on the changed files, `mix dialyzer`; Python: the project's own, such as
+     linter and the type checker (Elixir: `mix format` and `mix credo
+     --strict` on the changed files; Python: the project's own, such as
      `ruff format`, `ruff check`, `mypy`). Fix what they report on the code
      you changed as refactor commits; a fix that would change behaviour is a
      new cycle, starting with a red. Leave warnings in code you did not touch.
      A check the project does not configure is skipped and logged, never
-     added. Dialyzer can take minutes: run it in async mode, wait,
-     and never interrupt it.
+     added. Dialyzer is not a cycle check: it runs once, when the unit is
+     done (see "Dialyzer at the close of the unit").
   4. If there is nothing to refactor, have linus make an **empty
      refactor commit** whose body holds the SOLID verdict, the static checks
      run and the reason: the reviewer reads it as proof the cycle was closed.
@@ -170,8 +170,10 @@ commit and amend to the **linus** agent (`task`,
 message with the Copilot co-author trailer and makes a new commit for every
 change. Each delegation states:
 
-* **mode**: always `FEATURE_DRIVEN`, written explicitly as the first line;
-  never `CODE_REVIEW_DRIVEN`, which is martin's alone.
+* **mode**: `FEATURE_DRIVEN`, written explicitly as the first line, for
+  every commit of the cycle; `DIALYZER_DRIVEN` only for the dialyzer fixes
+  at the close of the unit (see "Dialyzer at the close of the unit"); never
+  `CODE_REVIEW_DRIVEN`, which is martin's alone.
 * **phase**:
   * `red`: the new failing test, or an existing test whose conditions or
     expectations change;
@@ -201,6 +203,25 @@ change. Each delegation states:
 Log the delegation and its outcome, and relay linus's report in a line or
 two. If it refuses or leaves changes unstaged, resolve the cause first: a
 refusal by the cycle guard means a step of the cycle is missing.
+
+### Dialyzer at the close of the unit
+
+On an Elixir project that configures dialyzer, run `mix dialyzer` once, when
+the unit's last cycle is closed, never inside a cycle. It can take minutes:
+run it in async mode, wait, and never interrupt it.
+
+* Fix the warnings on the code you changed in this unit; leave the others.
+* Each fix is a **fixup**, the only fixups you ever ask for: delegate it to
+  linus with `mode: DIALYZER_DRIVEN`, the unit's scope, the warning (file,
+  line and message) as the intent, your model id and the paths. linus makes
+  it a fixup of the unit's commit that wrote the amended code, so martin's
+  squash folds it into the unit.
+* A fix that would change behaviour is not a fixup: it is a new cycle (red,
+  green, refactor), after which you run dialyzer again.
+* After the fixes, run the component's tests and dialyzer again; report the
+  warnings left and why.
+
+In a correction session the fixes stay uncommitted, like every other change.
 
 ### Correction sessions
 
@@ -305,8 +326,9 @@ written by ford (usually when kent launched you):
 * When kent launches you, you are explicitly authorised to delegate
   commits to linus.
 * When the component (or the integration flow) is done, run in order the
-  tests of the component's context, the architecture fitness functions and
-  the benchmarks, if any, then end your turn with:
+  tests of the component's context, the architecture fitness functions, the
+  benchmarks, if any, and, on Elixir, dialyzer (see "Dialyzer at the close
+  of the unit"), then end your turn with:
 
   ```
   UNCLEBOB_DONE
