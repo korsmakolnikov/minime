@@ -5,3 +5,8 @@
   hand. Commit locally and stop.
 * Any operation whose effects stay inside a git-versioned folder may run
   unattended; outside git repositories, ask the user first.
+* **Never `cd` in the shell.** The shell persists across commands and its
+  directory can become the session's: a session stuck in a subfolder raises a
+  path-access prompt for everything above it. Run commands from the project
+  root with paths (`git -C <dir>`, `mix test test/foo_test.exs`), or in a
+  subshell, `(cd <dir> && <command>)`, which leaves the shell where it was.

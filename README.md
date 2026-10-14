@@ -108,29 +108,33 @@ Agents and skills for the [GitHub Copilot CLI](https://docs.github.com/copilot/h
 
 | Agent | Role |
 |-------|------|
-| `mortimer` | Orchestrator, run as the main agent. Studies the code, writes the preliminary findings (every unknown of the iteration) to `.shopping_lists/<branch>.md`, runs `hughes` for the domain, `ford`, `hughes` again for the contracts, then `unclebob` one component at a time and the functional test, with `sherlock` reviewing and squashing each unit as soon as it is written, relays their questions to the user, keeps `joshua` informed and forwards its violations to `soong`. Never writes code or commits. Every agent logs to `/tmp/mortimer-flow.log`, each line tagged with the agent's name. |
-| `joshua` | Auditor. Runs in background beside `mortimer` for the whole session and checks every agent against its file and launch prompt. Read-only: violations never stop the workflow; `mortimer` prints them and forwards them to `soong`, and `joshua` also logs them to `/tmp/joshua-violations.md`. |
+| `kent` | Orchestrator, run as the main agent. Studies the code, writes the preliminary findings (every unknown of the iteration) to `.shopping_lists/<branch>.md`, runs `hughes` for the domain, `ford`, `hughes` again for the contracts, then `unclebob` one component at a time and the functional test, with `martin` reviewing and squashing each unit as soon as it is written, relays their questions to the user, keeps `joshua` informed and forwards its violations to `argyris`. Never writes code or commits. Every agent logs to `/tmp/kent-flow.log`, each line tagged with the agent's name. |
+| `joshua` | Auditor. Runs in background beside `kent` for the whole session and checks every agent against its file and launch prompt. Read-only: violations never stop the workflow; `kent` prints them and forwards them to `argyris`, and `joshua` also logs them to `/tmp/joshua-violations.md`. |
 | `hughes` | Interviews the user to write the domain spec, `.adl/spec.yaml`, validated by the `spec-check` command in `copilot/bin/`: entities, relations and constraints before `ford`; the contracts of the component operations and the properties for property-based tests after it. `unclebob` turns each entry into a red test. |
 | `ford` | Interviews the user to write the ADL, then generates fitness functions, scaffold and component interfaces. No business logic. |
 | `unclebob` | Implements the internals test-first, one red test at a time: every cycle is a red commit, a green commit and at least one refactor commit (empty when there is nothing to refactor). Refuses to work when the tests cannot run. Treats `ford`'s interfaces as a contract. |
-| `gutexberg` | The only actor that writes to git: Conventional Commits scoped by component (`feat(<domain> <component>): …`), a new commit for every change, Copilot co-author trailer naming the model. Uses the `gutexberg` command in `copilot/bin/`, which records each commit's phase, refuses any order other than red, green, refactor, and squashes a reviewed unit only when the range is exactly that unit. |
-| `sherlock` | Reviewer, run after every unit `unclebob` writes: each component, then the final functional test. Audits that the unit was built test-first and reviews every green (SOLID, complexity, idiom), walks the user through the unit's diff, has the requested changes applied, then squashes the approved unit into one commit on the branch with `gutexberg squash`. The workflow ends with the review of the functional test. |
-| `soong` | Maintainer of the agent files. Runs in background in `mortimer`'s session, beside `joshua`: proposes a fix to the agent and skill files for each violation `mortimer` forwards, applies the approved ones, mirrors them here and tells `mortimer` to restart. Before its next launch of `hughes`, `ford`, `unclebob` or `sherlock`, `mortimer` saves its progress to `/tmp/mortimer-partial-session-progress.md` and asks for a `/restart`; it checks that file on every user message, so after the restart any message (or `mortimer --resume -i "continue"`) makes it resume from the file and delete it. `soong` also watches that `mortimer` carries the restart out and that `joshua` never prompts the user, and alerts the user (desktop popup) when they do not. |
+| `linus` | The only actor that writes to git: Conventional Commits scoped by component (`feat(<domain> <component>): …`), a new commit for every change, Copilot co-author trailer naming the model. Uses the `linus` command in `copilot/bin/`, which records each commit's phase, refuses any order other than red, green, refactor, and squashes a unit only when the range is exactly that unit and its cycle is closed. Two modes, always named by the caller: `FEATURE_DRIVEN` (every agent) and `CODE_REVIEW_DRIVEN` (`martin` only: fixups of the branch commit that wrote the amended lines). |
+| `martin` | Reviewer, run after every unit `unclebob` writes: each component, then the final functional test, and each correction to a squashed unit. First audits from the commits that the unit was built test-first and sends every incoherence to `argyris`; then squashes the unit into one commit with `linus squash`; then reviews that commit (SOLID, complexity, idiom, outcomes of every called function, spec coverage) and walks the user through its diff, file by file. The requested changes are applied by the unit's agent, uncommitted, and `linus` commits them as fixups of the unit's commit. The workflow ends with the review of the functional test. |
+| `argyris` | Maintainer of the agent files. Runs in background in `kent`'s session, beside `joshua`: proposes a fix to the agent and skill files for each violation `kent` forwards, applies the approved ones, mirrors them here and tells `kent` to restart. Before its next launch of `hughes`, `ford`, `unclebob` or `martin`, `kent` saves its progress to `/tmp/kent-partial-session-progress.md` and asks for a `/restart`; it checks that file on every user message, so after the restart any message (or `kent --resume -i "continue"`) makes it resume from the file and delete it. `argyris` also watches that `kent` carries the restart out and that `joshua` never prompts the user, and alerts the user (desktop popup) when they do not. |
 
 | Skill | Role |
 |-------|------|
 | `adl-spec` | ADL reference, `.adl/` layout, mapping of physical names to Elixir and Python namespaces. |
-| `adl-interview` | Interview protocol and the `ASK_USER` relay format. |
+| `adl-interview` | Interview protocol for the ADL and the component interfaces. |
 | `adl-fitness` | ADL assertions to ExUnit/pytest fitness functions, with standard-library helpers. |
 | `adl-scaffold` | Namespaces and interfaces, without logic. |
 | `adl-reverse` | As-is ADL drafts from the dependency graph of existing code. |
 | `domain-spec` | The domain spec format, its validator and how each entry becomes a test (StreamData, Hypothesis). |
-| `minime-sync` | Mirrors `~/.copilot` into `copilot/` and commits it through `gutexberg`; run it before a `/restart`. |
+| `minime-sync` | Mirrors `~/.copilot` into `copilot/` and commits it through `linus`; run it before a `/restart`. |
 | `datadog-experiment-downloader` | Downloads a Datadog LLM Observability experiment with `pup`: summary, events and the agent loop of every trace, in parallel and resumable. |
 
-Start with `mortimer` (the launcher in `copilot/bin/`: `copilot --agent mortimer` plus `--add-dir` for `~/.copilot/agents`, `~/.copilot/skills` and `~/code/minime`, since reaching them otherwise asks for path access, which the permission hook cannot answer; other options pass through), or `copilot --agent unclebob` for a plain TDD session. Follow the whole flow with `tail -f /tmp/mortimer-flow.log`.
+Sub-agents cannot talk to the user: they end their turn with one `ASK_USER` block (`question`, optional `choices` separated by `|`, optional `default`, `why`), one question at a time, and `kent` relays it verbatim, prefixed with the agent's name.
 
-`copilot/copilot-instructions.md` holds the rules every agent follows; above all, no agent ever pushes.
+Start with `kent` (the launcher in `copilot/bin/`: `copilot --agent kent` plus `--add-dir` for the root of the repository it starts in, `~/.copilot` and `~/code/minime`, since reaching them otherwise asks for path access, which the permission hook cannot answer; other options pass through), or `copilot --agent unclebob` for a plain TDD session. Follow the whole flow with `tail -f /tmp/kent-flow.log`.
+
+The names: `kent` after Kent Beck, `ford` after Neal Ford (ADL, fitness functions), `hughes` after John Hughes (QuickCheck), `unclebob` after Robert C. Martin, `martin` after Martin Fowler (refactoring), `linus` after Linus Torvalds (git), `argyris` after Chris Argyris (double-loop learning: fix the rules, not only the action), `joshua` after the WOPR of WarGames.
+
+`copilot/copilot-instructions.md` holds the rules every agent follows; above all, no agent ever pushes, and no agent runs a bare `cd`, which would move the session's directory into a subfolder.
 
 # Installation
 
@@ -149,7 +153,7 @@ For the Copilot workflow:
 ```sh
 make copilot-install   # installs or overwrites agents, skills and hooks in ~/.copilot/,
                        # settings and copilot-instructions.md in ~/.copilot/
-                       # and gutexberg, mortimer and spec-check in ~/.local/bin/
+                       # and linus, kent and spec-check in ~/.local/bin/
 ```
 
 The hooks in `copilot/hooks/` keep the agents unattended:
@@ -160,12 +164,20 @@ The hooks in `copilot/hooks/` keep the agents unattended:
   only under `/tmp`: code edits reach the user unless an autonomy setting
   says otherwise (below). Command
   substitutions (`$(...)`, backticks, `<(...)`) are approved when their own
-  command is. Reads (`view`, `grep`, `glob`) of `~/.copilot/agents`,
-  `~/.copilot/skills` and `/tmp` are approved, so agents can read the agents
-  they launch and the skills they use. Everything else asks. `git push` is always
-  denied, and git commands that discard uncommitted work (`reset --hard`,
-  `clean`, `checkout --`, ...) always ask. Set `COPILOT_HOOK_DEBUG=1` to log
-  the payloads to `/tmp/copilot-hook-permission.jsonl`.
+  command is. Commands run in a container (`docker exec`,
+  `docker compose exec`, `edgar exec`) are judged like host commands, and
+  only in the containers listed in `COPILOT_CONTAINERS` (below). Reads
+  (`view`, `grep`, `glob`) of `~/.copilot/agents`, `~/.copilot/skills` and
+  `/tmp` are approved, so agents can read the agents they launch and the
+  skills they use. Everything else asks. `git push`, network clients (`curl`,
+  `wget`, `ssh`, `rsync`, `nc`, ...) and cluster commands (`kubectl`, `helm`,
+  ...) are always denied, and git commands that discard uncommitted work
+  (`reset --hard`, `clean`, `checkout --`, ...) always ask. Every request left
+  to the user is logged with its reasons to `/tmp/copilot-hook-asks.jsonl`:
+  read it to find the prompts that interrupt the flow (a prompt missing from
+  it never reached the hook: a path-access prompt). Set
+  `COPILOT_HOOK_DEBUG=1` to also log every payload to
+  `/tmp/copilot-hook-permission.jsonl`.
 * `notify.py` (`notification`, `agentStop`) shows a desktop popup
   (`notify-send`) when the user is needed and rings the terminal bell when an
   agent finishes. The popup fires only if the permission prompt or `ask_user`
@@ -176,11 +188,14 @@ The hooks in `copilot/hooks/` keep the agents unattended:
 sets how much each agent may do without asking, read live by the hook and
 the agents. `0` asks, `1` proceeds:
 
-* `AUTONOMY_GUTEXBERG`: `gutexberg commit`, `amend` and `squash`.
+* `AUTONOMY_LINUS`: `linus commit`, `amend`, `squash` and `fixup`.
 * `AUTONOMY_UNCLEBOB`: unclebob's code edits. The hook tells the agent behind
   an edit by finding the pending tool call on that file in the session's
   `events.jsonl` and following it to the task that launched the agent.
-* `AUTONOMY_SOONG`: soong applies its fixes without proposing them, edits
+* `AUTONOMY_ARGYRIS`: argyris applies its fixes without proposing them, edits
   agent and skill files and commits the minime mirror without prompting.
+
+It also lists, in `COPILOT_CONTAINERS` (separated by spaces), the containers
+and compose services where agents may run commands without asking.
 
 `COPILOT_HOME` and `COPILOT_BIN_DIR` can be overridden on the `make` command line.

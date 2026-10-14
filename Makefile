@@ -14,7 +14,14 @@ COPILOT_AGENTS   := $(wildcard $(COPILOT_SRC_DIR)/agents/*.agent.md)
 COPILOT_SKILLS   := $(wildcard $(COPILOT_SRC_DIR)/skills/*)
 COPILOT_BINS     := $(wildcard $(COPILOT_SRC_DIR)/bin/*)
 
-.PHONY: install uninstall reinstall list check copilot-install
+# One-off migration from the old agent names (mortimer, sherlock, gutexberg,
+# soong) to kent, martin, linus and argyris; drop it once every machine ran it.
+OLD_AGENTS       := mortimer sherlock gutexberg soong
+OLD_BINS         := gutexberg mortimer
+PROJECTS_DIR     ?= $(HOME)/code
+SHELL_RC_FILES   := $(wildcard $(HOME)/.bashrc $(HOME)/.bash_aliases $(HOME)/.bash_profile $(HOME)/.profile $(HOME)/.zshrc)
+
+.PHONY: install uninstall reinstall list check copilot-install update
 
 install: check
 	@mkdir -p $(AGENTS_DEST_DIR) $(SKILLS_DEST_DIR)
@@ -81,4 +88,50 @@ copilot-install:
 	@command -v copilot >/dev/null 2>&1 \
 		|| echo "WARNING: copilot CLI not found in PATH (files were installed anyway)."
 	@case ":$$PATH:" in *":$(COPILOT_BIN_DIR):"*) ;; \
-		*) echo "WARNING: $(COPILOT_BIN_DIR) is not in PATH; gutexberg will not be found." ;; esac
+		*) echo "WARNING: $(COPILOT_BIN_DIR) is not in PATH; linus will not be found." ;; esac
+
+update:
+	@for a in $(OLD_AGENTS); do \
+		f="$(COPILOT_HOME)/agents/$$a.agent.md"; \
+		if [ -e "$$f" ]; then rm -f "$$f"; echo "Removed old agent: $$f"; fi; \
+	done
+	@for b in $(OLD_BINS); do \
+		f="$(COPILOT_BIN_DIR)/$$b"; \
+		if [ -e "$$f" ]; then rm -f "$$f"; echo "Removed old command: $$f"; fi; \
+	done
+	@if [ -f $(HOME)/.bash_copilot ]; then \
+		sed -i -e 's/gutexberg/linus/g; s/GUTEXBERG/LINUS/g; s/soong/argyris/g; s/SOONG/ARGYRIS/g' $(HOME)/.bash_copilot; \
+		echo "Renamed the autonomy settings in $(HOME)/.bash_copilot"; \
+		if ! grep -q '^export COPILOT_CONTAINERS=' $(HOME)/.bash_copilot; then \
+			printf '%s\n' '#   COPILOT_CONTAINERS  containers where agents may run commands' 'export COPILOT_CONTAINERS="crash"' >> $(HOME)/.bash_copilot; \
+			echo "Added COPILOT_CONTAINERS=\"crash\" to $(HOME)/.bash_copilot"; \
+		fi; \
+	fi
+	@for g in $$(find $(PROJECTS_DIR) -maxdepth 4 -type d -path '*/.git/gutexberg' -prune 2>/dev/null); do \
+		d="$${g%/gutexberg}"; \
+		if [ -e "$$d/linus" ]; then \
+			echo "WARNING: $$d has both gutexberg and linus phase logs: merge them by hand."; \
+		else \
+			mv "$$g" "$$d/linus"; rm -f "$$d/gutexberg.lock"; \
+			echo "Moved the phase history: $$d/linus"; \
+		fi; \
+	done
+	@for d in $$(find $(PROJECTS_DIR) -maxdepth 3 -type d -name .git 2>/dev/null); do \
+		if git --git-dir="$$d" config --get-regexp '^gutexberg\.' >/dev/null 2>&1; then \
+			git --git-dir="$$d" config --rename-section gutexberg linus; \
+			echo "Renamed git config gutexberg.* to linus.* in $$d"; \
+		fi; \
+	done
+	@if git config --global --get-regexp '^gutexberg\.' >/dev/null 2>&1; then \
+		git config --global --rename-section gutexberg linus; \
+		echo "Renamed global git config gutexberg.* to linus.*"; \
+	fi
+	@if [ -e /tmp/mortimer-partial-session-progress.md ] && [ ! -e /tmp/kent-partial-session-progress.md ]; then \
+		mv /tmp/mortimer-partial-session-progress.md /tmp/kent-partial-session-progress.md; \
+		echo "Moved the pending session progress to /tmp/kent-partial-session-progress.md"; \
+	fi
+	@for f in $(SHELL_RC_FILES); do \
+		grep -nHwE 'mortimer|sherlock|gutexberg|soong|AUTONOMY_GUTEXBERG|AUTONOMY_SOONG|GUTEXBERG_[A-Z]+' "$$f" \
+			| sed 's/^/WARNING: old name, update by hand: /'; \
+	done; true
+	@$(MAKE) --no-print-directory copilot-install

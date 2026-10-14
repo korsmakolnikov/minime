@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# gutexberg: the single write path to git used by the gutexberg agent.
+# linus: the single write path to git used by the linus agent.
 # Every change is a new commit; the TDD cycle (red, green, refactor) is
 # enforced from the phase recorded for each commit. Code-review corrections
 # are fixups of a branch commit, or review commits with the user's consent.
@@ -13,7 +13,7 @@ TYPES='feat|fix|test|refactor|perf|docs|style|build|ci|chore|revert'
 SCOPE_RE='\(([a-z0-9._/-]+( [a-z0-9._/-]+)*)\)'
 CONVENTIONAL_RE="^($TYPES)($SCOPE_RE)?!?: [^ ].*[^.]\$"
 TEST_PATH_RE='(^|/)(test|tests|spec|__tests__)/|_test\.[a-z]+$|(^|/)test_[^/]*\.py$|\.(test|spec)\.[a-z]+$'
-FLOW_LOG=/tmp/mortimer-flow.log
+FLOW_LOG=/tmp/kent-flow.log
 PHASES='red green refactor regression characterisation architecture review other'
 
 die() {
@@ -23,7 +23,7 @@ die() {
 
 usage() {
   cat <<'EOF'
-Usage: gutexberg <command> [args]
+Usage: linus <command> [args]
 
 Read-only:
   base                          Print the merge-base of HEAD and the base branch.
@@ -48,7 +48,7 @@ Write:
                                 characterisation HEAD can be amended.
   squash --scope <scope> --from <commit> <<'MSG'
                                 Replace the unit <commit>..HEAD with one commit
-                                (sherlock, after the unit's review). Every commit
+                                (martin, after the unit's review). Every commit
                                 of the unit carries <scope>, none is a squashed
                                 unit already, the commit before <commit> does not
                                 carry <scope> unless it is a squashed unit, the
@@ -84,17 +84,17 @@ Phases and the TDD cycle (the last cycle commit of the branch decides):
   A squashed unit ends the cycle history: the cycle guard does not look past it.
 
   commit and squash accept -F <file> instead of stdin and --model <id>. The
-  model named in the trailer is --model, else $GUTEXBERG_MODEL, else the "model" of
-  ~/.copilot/settings.json. Each commit is appended to /tmp/mortimer-flow.log
+  model named in the trailer is --model, else $LINUS_MODEL, else the "model" of
+  ~/.copilot/settings.json. Each commit is appended to /tmp/kent-flow.log
   when that file exists.
 
-The base branch is $GUTEXBERG_BASE, else `git config gutexberg.base`, else the first
+The base branch is $LINUS_BASE, else `git config linus.base`, else the first
 existing ref among origin/master, origin/main, master, main.
 EOF
 }
 
 base_ref() {
-  local ref="${GUTEXBERG_BASE:-$(git config --get gutexberg.base || true)}"
+  local ref="${LINUS_BASE:-$(git config --get linus.base || true)}"
   if [ -n "$ref" ]; then
     git rev-parse --verify -q "$ref^{commit}" >/dev/null || die "Base ref '$ref' does not exist."
     echo "$ref"
@@ -106,7 +106,7 @@ base_ref() {
       return
     fi
   done
-  die "Cannot find a base branch. Set GUTEXBERG_BASE or 'git config gutexberg.base'."
+  die "Cannot find a base branch. Set LINUS_BASE or 'git config linus.base'."
 }
 
 # Sets BASE once: the merge-base does not move while the branch grows.
@@ -179,7 +179,7 @@ cycle_guard() {
   label="a $last commit"
   [ "$last" != none ] || label="the start of the branch"
   [[ " $allowed " == *" $phase "* ]] ||
-    die "A $phase commit cannot follow $label (gutexberg range shows the phases). Allowed now: $allowed."
+    die "A $phase commit cannot follow $label (linus range shows the phases). Allowed now: $allowed."
   if [ -n "$empty" ]; then
     [ "$phase" = refactor ] || { [ "$phase" = green ] && [ "$last" = characterisation ]; } ||
       die "--empty is only for a refactor, or for the green after a characterisation."
@@ -248,8 +248,8 @@ parse_commit_args() {
 }
 
 resolve_model() {
-  MODEL="${MODEL:-${GUTEXBERG_MODEL:-$(default_model)}}"
-  [ -n "$MODEL" ] || die "No model: pass --model <id>, set GUTEXBERG_MODEL or a model in settings.json."
+  MODEL="${MODEL:-${LINUS_MODEL:-$(default_model)}}"
+  [ -n "$MODEL" ] || die "No model: pass --model <id>, set LINUS_MODEL or a model in settings.json."
 }
 
 # Reads the message from stdin into a temporary MSG_FILE, unless -F gave one.
@@ -272,7 +272,7 @@ report() {
 
 flow_log() {
   [ -f "$FLOW_LOG" ] || return 0
-  echo "$(date -Is) [gutexberg] $1 $(git log -1 --format='%h %s')" >>"$FLOW_LOG"
+  echo "$(date -Is) [linus] $1 $(git log -1 --format='%h %s')" >>"$FLOW_LOG"
 }
 
 trailer() {
@@ -317,7 +317,7 @@ check_message() {
   while [ $# -gt 0 ]; do
     case "$1" in
     -F) MSG_FILE="${2:-}"; shift 2 ;;
-    *) die "Usage: gutexberg check-message [-F <file>] <<'MSG'" ;;
+    *) die "Usage: linus check-message [-F <file>] <<'MSG'" ;;
     esac
   done
   read_message
@@ -333,13 +333,13 @@ shift
 
 git rev-parse --is-inside-work-tree >/dev/null 2>&1 || die "Not inside a git work tree."
 COMMON_DIR=$(git rev-parse --git-common-dir)
-PHASE_LOG="$COMMON_DIR/gutexberg/phases"
+PHASE_LOG="$COMMON_DIR/linus/phases"
 
 # Write commands share the index: serialise them, so that parallel calls cannot
 # mix their files into one commit.
 case "$CMD" in
 stage | stage-patch | unstage | commit | amend | squash | fixup)
-  exec 9>"$COMMON_DIR/gutexberg.lock"
+  exec 9>"$COMMON_DIR/linus.lock"
   flock 9
   ;;
 esac
@@ -359,11 +359,11 @@ next)
   ;;
 check-message) check_message "$@" ;;
 stage)
-  [ $# -ge 1 ] || die "Usage: gutexberg stage <path>..."
+  [ $# -ge 1 ] || die "Usage: linus stage <path>..."
   git add -- "$@"
   ;;
 stage-patch)
-  [ $# -eq 1 ] || die "Usage: gutexberg stage-patch <patch-file>"
+  [ $# -eq 1 ] || die "Usage: linus stage-patch <patch-file>"
   git apply --cached --unidiff-zero --whitespace=nowarn "$1"
   ;;
 unstage)
@@ -418,10 +418,10 @@ squash)
     --from) FROM="${2:-}"; shift 2 ;;
     --model) MODEL="${2:-}"; shift 2 ;;
     -F) MSG_FILE="${2:-}"; shift 2 ;;
-    *) die "Usage: gutexberg squash --scope <scope> --from <commit> <<'MSG'" ;;
+    *) die "Usage: linus squash --scope <scope> --from <commit> <<'MSG'" ;;
     esac
   done
-  [ -n "$SCOPE" ] && [ -n "$FROM" ] || die "Usage: gutexberg squash --scope <scope> --from <commit> <<'MSG'"
+  [ -n "$SCOPE" ] && [ -n "$FROM" ] || die "Usage: linus squash --scope <scope> --from <commit> <<'MSG'"
   resolve_model
   read_message
   current_branch_guard
@@ -480,7 +480,7 @@ fixup)
     *) PATHS+=("$1"); shift ;;
     esac
   done
-  [ -n "$TARGET" ] || die "Usage: gutexberg fixup --target <commit> [<path>...] <<'MSG'"
+  [ -n "$TARGET" ] || die "Usage: linus fixup --target <commit> [<path>...] <<'MSG'"
   resolve_model
   read_message
   current_branch_guard
