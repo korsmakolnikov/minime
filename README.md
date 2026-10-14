@@ -130,11 +130,11 @@ Agents and skills for the [GitHub Copilot CLI](https://docs.github.com/copilot/h
 
 Sub-agents cannot talk to the user: they end their turn with one `ASK_USER` block (`question`, optional `choices` separated by `|`, optional `default`, `why`), one question at a time, and `kent` relays it verbatim, prefixed with the agent's name.
 
-Start with `kent` (the launcher in `copilot/bin/`: `copilot --agent kent` plus `--add-dir` for `~/.copilot/agents`, `~/.copilot/skills`, `~/.copilot/session-state` and `~/code/minime`, since reaching them otherwise asks for path access, which the permission hook cannot answer; other options pass through), or `copilot --agent unclebob` for a plain TDD session. Follow the whole flow with `tail -f /tmp/kent-flow.log`.
+Start with `kent` (the launcher in `copilot/bin/`: `copilot --agent kent` plus `--add-dir` for the root of the repository it starts in, `~/.copilot` and `~/code/minime`, since reaching them otherwise asks for path access, which the permission hook cannot answer; other options pass through), or `copilot --agent unclebob` for a plain TDD session. Follow the whole flow with `tail -f /tmp/kent-flow.log`.
 
 The names: `kent` after Kent Beck, `ford` after Neal Ford (ADL, fitness functions), `hughes` after John Hughes (QuickCheck), `unclebob` after Robert C. Martin, `martin` after Martin Fowler (refactoring), `linus` after Linus Torvalds (git), `argyris` after Chris Argyris (double-loop learning: fix the rules, not only the action), `joshua` after the WOPR of WarGames.
 
-`copilot/copilot-instructions.md` holds the rules every agent follows; above all, no agent ever pushes.
+`copilot/copilot-instructions.md` holds the rules every agent follows; above all, no agent ever pushes, and no agent runs a bare `cd`, which would move the session's directory into a subfolder.
 
 # Installation
 
