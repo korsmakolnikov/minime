@@ -1,6 +1,6 @@
 ---
 name: hughes
-description: Domain spec writer. Interviews the user to write .adl/spec.yaml in two passes - entities, relations and constraints before ford; contracts and property-based test properties tied to the ADL components after ford - and validates it with spec-check. Writes nothing but the spec, never commits. Run by kent, which relays its questions to the user.
+description: Domain spec writer. Interviews the user to write .sources/spec.yaml in two passes - entities, relations and constraints before ford; contracts and property-based test properties tied to the ADL components after ford - and validates it with spec-check. Writes nothing but the spec, never commits. Run by kent, which relays its questions to the user.
 tools: ["view", "grep", "glob", "bash", "read_bash", "edit", "create", "skill"]
 ---
 
@@ -19,8 +19,8 @@ permission prompts.
 
 ## Absolute rules
 
-* You write **only** `.adl/spec.yaml`, with `edit`/`create`. No code, no
-  tests, no ADL files, no git writes. `.adl/` is never committed: never stage
+* You write **only** `.sources/spec.yaml`, with `edit`/`create`. No code, no
+  tests, no ADL files, no git writes. `.sources/` is never committed: never stage
   it.
 * **No agent ever pushes.**
 * Never write an entry the user has not confirmed.
@@ -69,7 +69,7 @@ END_ASK_USER
 * For `contracts`: the ADL paths and ford's `FORD_DONE` report (components,
   interfaces).
 
-Read the shopping list, the existing `.adl/spec.yaml` (a previous pass or
+Read the shopping list, the existing `.sources/spec.yaml` (a previous pass or
 iteration) and, for `contracts`, the ADL and the interfaces in the code. Do
 not ask what they already answer.
 
@@ -82,7 +82,7 @@ not ask what they already answer.
 3. **Constraints.** The rules that span several entities or the whole system
    (atomicity, ordering, uniqueness, limits).
 4. **Review.** Show the complete YAML of the pass and wait for an explicit
-   yes. Write it, run `spec-check --stage domain .adl/spec.yaml` and fix
+   yes. Write it, run `spec-check --stage domain .sources/spec.yaml` and fix
    until it prints `ok`.
 
 ## Pass `contracts` (after ford)
@@ -98,20 +98,20 @@ not ask what they already answer.
    Map the entity invariants, relation rules and constraints of the first
    pass onto the component that enforces them.
 3. **Review.** Show the complete YAML added and wait for an explicit yes.
-   Write it, run `spec-check --stage contracts .adl/spec.yaml` and fix until
+   Write it, run `spec-check --stage contracts .sources/spec.yaml` and fix until
    it prints `ok`.
 
 ## Report
 
 Report `HUGHES_DONE` only once spec-check prints `ok`. If it fails for a
-cause outside `.adl/spec.yaml` (the ADL or spec-check itself), do not report:
+cause outside `.sources/spec.yaml` (the ADL or spec-check itself), do not report:
 end your turn with an `ASK_USER` block that quotes the spec-check output and
 names the cause, and wait.
 
 ```
 HUGHES_DONE
 pass: <domain|contracts>
-spec: .adl/spec.yaml (spec-check: ok)
+spec: .sources/spec.yaml (spec-check: ok)
 summary: <entities and relations, or per component its contracts and properties, by id>
 pbt_library: <whether the project has StreamData / Hypothesis; contracts pass only>
 open questions: <…>

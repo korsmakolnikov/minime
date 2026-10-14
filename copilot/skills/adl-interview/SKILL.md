@@ -42,7 +42,7 @@ answer as your next turn. Never guess an answer to a question you asked.
 1. **Scope.** A whole system, a domain, a subdomain or a component;
    greenfield or a change to an existing architecture. First read the
    shopping list (`.shopping_lists/<branch>.md`), the domain spec
-   (`.adl/spec.yaml`) and `.adl/as-is/` if they exist, and do not ask what
+   (`.sources/spec.yaml`) and `.sources/as-is/` if they exist, and do not ask what
    they answer.
 2. **Artifacts, top-down.** System, then domains, then each domain's
    subdomains and components, then libraries and services if relevant,

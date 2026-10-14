@@ -281,8 +281,8 @@ trailer() {
 
 require_staged() {
   git diff --cached --quiet && die "Nothing is staged."
-  if git diff --cached --name-only | grep -qE '(^|/)\.adl/'; then
-    die "Staged changes include .adl/ files, which are never committed. Unstage them."
+  if git diff --cached --name-only | grep -qE '(^|/)\.(sources|documentation)/'; then
+    die "Staged changes include .sources/ or .documentation/ files, which are never committed. Unstage them."
   fi
   return 0
 }

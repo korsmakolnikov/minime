@@ -1,6 +1,6 @@
 ---
 name: domain-spec
-description: Reference for the domain spec (.adl/spec.yaml) of this workflow, the structured input next to the ADL that lists the entities, their relations, the system constraints, the contracts of the component operations and the properties to test with property-based tests (StreamData, Hypothesis). Covers the format, the spec-check validator and how each entry becomes a test. Load it before reading, writing or testing against a spec.
+description: Reference for the domain spec (.sources/spec.yaml) of this workflow, the structured input next to the ADL that lists the entities, their relations, the system constraints, the contracts of the component operations and the properties to test with property-based tests (StreamData, Hypothesis). Covers the format, the spec-check validator and how each entry becomes a test. Load it before reading, writing or testing against a spec.
 ---
 
 # domain-spec
@@ -11,7 +11,7 @@ turns every entry into a red test.
 
 ## File
 
-One file, `.adl/spec.yaml`, next to the ADL and, like it, **never
+One file, `.sources/spec.yaml`, next to the ADL and, like it, **never
 committed**: never stage it. It grows in two passes: **domain** (before ford)
 adds `entities`, `relations` and `constraints`; **contracts** (after ford)
 adds `contracts` and `properties`, tied to the ADL components.
@@ -108,13 +108,13 @@ Rules:
 Run `spec-check` from the project root after every write; it must print `ok`:
 
 ```sh
-spec-check --stage domain .adl/spec.yaml      # after the first pass
-spec-check --stage contracts .adl/spec.yaml   # after the second pass
+spec-check --stage domain .sources/spec.yaml      # after the first pass
+spec-check --stage contracts .sources/spec.yaml   # after the second pass
 ```
 
 It checks the structure, the kinds, the id format and uniqueness, the entity
 names relations refer to and, at the `contracts` stage, that `contracts` and
-`properties` are present and every `component` is defined in the `.adl/`
+`properties` are present and every `component` is defined in the `.sources/`
 files. It prints one line per problem and exits non-zero on any. Whether a
 sentence is testable is the interview's job.
 

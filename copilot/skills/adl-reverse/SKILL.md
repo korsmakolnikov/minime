@@ -6,7 +6,7 @@ description: Reverse-engineers an as-is ADL draft from an existing Elixir or Pyt
 # As-is ADL from existing code
 
 Load `adl-spec` first. This skill reads code and produces **draft text**,
-handed to whoever writes `.adl/`; it never writes into the project.
+handed to whoever writes `.sources/`; it never writes into the project.
 
 ## 1. Extract the dependency graph
 
@@ -44,7 +44,7 @@ a few public functions before naming it. Note:
 
 ## 3. Draft the ADL
 
-* One draft per file of the `adl-spec` layout, meant for `.adl/as-is/`.
+* One draft per file of the `adl-spec` layout, meant for `.sources/as-is/`.
 * `DESCRIPTION` says it is the as-is architecture, at the commit it was
   extracted from (`git rev-parse --short HEAD`).
 * **Pure ADL only**, as in `adl-spec`:

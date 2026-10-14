@@ -1,6 +1,6 @@
 ---
 name: adl-spec
-description: Reference for the Architecture Definition Language (ADL) by Mark Richards and Neal Ford as used in this workflow, including the .adl/ folder layout and how ADL physical names map to Elixir and Python namespaces. Load it before reading, writing or validating any .adl file.
+description: Reference for the Architecture Definition Language (ADL) by Mark Richards and Neal Ford as used in this workflow, including the .sources/ folder layout and how ADL physical names map to Elixir and Python namespaces. Load it before reading, writing or validating any .adl file.
 ---
 
 # ADL reference and project conventions
@@ -62,13 +62,15 @@ ASSERT(CLASSES are only CONTAINED within COMPONENTS and SUBDOMAINS)
 ASSERT(creation has NO DEPENDENCY on completion)
 ```
 
-## The `.adl/` folder
+## The `.sources/` folder
 
-ADL files live in `.adl/` at the project root, **never committed** (the user
-ignores it globally): never stage it.
+The sources of the iteration, the ADL files written by ford and the domain
+spec written by hughes, live in `.sources/` at the project root, **never
+committed** (the user ignores it globally): never stage it. simon documents
+them in `.documentation/<branch>/`, never committed either.
 
 ```
-.adl/
+.sources/
   spec.yaml               domain spec written by hughes (see `domain-spec`)
   system.adl              SYSTEM and its DOMAINS / SERVICES
   <domain>.adl            one file per domain
