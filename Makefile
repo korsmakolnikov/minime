@@ -1,6 +1,7 @@
-AGENTS_SRC_DIR  := agents
+CLAUDE_SRC_DIR  := claude
+AGENTS_SRC_DIR  := $(CLAUDE_SRC_DIR)/agents
 AGENTS_DEST_DIR := $(HOME)/.claude/agents
-SKILLS_SRC_DIR  := skills
+SKILLS_SRC_DIR  := $(CLAUDE_SRC_DIR)/skills
 SKILLS_DEST_DIR := $(HOME)/.claude/skills
 
 AGENTS := $(wildcard $(AGENTS_SRC_DIR)/*.md)
