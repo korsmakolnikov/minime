@@ -81,4 +81,4 @@ copilot-install:
 	@command -v copilot >/dev/null 2>&1 \
 		|| echo "WARNING: copilot CLI not found in PATH (files were installed anyway)."
 	@case ":$$PATH:" in *":$(COPILOT_BIN_DIR):"*) ;; \
-		*) echo "WARNING: $(COPILOT_BIN_DIR) is not in PATH; gutexberg will not be found." ;; esac
+		*) echo "WARNING: $(COPILOT_BIN_DIR) is not in PATH; linus will not be found." ;; esac

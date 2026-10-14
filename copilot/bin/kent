@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# Starts the workflow orchestrator. The agent and skill folders, the session
+# state (joshua and argyris read events.jsonl there) and the minime mirror that
+# argyris commits to are added to the session's allowed paths: reaching them
+# otherwise raises a path-access prompt that the permission hook cannot
+# answer. Sub-agents share these paths.
+# Usage: kent [any other copilot option, e.g. --resume -i "continue"]
+exec copilot --agent kent \
+  --add-dir "$HOME/.copilot/agents" \
+  --add-dir "$HOME/.copilot/skills" \
+  --add-dir "$HOME/.copilot/session-state" \
+  --add-dir "$HOME/code/minime" \
+  "$@"

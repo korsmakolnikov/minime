@@ -1,6 +1,6 @@
 ---
 name: minime-sync
-description: Mirrors the live Copilot setup in ~/.copilot (agents, skills, hooks, settings, global instructions), the autonomy settings in ~/.bash_copilot and the gutexberg, mortimer and spec-check commands into ~/code/minime/copilot/, then records the change as a new commit through gutexberg. Use before a /restart and whenever an agent, skill, hook or setting has changed.
+description: Mirrors the live Copilot setup in ~/.copilot (agents, skills, hooks, settings, global instructions), the autonomy settings in ~/.bash_copilot and the linus, kent and spec-check commands into ~/code/minime/copilot/, then records the change as a new commit through linus. Use before a /restart and whenever an agent, skill, hook or setting has changed.
 ---
 
 # minime-sync
@@ -8,7 +8,7 @@ description: Mirrors the live Copilot setup in ~/.copilot (agents, skills, hooks
 `~/.copilot` is the live setup; `~/code/minime/copilot/` is its versioned
 mirror on `master`, installed elsewhere with `make copilot-install`. This
 skill copies live → mirror and commits on a sync branch off `master`
-(gutexberg refuses to commit on `master`); the user pushes it and merges it.
+(linus refuses to commit on `master`); the user pushes it and merges it.
 
 Start every shell description with the calling agent's `[name]`. Run every
 command from `~/code/minime` (`cd ~/code/minime && …`): the destinations are
@@ -40,7 +40,7 @@ cd ~/code/minime \
   && cp -r ~/.copilot/hooks/. copilot/hooks/ \
   && cp ~/.copilot/settings.json ~/.copilot/copilot-instructions.md copilot/ \
   && cp ~/.bash_copilot copilot/bash_copilot \
-  && cp ~/.local/bin/gutexberg ~/.local/bin/mortimer ~/.local/bin/spec-check copilot/bin/
+  && cp ~/.local/bin/linus ~/.local/bin/kent ~/.local/bin/spec-check copilot/bin/
 ```
 
 Then look for files the live setup no longer has (renamed or deleted):
@@ -67,7 +67,7 @@ cd ~/code/minime && git add -N . && git status --short && git diff --stat
 * Show the user the `git diff --stat` (and the diff of `README.md`/`Makefile`
   if you edited them).
 
-## 4. Commit through gutexberg
+## 4. Commit through linus
 
 Every change is a new commit: never a fixup, never an amend. Write a
 Conventional Commits message with the `copilot` scope: a one-sentence subject
@@ -79,7 +79,7 @@ change (the agents involved and the details go in the body). Validate it
 first, and on a failure shorten it by the characters reported:
 
 ```sh
-cd ~/code/minime && gutexberg check-message <<'MSG'
+cd ~/code/minime && linus check-message <<'MSG'
 <subject>
 
 <body>
@@ -88,11 +88,11 @@ MSG
 
 Then commit with one readable command, since the user reads the message in
 the permission prompt: the changed paths one per line, the message as a
-quoted heredoc (gutexberg appends the Copilot trailer), and `--model <id>`
+quoted heredoc (linus appends the Copilot trailer), and `--model <id>`
 only if your model differs from the one in `~/.copilot/settings.json`.
 
 ```sh
-cd ~/code/minime && gutexberg commit --phase other \
+cd ~/code/minime && linus commit --phase other \
   copilot/agents/foo.agent.md \
   README.md \
   <<'MSG'
