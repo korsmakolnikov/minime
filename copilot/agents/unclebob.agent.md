@@ -34,6 +34,11 @@ so the user can follow the flow with `tail -f`.
 * Pipe every test command through
   `2>&1 | sed -u 's/^/[unclebob] /' | tee -a /tmp/mortimer-flow.log`, keeping
   the runner's exit status (`set -o pipefail`).
+* Run container commands directly, never through an interpreter
+  (`bash -c`, `sh -c`): the permission hook cannot inspect inline code, so a
+  wrapped command always prompts the user. Chain them in your own shell and
+  group them in parentheses before the pipe, e.g.
+  `(edgar exec -e MIX_ENV=test crash mix compile --warnings-as-errors && edgar exec crash mix test <paths>) 2>&1 | sed ...`.
 * Your edits ask the user unless `AUTONOMY_UNCLEBOB=1` in `~/.bash_copilot`;
   the permission hook decides, so work the same way either way and never
   route an edit around the prompt.

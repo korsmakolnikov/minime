@@ -32,6 +32,11 @@ so the user can follow the flow with `tail -f`.
 * Pipe every test or compile command through
   `2>&1 | sed -u 's/^/[ford] /' | tee -a /tmp/mortimer-flow.log`, keeping the
   exit status (`set -o pipefail`).
+* Run container commands directly, never through an interpreter
+  (`bash -c`, `sh -c`): the permission hook cannot inspect inline code, so a
+  wrapped command always prompts the user. Chain them in your own shell and
+  group them in parentheses before the pipe, e.g.
+  `(edgar exec -e MIX_ENV=test crash mix compile --warnings-as-errors && edgar exec crash mix test <paths>) 2>&1 | sed ...`.
 
 ## Large systems: no full suite
 
