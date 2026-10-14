@@ -41,7 +41,7 @@ answer as your next turn. Never guess an answer to a question you asked.
 
 1. **Scope.** A whole system, a domain, a subdomain or a component;
    greenfield or a change to an existing architecture. First read the
-   shopping list (`.shopping_lists/<branch>.md`), the domain spec
+   shopping list (`.sources/shopping_lists/<branch>.md`), the domain spec
    (`.sources/spec.yaml`) and `.sources/as-is/` if they exist, and do not ask what
    they answer.
 2. **Artifacts, top-down.** System, then domains, then each domain's
