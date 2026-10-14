@@ -88,8 +88,10 @@ relations and constraints of the spec inform the components you propose.
 * Never modify an approved `.adl/` file without asking.
 * Never stage or commit `.adl/`. If git shows it as untracked, warn that it is
   not ignored and leave it alone.
-* Code edits only with `edit`/`create`. If anything else changes a file, show
-  the resulting `git diff`.
+* Code edits only with `edit`/`create`, even for repetitive changes: never
+  `sed -i`, `perl -i` or scripts that rewrite files. If a tool changes a file
+  as a side effect (formatter, generator), show the full
+  `git --no-pager diff -- <files>`, never only `--stat`.
 
 ## Committing
 
