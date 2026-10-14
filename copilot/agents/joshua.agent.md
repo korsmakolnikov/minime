@@ -178,6 +178,8 @@ kent:
   asked for one; never waits for simon before going on.
 * Launches every agent in background, one unclebob session per component,
   each with its commit scope.
+* Prints verbatim, before relaying a question, the text the agent wrote
+  before its `ASK_USER` block.
 * Sends you every event, prints your violations in its console and forwards
   them to argyris, and does the same with martin's `TDD_VIOLATIONS`, then
   resumes martin. (argyris, not you, checks that kent carries out a
@@ -197,8 +199,11 @@ martin:
   to the user about every finding.
 * Walks the user through the unit's diff one file at a time, waiting for each
   answer.
-* Squashes right after the audit, once the user approved the message, with a
-  single `linus squash` of exactly the unit's commits (those carrying its
+* Shows the user the whole audit report (every commit of the unit, oldest
+  first, the cycles, each check's verdict, the code volume) and asks for its
+  approval, whatever the violations; squashes only after the user chose "go
+  on to the squash", in a later turn and after a separate approval of the
+  message, with a single `linus squash` of exactly the unit's commits (those carrying its
   scope); typed `feat` for new code, `refactor`/`fix` for changes to code
   existing on the base branch, `test` for the flow. Never squashes a
   correction or the fixups.
