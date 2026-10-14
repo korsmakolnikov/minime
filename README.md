@@ -61,7 +61,7 @@ Do not use it as a delegated subagent (`@unclebob` from a regular session): the 
 
 # scaffold
 
-Skill for [Claude Code](https://code.claude.com) that bootstraps a new project in the current directory: directory layout, build system, unit tests, README with CI badge, GitHub Actions CI, `git init` and an empty `start.` commit. It knows nothing about the project's domain; it only automates the tedious first steps. One language per invocation; new languages are added as `skills/scaffold/<language>/templates/`.
+Skill for [Claude Code](https://code.claude.com) that bootstraps a new project in the current directory: directory layout, build system, unit tests, README with CI badge, GitHub Actions CI, `git init` and an empty `start.` commit. It knows nothing about the project's domain; it only automates the tedious first steps. One language per invocation; new languages are added as `claude/skills/scaffold/<language>/templates/`.
 
 ## Usage
 
@@ -106,7 +106,7 @@ README.md                 with the CI badge
 Requires `make` and the `claude` CLI in your `PATH`. Works on any distribution (tested on Arch and Ubuntu): the Makefile copies agents into `~/.claude/agents/` and skills into `~/.claude/skills/`.
 
 ```sh
-make install     # installs all agents in agents/ and all skills in skills/
+make install     # installs all agents in claude/agents/ and all skills in claude/skills/
 make uninstall   # removes them
 make reinstall   # uninstall + install
 make list        # lists the installed agents and skills
