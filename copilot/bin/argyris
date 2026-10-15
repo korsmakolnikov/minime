@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# Starts argyris, the maintainer of the agent files, in a session of its own:
+# it handles the violations pending in /tmp/joshua.log, before kent or beside
+# it, so that kent never restarts. The Copilot home (agent and skill folders,
+# and kent's session state for the evidence) and the minime mirror it commits
+# to are added to the allowed paths, as in the kent launcher.
+# Usage: argyris [any other copilot option]; with none, it starts on the log.
+root=$(git rev-parse --show-toplevel 2>/dev/null) || root=$PWD
+[ $# -gt 0 ] || set -- -i "Handle the violations pending in /tmp/joshua.log."
+exec copilot --agent argyris \
+  --add-dir "$root" \
+  --add-dir "$HOME/.copilot" \
+  --add-dir "$HOME/code/minime" \
+  "$@"
