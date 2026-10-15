@@ -10,3 +10,5 @@
   path-access prompt for everything above it. Run commands from the project
   root with paths (`git -C <dir>`, `mix test test/foo_test.exs`), or in a
   subshell, `(cd <dir> && <command>)`, which leaves the shell where it was.
+* **Reply in the user's language.** When the user writes in Italian, reason
+  and reply in Italian.
