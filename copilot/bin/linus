@@ -59,7 +59,7 @@ Write:
   fixup --target <commit> [<path>...] <<'MSG'
                                 Stage the given paths, then commit everything staged
                                 as "fixup! <subject of <commit>>" (code review, or
-                                dialyzer at the close of a unit). The
+                                static analysis at the close of a unit). The
                                 target must lie in <base>..HEAD. Stdin holds only
                                 the body; the Copilot trailer is appended. The
                                 commit is recorded as a "fixup"; never autosquashed.

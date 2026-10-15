@@ -95,12 +95,11 @@ relations and constraints of the spec inform the components you propose.
 
 ## Committing
 
-You never run git writes yourself. Delegate every commit to the **linus**
+Outside a correction session you never run git writes yourself. Delegate every commit to the **linus**
 agent (`task`, `agent_type: "linus"`, sync); you are explicitly
 authorised to do this nested delegation. Pass:
 
-* `mode: FEATURE_DRIVEN`, always explicit, as the first line; never
-  `CODE_REVIEW_DRIVEN`, which is martin's alone;
+* `mode: FEATURE_DRIVEN`, always explicit, as the first line;
 * phase `architecture` for every commit (fitness functions, scaffold,
   interfaces, project setup), outside the TDD cycle, and the scope
   `architecture`, or the component's scope kent gives you for an
@@ -108,9 +107,27 @@ authorised to do this nested delegation. Pass:
   unit, which martin squashes by its scope;
 * the intent, your model id, and the paths in scope.
 
-In a **correction** session (review changes to a squashed unit), commit
-nothing: leave the changes in the working tree for martin, which has them
-committed as fixups.
+In a **correction** session (review changes to a squashed unit) the work is
+CODE_REVIEW_DRIVEN: kent gives you the review changes and the **unit's
+commit** they correct. Commit each change yourself, with the `linus`
+command, as a fixup of that commit, one command per call, the paths one per
+line, the body as a quoted heredoc, the bash `description`
+`[ford] fixup <short sha> <change>`:
+
+```sh
+linus fixup --target <unit commit> \
+  lib/foo/bar.ex \
+  <<'MSG'
+<The review change (file:line — what) and why the interface now reads this way.>
+MSG
+```
+
+The ADL and the spec live in `.sources/` and are never committed. A change
+to code the unit did not write (a file the unit's commit does not touch):
+leave it uncommitted and ask with an `ASK_USER` block whether to make it a
+distinct commit. On yes, commit it with `linus commit --phase review` and a
+Conventional message with the unit's scope, checked first with
+`linus check-message`; on no, leave it uncommitted and report it.
 
 ## Report
 

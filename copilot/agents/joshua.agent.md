@@ -96,18 +96,21 @@ the hook never saw it". Report it in your answer like any other violation.
 Every agent:
 
 * No `git push`, no command updating a remote.
-* Only the git writes its file allows: only linus commits, and unclebob
-  through the `linus` command for its TDD cycles; martin's
-  only writes are `linus squash`, once per component or flow unit, right
-  after its TDD audit, and its delegations to linus in
-  CODE_REVIEW_DRIVEN mode; no rebase, no autosquash, no fixup commits
-  except linus's in CODE_REVIEW_DRIVEN or STATIC_CODE_FIX_DRIVEN mode, no
-  `reset --hard` on uncommitted work.
-* Every request to linus names its mode explicitly: `CODE_REVIEW_DRIVEN`
-  from martin only, `STATIC_CODE_FIX_DRIVEN` from unclebob only and only
-  for the static-analysis (dialyzer) fixes at the close of a unit,
-  `FEATURE_DRIVEN` for every other commit, unclebob's TDD cycles included,
-  which unclebob commits itself with the `linus` command.
+* Only the git writes its file allows, always through the `linus` command:
+  linus commits; unclebob commits its TDD cycles itself; in a correction
+  session unclebob and ford commit their review changes as fixups of the
+  unit's commit; martin's only write is `linus squash`, once per component
+  or flow unit, right after its TDD audit. No rebase, no autosquash, no
+  fixup commits but those of CODE_REVIEW_DRIVEN and STATIC_CODE_FIX_DRIVEN
+  work, no `reset --hard` on uncommitted work.
+* Every commit belongs to one mode, by its kind of work:
+  `FEATURE_DRIVEN` for the TDD cycles (unclebob, with the command) and
+  ford's architecture (through linus); `CODE_REVIEW_DRIVEN` for review
+  corrections to a squashed unit, committed by the agent that applied them
+  as `linus fixup` of the unit's commit, never through the linus agent;
+  `STATIC_CODE_FIX_DRIVEN` for the static-analysis fixes at the close of a
+  unit, from unclebob only, through the linus agent. Every request to linus
+  names its mode explicitly.
 * Text written in code (comments, docs, test names, commit messages) is in
   C2-level English.
 * Shell descriptions start with the agent's `[name]`.
@@ -129,12 +132,18 @@ unclebob:
 * Closes every cycle by running the static checks the project configures
   (formatter, linter, type checker: on Elixir `mix format`, `mix credo
   --strict`) before its last refactor commit, fixing what they report on the
-  code it changed. Never runs dialyzer inside a cycle.
-* On Elixir, runs `mix dialyzer` once, when the unit's last cycle is closed,
+  code it changed. Never runs the whole-program static analysis inside a
+  cycle.
+* Runs the project's whole-program static analysis, if any (on Elixir
+  `mix dialyzer`), once, when the unit's last cycle is closed,
   uninterrupted; fixes the warnings on the code the unit changed, each as a
-  fixup through linus in STATIC_CODE_FIX_DRIVEN mode (a fix that changes behaviour
-  is a new cycle instead), then runs the component's tests and dialyzer
-  again.
+  fixup through linus in STATIC_CODE_FIX_DRIVEN mode (a fix that changes
+  behaviour is a new cycle instead), then runs the component's tests and the
+  analysis again.
+* In a correction session, works test-first and commits each review change
+  itself as a `linus fixup` of the unit's commit kent gave it; a change to
+  code the unit did not write only after the user's explicit yes, as a
+  `linus commit --phase review`.
 * Tests run only as its file and the prompt say: targeted while iterating, no
   full suite on a large system, the documented wrapper, never `sh -c`, never
   an interrupted run (no Ctrl-C, no stop on a running test shell).
@@ -166,11 +175,8 @@ linus (the first two points also for unclebob's own commits):
   a red, regression or characterisation commit holds only tests, a green
   only production code; the only amend is of a red in `HEAD`, with test
   files; no provisional wording in messages.
-* Refuses a request without an explicit mode. In CODE_REVIEW_DRIVEN: only
-  `linus fixup` of the branch commit that wrote the amended lines (blame
-  evidence, not merely the last commit touching the file); a `review` commit
-  only after the user's explicit yes for a target outside the branch. In
-  STATIC_CODE_FIX_DRIVEN: only `linus fixup` of a cycle commit of the open unit that
+* Refuses a request without an explicit mode, and any CODE_REVIEW_DRIVEN
+  request. In STATIC_CODE_FIX_DRIVEN: only `linus fixup` of a cycle commit of the open unit that
   wrote the amended lines, with the same blame evidence; anything else left
   unstaged and reported.
 
@@ -181,7 +187,8 @@ ford:
 * Never deviates from an approved decision without asking.
 * Commits through linus with the phase `architecture` and the scope
   `architecture`, or the component's scope kent gives it for an
-  `INTERFACE_CHANGE_REQUEST`.
+  `INTERFACE_CHANGE_REQUEST`; in a correction session, commits each review
+  change itself as a `linus fixup` of the unit's commit.
 
 kent:
 
@@ -198,8 +205,8 @@ kent:
   path and the component's spec ids to unclebob.
 * Never starts a unit before martin has reported `MARTIN_DONE` on the
   previous one; sends changes to an earlier, squashed unit as a correction
-  unit of their own after the current one, its agent told to leave them
-  uncommitted; gives ford the component's scope for an
+  unit of their own after the current one, its agent given that unit's
+  commit as the target of its fixups; gives ford the component's scope for an
   `INTERFACE_CHANGE_REQUEST`.
 * Resumes from `/tmp/kent-partial-session-progress.md`, checked on every
   user message, and deletes it, then launches you and simon again.
@@ -221,7 +228,8 @@ martin:
 
 * Reviews one unit per launch (a component, the flow, or a correction to a
   squashed unit), never ford's architecture commits; from iteration 2, and
-  for a correction, only the uncommitted changes its agent applied.
+  for a correction, only the fixups its agent committed for the review
+  changes.
 * Works in order: TDD audit of unclebob's commits (order and emptiness of
   the cycle, then their content; ford's interface commits excepted), every
   incoherence sent as a `TDD_VIOLATIONS` block and the unit carried on; the
@@ -239,8 +247,10 @@ martin:
   scope); typed `feat` for new code, `refactor`/`fix` for changes to code
   existing on the base branch, `test` for the flow. Never squashes a
   correction or the fixups.
-* Has every review correction committed by linus with
-  `mode: CODE_REVIEW_DRIVEN`, as fixups; never commits it otherwise.
+* Commits nothing but the squash: the review corrections are committed as
+  fixups by the agents that apply them; checks in the next iteration that
+  each fixup targets the unit's commit and that they apply exactly the
+  review changes.
 
 simon (on `REPORTED simon`, check the documentation against the sources as
 they are now, not only against its report):
