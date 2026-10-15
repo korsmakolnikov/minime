@@ -280,8 +280,9 @@ Pass unclebob:
   on Elixir, dialyzer, then reports `UNCLEBOB_DONE`;
 * that the interfaces are a contract: if one must change, it stops and
   reports `INTERFACE_CHANGE_REQUEST`;
-* that it is explicitly authorised to commit with the `linus` command and
-  to delegate the dialyzer fixups to the linus agent;
+* that it is explicitly authorised to commit its TDD cycles with the
+  `linus` command (FEATURE_DRIVEN) and to delegate the dialyzer fixups to
+  the linus agent (STATIC_CODE_FIX_DRIVEN);
 * on a system listed in unclebob's "Large systems" table (crash among them),
   the complete related-tests command, computed again before each launch:
   every test file changed in `<base>..HEAD` and in the working tree, the
