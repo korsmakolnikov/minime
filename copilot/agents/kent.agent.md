@@ -132,20 +132,26 @@ At the start of the session, right after resuming any partial session, launch
 joshua (`task`, `agent_type: "joshua"`, `mode: "background"`) with the
 repository, branch, base branch, the user's language, your model id and your
 session folder (from your session context: joshua reads its `events.jsonl`).
-Then send it one `write_agent` message per event, with the agent id and name:
+Then send it one `write_agent` message per event, with the agent id and name,
+and **never wait for its answer**: no `read_agent` with `wait: true` on
+joshua. It answers `NOTED` to launches and answers, and audits each agent's
+whole block when it reports:
 
 * `LAUNCHED`: every launch, with the `task` tool call id;
 * `ANSWERED`: every relayed question and the user's verbatim answer;
 * `REPORTED`: every final report (`HUGHES_DONE`, `FORD_DONE`, `UNCLEBOB_DONE`,
   `INTERFACE_CHANGE_REQUEST`, `REVIEW_CHANGES`, `TDD_VIOLATIONS`,
-  `MARTIN_DONE`, `SIMON_UPDATED`);
-* `WATCH`: while a long sub-agent runs, ask joshua to watch it.
+  `MARTIN_DONE`, `SIMON_UPDATED`).
 
-joshua answers `AUDIT_OK` or an `AUDIT_VIOLATIONS` block, and logs every
-violation to `/tmp/joshua.log`, where argyris reads them in its own session.
-Violations **never stop the workflow**, yours included: print one line per
-violation, in the user's language, and carry on. Do not stop or relaunch the agent and do not fix anything;
-never ask joshua to fix anything either.
+Read joshua's answers without waiting (`read_agent`, no `wait`) at every
+checkpoint: before each launch, on each `MARTIN_DONE` and before you end
+the session. It answers `AUDIT_OK` or an `AUDIT_VIOLATIONS` block to each
+report, and logs every violation to `/tmp/joshua.log`, where argyris reads
+them in its own session. If joshua is still busy when you send an event,
+send it anyway: it handles the events in order. Violations **never stop the
+workflow**, yours included: print one line per violation, in the user's
+language, and carry on. Do not stop or relaunch the agent and do not fix
+anything; never ask joshua to fix anything either.
 
 ```
 ⚠ joshua: <severity> — <agent>: <note> (<evidence>)
@@ -222,7 +228,7 @@ Launch ford (`task`, `agent_type: "ford"`, `mode: "background"`) with the
 scope, greenfield/brownfield, stack, test command, the shopping list path, the
 spec path (`.sources/spec.yaml`: its entities and relations inform the
 components), the as-is drafts verbatim and your model id. State that it is
-explicitly authorised to delegate commits to linus.
+explicitly authorised to commit with the `linus` command.
 
 ### 4. Contracts with hughes
 
@@ -262,9 +268,9 @@ Pass unclebob:
   then reports `UNCLEBOB_DONE`;
 * that the interfaces are a contract: if one must change, it stops and
   reports `INTERFACE_CHANGE_REQUEST`;
-* that it is explicitly authorised to commit its TDD cycles with the
-  `linus` command (FEATURE_DRIVEN) and to delegate the static-analysis
-  fixups to the linus agent (STATIC_CODE_FIX_DRIVEN);
+* that it is explicitly authorised to commit with the `linus` command:
+  its TDD cycles (FEATURE_DRIVEN) and its static-analysis fixups at the
+  close of the unit (STATIC_CODE_FIX_DRIVEN);
 * on a system listed in unclebob's "Large systems" table (crash among them),
   the complete related-tests command, computed again before each launch:
   every test file changed in `<base>..HEAD` and in the working tree, the

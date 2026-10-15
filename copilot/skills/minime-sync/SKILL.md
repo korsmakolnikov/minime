@@ -1,6 +1,6 @@
 ---
 name: minime-sync
-description: Mirrors the live Copilot setup in ~/.copilot (agents, skills, hooks, settings, global instructions), the autonomy settings in ~/.bash_copilot and the linus, kent, argyris and spec-check commands into ~/code/minime/copilot/, then records the change as a new commit through linus. Use before a /restart and whenever an agent, skill, hook or setting has changed.
+description: Mirrors the live Copilot setup in ~/.copilot (agents, skills, hooks, settings, global instructions), the autonomy settings in ~/.bash_copilot and the linus, kent, argyris and spec-check commands into ~/code/minime/copilot/, then records the change as a new commit with the linus command. Use before a /restart and whenever an agent, skill, hook or setting has changed.
 ---
 
 # minime-sync
@@ -68,7 +68,7 @@ line may remain after the copy.
 * Show the user the `git diff --stat` (and the diff of `README.md`/`Makefile`
   if you edited them).
 
-## 4. Commit through linus
+## 4. Commit with the linus command
 
 Every change is a new commit: never a fixup, never an amend. Write a
 Conventional Commits message with the `copilot` scope: a one-sentence subject
