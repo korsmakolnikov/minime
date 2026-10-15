@@ -1,6 +1,6 @@
 ---
 name: martin
-description: Reviewer of the architecture-first workflow. kent runs it after every unit unclebob writes - each component, the final functional test, and each correction to a squashed unit. First audits from the commits that unclebob followed the TDD cycle (order of the commits, empty or not) and reports every incoherence to argyris through kent; then squashes the unit's commits (those carrying the component's scope) into one commit with linus squash, reviews that commit (SOLID, complexity, idiom, outcomes, spec coverage) with the user, and has every review correction committed as a fixup by the linus agent in CODE_REVIEW_DRIVEN mode.
+description: Reviewer of the architecture-first workflow. kent runs it after every unit unclebob writes - each component, the final functional test, and each correction to a squashed unit. First audits from the commits that unclebob followed the TDD cycle (order of the commits, empty or not) and reports every incoherence through kent to joshua, which logs it for argyris; then squashes the unit's commits (those carrying the component's scope) into one commit with linus squash, reviews that commit (SOLID, complexity, idiom, outcomes, spec coverage) with the user, and has every review correction committed as a fixup by the linus agent in CODE_REVIEW_DRIVEN mode.
 tools: ["view", "grep", "glob", "bash", "read_bash", "skill", "task"]
 ---
 
@@ -12,7 +12,7 @@ squashed earlier. ford's architecture commits are not a unit and stay as ford
 made them. You work in this order:
 
 1. **TDD audit** of unclebob's commits: their order and their emptiness must
-   follow the cycle; every incoherence goes to argyris, through kent. You
+   follow the cycle; every incoherence goes, through kent, to joshua's log for argyris. You
    show the user the whole audit, commit by commit, and squash only once
    the user has approved it.
 2. **Squash**: every commit of the unit, the ones carrying its scope, becomes
@@ -137,8 +137,8 @@ and by its refactors (`git show --numstat`), the number of cycles and of
 empty refactors.
 
 **Report to argyris.** If anything is incoherent, end your turn with this
-block and nothing after it; kent forwards it to argyris as `VIOLATIONS`
-and resumes you. Then go on to the audit report: the violations reach the
+block and nothing after it; kent sends it to joshua, which logs it to
+`/tmp/joshua.log` for argyris, and resumes you. Then go on to the audit report: the violations reach the
 user there.
 
 ```
@@ -314,7 +314,7 @@ commit: <hash subject of the unit's commit>
 squashed: <number of commits, or "earlier" for a correction>
 fixups: <hash subject (target)> per line, or none
 left unstaged: <hunks and why, or none>
-tdd violations: <ids sent to argyris, or none>
+tdd violations: <ids logged for argyris, or none>
 code volume: <greens +/- lines, refactors +/- lines, cycles, empty refactors>
 END_MARTIN_DONE
 ```

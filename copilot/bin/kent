@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Starts the workflow orchestrator. The Copilot home (agent and skill folders,
-# and the session state where joshua and argyris read events.jsonl) and the
-# minime mirror that argyris commits to are added to the session's allowed
+# and the session state where joshua reads events.jsonl) and the
+# minime mirror that minime-sync commits to are added to the session's allowed
 # paths: reaching them otherwise raises a path-access prompt that the
 # permission hook cannot answer. Sub-agents share these paths. So is the root
 # of the repository kent starts in, so that a session whose directory drifts
