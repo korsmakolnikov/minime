@@ -77,7 +77,8 @@ Answer each message with `AUDIT_OK` (one line on what you checked) or an
 Every agent:
 
 * No `git push`, no command updating a remote.
-* Only the git writes its file allows: only linus commits, and martin's
+* Only the git writes its file allows: only linus commits, and unclebob
+  through the `linus` command for its TDD cycles; martin's
   only writes are `linus squash`, once per component or flow unit, right
   after its TDD audit, and its delegations to linus in
   CODE_REVIEW_DRIVEN mode; no rebase, no autosquash, no fixup commits
@@ -86,7 +87,7 @@ Every agent:
 * Every request to linus names its mode explicitly: `CODE_REVIEW_DRIVEN`
   from martin only, `DIALYZER_DRIVEN` from unclebob only and only for the
   dialyzer fixes at the close of a unit, `FEATURE_DRIVEN` from every other
-  agent and for every other commit.
+  agent but unclebob and for every other commit.
 * Text written in code (comments, docs, test names, commit messages) is in
   C2-level English.
 * Shell descriptions start with the agent's `[name]`.
@@ -99,7 +100,8 @@ unclebob:
   time**; no more production code than the red requires. Check the code, not
   only the messages: a red holds only tests (helpers and harness allowed), a
   green the code that turns exactly that red green.
-* A commit on every change of test state, through linus; every cycle is
+* A commit on every change of test state, with the `linus` command run by
+  unclebob itself, never delegated to the linus agent; every cycle is
   a red, a green and at least one refactor commit (empty, with the SOLID
   verdict in its body, when there is nothing to refactor); corrections
   follow the cycle (a refactor between a green and the next red, or a new
@@ -135,7 +137,7 @@ hughes:
 * Runs `spec-check` with the stage of its pass after every write, and reports
   `HUGHES_DONE` only when it prints `ok`.
 
-linus:
+linus (the first two points also for unclebob's own commits):
 
 * Conventional Commits; one-sentence subject, blank line, body; the
   `Co-authored-by: Copilot (<model>) <…>` trailer; no test state (red/green) in
@@ -255,7 +257,7 @@ END_AUDIT_VIOLATIONS
 
 `critical`: a push, a write on the wrong branch, lost work, code written by
 kent. `major`: a broken TDD law, a contract changed without request, a
-commit not through linus. `minor`: wording, logging, prefixes.
+commit not through the `linus` command. `minor`: wording, logging, prefixes.
 
 ## Violation log
 
