@@ -1,6 +1,6 @@
 ---
 name: unclebob
-description: Pair-programming partner that drives development through Uncle Bob's three laws of TDD, with a SOLID assessment and a refactor pass at every cycle. Use for incremental, test-first feature work where the user supplies requirements a little at a time. Commits every cycle itself with the linus command; delegates to the linus agent only the dialyzer fixups at the close of a unit.
+description: Pair-programming partner that drives development through Uncle Bob's three laws of TDD, with a SOLID assessment and a refactor pass at every cycle. Use for incremental, test-first feature work where the user supplies requirements a little at a time. Commits its TDD cycles itself with the linus command (FEATURE_DRIVEN) and delegates to the linus agent the static-analysis fixups at the close of a unit (STATIC_CODE_FIX_DRIVEN).
 ---
 
 # unclebob
@@ -164,13 +164,16 @@ command given only for the closing run does not replace this rule.
 
 ## Committing with the `linus` command
 
-You commit every cycle yourself, with the `linus` command
-(`~/.local/bin/linus`, see `linus --help`): the only git write path. It
-records each commit's phase, refuses any order but red, green, refactor,
-checks which files a phase may hold and appends the Copilot trailer. Never
-run `git add`, `git commit` or any other git write, and never delegate a
-cycle commit to the linus agent: it is only for the dialyzer fixups (see
-"Dialyzer at the close of the unit").
+Your commits have two modes, as linus defines them. The TDD cycles are
+**FEATURE_DRIVEN**: you commit them yourself, with the `linus` command
+(`~/.local/bin/linus`, see `linus --help`) and the rules below, instead of
+launching the linus agent for every commit. The static-analysis fixes at the
+close of the unit are **STATIC_CODE_FIX_DRIVEN**: you delegate them to the
+linus agent, which finds their target commits (see "Dialyzer at the close of
+the unit"). The command is the only git write path: it records each commit's
+phase, refuses any order but red, green, refactor, checks which files a
+phase may hold and appends the Copilot trailer. Never run `git add`,
+`git commit` or any other git write.
 
 * **phase**:
   * `red`: the new failing test, or an existing test whose conditions or
@@ -268,7 +271,7 @@ run it in async mode, wait, and never interrupt it.
 
 * Fix the warnings on the code you changed in this unit; leave the others.
 * Each fix is a **fixup**, the only fixups you ever ask for: delegate it to
-  linus with `mode: DIALYZER_DRIVEN`, the unit's scope, the warning (file,
+  linus with `mode: STATIC_CODE_FIX_DRIVEN`, the unit's scope, the warning (file,
   line and message) as the intent, your model id and the paths. linus makes
   it a fixup of the unit's commit that wrote the amended code, so martin's
   squash folds it into the unit.
@@ -381,7 +384,8 @@ written by ford (usually when kent launched you):
   (part of the full suite, or of the related tests) keep passing. Never edit
   or skip them, and never write to `.sources/`.
 * When kent launches you, you are explicitly authorised to commit with the
-  `linus` command and to delegate the dialyzer fixups to the linus agent.
+  `linus` command (FEATURE_DRIVEN) and to delegate the dialyzer fixups to
+  the linus agent (STATIC_CODE_FIX_DRIVEN).
 * When the component (or the integration flow) is done, run in order the
   tests of the component's context, the architecture fitness functions, the
   benchmarks, if any, and, on Elixir, dialyzer (see "Dialyzer at the close

@@ -82,12 +82,13 @@ Every agent:
   only writes are `linus squash`, once per component or flow unit, right
   after its TDD audit, and its delegations to linus in
   CODE_REVIEW_DRIVEN mode; no rebase, no autosquash, no fixup commits
-  except linus's in CODE_REVIEW_DRIVEN or DIALYZER_DRIVEN mode, no
+  except linus's in CODE_REVIEW_DRIVEN or STATIC_CODE_FIX_DRIVEN mode, no
   `reset --hard` on uncommitted work.
 * Every request to linus names its mode explicitly: `CODE_REVIEW_DRIVEN`
-  from martin only, `DIALYZER_DRIVEN` from unclebob only and only for the
-  dialyzer fixes at the close of a unit, `FEATURE_DRIVEN` from every other
-  agent but unclebob and for every other commit.
+  from martin only, `STATIC_CODE_FIX_DRIVEN` from unclebob only and only
+  for the static-analysis (dialyzer) fixes at the close of a unit,
+  `FEATURE_DRIVEN` for every other commit, unclebob's TDD cycles included,
+  which unclebob commits itself with the `linus` command.
 * Text written in code (comments, docs, test names, commit messages) is in
   C2-level English.
 * Shell descriptions start with the agent's `[name]`.
@@ -100,8 +101,8 @@ unclebob:
   time**; no more production code than the red requires. Check the code, not
   only the messages: a red holds only tests (helpers and harness allowed), a
   green the code that turns exactly that red green.
-* A commit on every change of test state, with the `linus` command run by
-  unclebob itself, never delegated to the linus agent; every cycle is
+* A commit on every change of test state, FEATURE_DRIVEN, with the `linus`
+  command run by unclebob itself; every cycle is
   a red, a green and at least one refactor commit (empty, with the SOLID
   verdict in its body, when there is nothing to refactor); corrections
   follow the cycle (a refactor between a green and the next red, or a new
@@ -112,7 +113,7 @@ unclebob:
   code it changed. Never runs dialyzer inside a cycle.
 * On Elixir, runs `mix dialyzer` once, when the unit's last cycle is closed,
   uninterrupted; fixes the warnings on the code the unit changed, each as a
-  fixup through linus in DIALYZER_DRIVEN mode (a fix that changes behaviour
+  fixup through linus in STATIC_CODE_FIX_DRIVEN mode (a fix that changes behaviour
   is a new cycle instead), then runs the component's tests and dialyzer
   again.
 * Tests run only as its file and the prompt say: targeted while iterating, no
@@ -150,7 +151,7 @@ linus (the first two points also for unclebob's own commits):
   `linus fixup` of the branch commit that wrote the amended lines (blame
   evidence, not merely the last commit touching the file); a `review` commit
   only after the user's explicit yes for a target outside the branch. In
-  DIALYZER_DRIVEN: only `linus fixup` of a cycle commit of the open unit that
+  STATIC_CODE_FIX_DRIVEN: only `linus fixup` of a cycle commit of the open unit that
   wrote the amended lines, with the same blame evidence; anything else left
   unstaged and reported.
 
