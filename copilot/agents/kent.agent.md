@@ -257,13 +257,14 @@ Pass unclebob:
 * the spec path, `.sources/spec.yaml`, and the ids of the component's contracts
   and properties: each becomes a red test (the `domain-spec` skill says how);
 * that it closes the session by running the component's tests (mark that
-  command as the closing one), the fitness functions, the benchmarks and,
-  on Elixir, dialyzer, then reports `UNCLEBOB_DONE`;
+  command as the closing one), the fitness functions, the benchmarks and the
+  static analysis of the close of the unit, if the project configures one,
+  then reports `UNCLEBOB_DONE`;
 * that the interfaces are a contract: if one must change, it stops and
   reports `INTERFACE_CHANGE_REQUEST`;
 * that it is explicitly authorised to commit its TDD cycles with the
-  `linus` command (FEATURE_DRIVEN) and to delegate the dialyzer fixups to
-  the linus agent (STATIC_CODE_FIX_DRIVEN);
+  `linus` command (FEATURE_DRIVEN) and to delegate the static-analysis
+  fixups to the linus agent (STATIC_CODE_FIX_DRIVEN);
 * on a system listed in unclebob's "Large systems" table (crash among them),
   the complete related-tests command, computed again before each launch:
   every test file changed in `<base>..HEAD` and in the working tree, the
@@ -306,7 +307,8 @@ starts only after its `MARTIN_DONE`. Launch martin
 branch, base branch, your model id, the ADL and spec paths, the unit (its
 kind, `component`, `flow` or `correction`, its scope, and for a component its
 namespace, files and spec ids), the iteration (1 at first) and, from the
-second and for a correction, the `REVIEW_CHANGES` applied.
+second and for a correction, the `REVIEW_CHANGES` applied and the fixups
+the agents committed for them (from their reports).
 
 martin first audits unclebob's commits, then squashes the unit, then
 reviews the squashed commit. Relay its questions as usual: the approval of
@@ -319,15 +321,16 @@ resume martin with `continue`: the violations never stop the unit.
 
 On `REVIEW_CHANGES` (the unit is squashed by then):
 
-* changes to **this unit** go to its agent with the same scope, told that
-  it is a correction session (changes left uncommitted): unclebob (code),
-  ford (interfaces, ADL) or hughes (spec), audited by joshua as usual; then
-  launch martin with the next iteration and the changes applied; it has
-  them committed as fixups;
+* changes to **this unit** go to its agent with the same scope and the
+  unit's commit (from the `REVIEW_CHANGES` block), told that it is a
+  correction session, whose changes it commits as fixups of that commit
+  (CODE_REVIEW_DRIVEN): unclebob (code), ford (interfaces, ADL) or hughes
+  (spec, never committed), audited by joshua as usual; then launch martin
+  with the next iteration, the changes applied and the fixups;
 * changes to an **earlier, squashed unit** wait for this unit's
   `MARTIN_DONE`, then form a correction unit with the earlier unit's scope,
   one earlier unit at a time: its own correction session with that scope
-  only, then martin with the kind `correction` and the `REVIEW_CHANGES`.
+  and that unit's commit only, then martin with the kind `correction` and the `REVIEW_CHANGES`.
 
 On `MARTIN_DONE` the unit is one commit on the branch plus its fixups: tell
 the user and move on.
