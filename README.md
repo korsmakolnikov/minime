@@ -130,7 +130,9 @@ Agents and skills for the [GitHub Copilot CLI](https://docs.github.com/copilot/h
 | `minime-sync` | Mirrors `~/.copilot` into `copilot/` and commits it through `linus`; run it before a `/restart`. |
 | `datadog-experiment-downloader` | Downloads a Datadog LLM Observability experiment with `pup`: summary, events and the agent loop of every trace, in parallel and resumable. |
 
-Sub-agents cannot talk to the user: they end their turn with one `ASK_USER` block (`question`, optional `choices` separated by `|`, optional `default`, `why`), one question at a time, and `kent` relays it verbatim, prefixed with the agent's name.
+Sub-agents cannot talk to the user: they end their turn with one `ASK_USER` block (`question`, optional `choices` and `default`, `why`), one question at a time, and `kent` relays it verbatim, prefixed with the agent's name.
+
+Every block that ends an agent's turn is a signal: a line with its name, one JSON object and a line with `END_<name>`, while diffs and long reports stay in the text before it. Each signal (`ASK_USER`, `HUGHES_DONE`, `FORD_DONE`, `INTERFACE_CHANGE_REQUEST`, `UNCLEBOB_DONE`, `TDD_VIOLATIONS`, `REVIEW_CHANGES`, `MARTIN_DONE`, `SIMON_UPDATED`, `AUDIT_VIOLATIONS`) has a JSON Schema in `copilot/signals/`. The `signal-check` command in `copilot/bin/` validates a block against it, without dependencies: it supports only the subset of JSON Schema the signals use and refuses a schema with any other keyword; it also requires a single block at the end of the text and no template placeholder (`"<…>"`) left in place. Each agent checks its block before ending its turn, and `joshua` checks again every block in `events.jsonl` when it audits the agent: a block that fails is a `major` violation. `kent` reads the fields by name and sends `SIGNAL_INVALID` back for a block it cannot read.
 
 Start with `kent` (the launcher in `copilot/bin/`: `copilot --agent kent` plus `--add-dir` for the root of the repository it starts in, `~/.copilot` and `~/code/minime`, since reaching them otherwise asks for path access, which the permission hook cannot answer; other options pass through), or `copilot --agent unclebob` for a plain TDD session. Follow the whole flow with `tail -f /tmp/kent-flow.log`. Run `argyris` (same launcher shape) whenever you want to fix the agent files: before `kent`, on the violations left by earlier sessions, or beside it in another terminal.
 
@@ -165,9 +167,9 @@ make check       # checks that the claude CLI is available
 For the Copilot workflow:
 
 ```sh
-make copilot-install   # installs or overwrites agents, skills and hooks in ~/.copilot/,
-                       # settings and copilot-instructions.md in ~/.copilot/
-                       # and linus, kent, argyris and spec-check in ~/.local/bin/
+make copilot-install   # installs or overwrites agents, skills, signal schemas and hooks
+                       # in ~/.copilot/, settings and copilot-instructions.md in ~/.copilot/
+                       # and linus, kent, argyris, spec-check and signal-check in ~/.local/bin/
 ```
 
 The hooks in `copilot/hooks/` keep the agents unattended:

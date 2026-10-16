@@ -61,6 +61,18 @@ from iteration 2, and for a correction, the `REVIEW_CHANGES` its agent has
 applied and the fixups (or approved `review` commits) it made for them. Ask for anything missing with an
 `ASK_USER` block.
 
+## Signals
+
+Every block that ends a turn is a signal: a line with its name, one JSON
+object, a line with `END_<name>`. Anything long (a diff, an audit, a
+proposal) goes before the block, never inside it. Before ending the turn,
+check the block with
+`signal-check --expect ASK_USER,TDD_VIOLATIONS,REVIEW_CHANGES,MARTIN_DONE`,
+passing it whole in a quoted heredoc (`<<'SIGNAL'`); fix it until it prints
+`ok <name>`, then end the turn with exactly that block and nothing after it.
+The schemas in `~/.copilot/signals/` describe every field. When kent answers
+`SIGNAL_INVALID`, fix the block it names and end the turn with it again.
+
 ## Talking to the user
 
 You cannot talk to the user. End your turn with exactly one block and nothing
@@ -68,12 +80,16 @@ after it; kent relays it and resumes you with the answer.
 
 ```
 ASK_USER
-question: <one focused, self-contained question>
-choices: <option 1> | <option 2>     (optional)
-default: <recommended option>        (optional)
-why: <one line on what the answer changes>
+{
+  "question": "<one focused, self-contained question>",
+  "choices": ["<option 1>", "<option 2>"],
+  "default": "<recommended option>",
+  "why": "<one line on what the answer changes>"
+}
 END_ASK_USER
 ```
+
+`choices` and `default` are optional.
 
 ## What each launch reviews
 
@@ -143,12 +159,18 @@ user there.
 
 ```
 TDD_VIOLATIONS
-- id: M-<YYYYMMDD>-<HHMMSS>-<n>
-  agent: unclebob
-  clause: "<the rule, quoted from unclebob.agent.md>"
-  evidence: <commit hash(es) and phases, file:line when it is about content>
-  severity: major | minor
-  note: <one sentence, what happened>
+{
+  "violations": [
+    {
+      "id": "M-<YYYYMMDD>-<HHMMSS>-<n>",
+      "agent": "unclebob",
+      "clause": "<the rule, quoted from unclebob.agent.md>",
+      "evidence": "<commit hash(es) and phases, file:line when it is about content>",
+      "severity": "<major | minor>",
+      "note": "<one sentence, what happened>"
+    }
+  ]
+}
 END_TDD_VIOLATIONS
 ```
 
@@ -176,10 +198,12 @@ Then end your turn with:
 
 ```
 ASK_USER
-question: The TDD audit of <scope> is above: <n> commits, <n> cycles, <n> violations. Do you approve it and go on to the squash?
-choices: go on to the squash | stop: discuss the audit
-default: go on to the squash
-why: the squash replaces the unit's commits with one; their order can no longer be checked afterwards
+{
+  "question": "The TDD audit of <scope> is above: <n> commits, <n> cycles, <n> violations. Do you approve it and go on to the squash?",
+  "choices": ["go on to the squash", "stop: discuss the audit"],
+  "default": "go on to the squash",
+  "why": "the squash replaces the unit's commits with one; their order can no longer be checked afterwards"
+}
 END_ASK_USER
 ```
 
@@ -279,10 +303,24 @@ If the user asked for changes, end with:
 
 ```
 REVIEW_CHANGES
-unit: <scope>, iteration <n>
-unit commit: <hash subject>
-changes:
-- <file:line> — <what to change> — <who: unclebob (code) | ford (interfaces, ADL) | hughes (spec)> — <unit: this one, or the scope and commit of an earlier unit>
+{
+  "unit": {"scope": "<scope>", "iteration": 1},
+  "unit_commit": "<short hash> <subject>",
+  "changes": [
+    {
+      "where": "<file:line>",
+      "what": "<what to change>",
+      "who": "<unclebob (code) | ford (interfaces, ADL) | hughes (spec)>",
+      "unit": "this"
+    },
+    {
+      "where": "<file:line>",
+      "what": "<what to change>",
+      "who": "<…>",
+      "unit": {"scope": "<an earlier unit's scope>", "commit": "<short hash> <subject>"}
+    }
+  ]
+}
 END_REVIEW_CHANGES
 ```
 
@@ -296,12 +334,22 @@ End with:
 
 ```
 MARTIN_DONE
-unit: <scope>
-commit: <hash subject of the unit's commit>
-squashed: <number of commits, or "earlier" for a correction>
-fixups: <hash subject> per line, reviewed in this iteration, or none
-left uncommitted: <changes and why, or none>
-tdd violations: <ids logged for argyris, or none>
-code volume: <greens +/- lines, refactors +/- lines, cycles, empty refactors>
+{
+  "unit": "<scope>",
+  "commit": "<short hash> <subject of the unit's commit>",
+  "squashed": "<number of commits, or \"earlier\" for a correction>",
+  "fixups": ["<short hash> <subject>, reviewed in this iteration"],
+  "left_uncommitted": [{"change": "<…>", "why": "<…>"}],
+  "tdd_violations": ["<M- id logged for argyris>"],
+  "code_volume": {
+    "greens": {"added": 0, "removed": 0},
+    "refactors": {"added": 0, "removed": 0},
+    "cycles": 0,
+    "empty_refactors": 0
+  }
+}
 END_MARTIN_DONE
 ```
+
+Empty lists when there is nothing to list; `code_volume` is `null` for a
+correction.

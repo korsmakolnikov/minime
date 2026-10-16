@@ -1,0 +1,217 @@
+#!/usr/bin/env python3
+"""Validates the signal block that ends an agent's turn against its JSON Schema.
+
+Usage: signal-check [--expect NAME[,NAME…]] [<file>]   (default: standard input)
+
+The text may hold anything before the block (an audit, a diff, a proposal),
+and nothing after it but blank lines. A block is a line holding only the
+signal's name, a JSON object, and a line holding only END_<name>:
+
+    ASK_USER
+    {"question": "…", "why": "…"}
+    END_ASK_USER
+
+The schema is <name>.schema.json in $SIGNAL_SCHEMAS (default ~/.copilot/signals).
+Besides the schema, every string must be filled in: a whole value such as
+"<hash subject>" is a template placeholder left in place.
+
+Prints "ok <name>" or one line per problem, exiting 1 on any problem and 2 on
+a usage error or a broken schema. Only the subset of JSON Schema the signals
+use is supported; a schema using any other keyword is refused.
+"""
+import argparse
+import json
+import os
+import pathlib
+import re
+import sys
+
+SCHEMAS = pathlib.Path(os.environ.get("SIGNAL_SCHEMAS", "~/.copilot/signals")).expanduser()
+MARKER_RE = re.compile(r"^[A-Z][A-Z_]*[A-Z]$")
+PLACEHOLDER_RE = re.compile(r"^<[^<>]+>$")
+FENCE_RE = re.compile(r"^`{3,}\s*$")
+ANNOTATIONS = {"$schema", "$id", "title", "description", "$defs"}
+KEYWORDS = ANNOTATIONS | {
+    "$ref", "type", "enum", "const", "required", "properties",
+    "additionalProperties", "items", "minItems", "minLength", "minimum",
+    "pattern", "oneOf",
+}
+TYPES = {
+    "object": lambda v: isinstance(v, dict),
+    "array": lambda v: isinstance(v, list),
+    "string": lambda v: isinstance(v, str),
+    "integer": lambda v: isinstance(v, int) and not isinstance(v, bool),
+    "number": lambda v: isinstance(v, (int, float)) and not isinstance(v, bool),
+    "boolean": lambda v: isinstance(v, bool),
+    "null": lambda v: v is None,
+}
+
+
+class SchemaError(Exception):
+    """The schema uses something this validator does not support."""
+
+
+def check_schema(schema, at="#"):
+    if not isinstance(schema, dict):
+        raise SchemaError(f"{at}: a schema must be an object")
+    for key in schema:
+        if key not in KEYWORDS:
+            raise SchemaError(f"{at}: unsupported keyword '{key}'")
+    for name, sub in schema.get("$defs", {}).items():
+        check_schema(sub, f"{at}/$defs/{name}")
+    for name, sub in schema.get("properties", {}).items():
+        check_schema(sub, f"{at}/properties/{name}")
+    for i, sub in enumerate(schema.get("oneOf", [])):
+        check_schema(sub, f"{at}/oneOf/{i}")
+    for key in ("items", "additionalProperties"):
+        if isinstance(schema.get(key), dict):
+            check_schema(schema[key], f"{at}/{key}")
+    ref = schema.get("$ref")
+    if ref is not None and not re.match(r"^#/\$defs/[A-Za-z_]+$", ref):
+        raise SchemaError(f"{at}: only local '#/$defs/<name>' references are supported, got {ref!r}")
+    types = schema.get("type", [])
+    for t in types if isinstance(types, list) else [types]:
+        if t not in TYPES:
+            raise SchemaError(f"{at}: unknown type {t!r}")
+
+
+def errors(value, schema, root, at="$"):
+    """Yields one message per way `value` breaks `schema`."""
+    if "$ref" in schema:
+        name = schema["$ref"].rsplit("/", 1)[1]
+        if name not in root.get("$defs", {}):
+            raise SchemaError(f"{at}: '{schema['$ref']}' is not defined")
+        yield from errors(value, root["$defs"][name], root, at)
+    if "type" in schema:
+        types = schema["type"] if isinstance(schema["type"], list) else [schema["type"]]
+        if not any(TYPES[t](value) for t in types):
+            yield f"{at}: must be {' or '.join(types)}, got {json.dumps(value)}"
+            return
+    if "const" in schema and value != schema["const"]:
+        yield f"{at}: must be {json.dumps(schema['const'])}, got {json.dumps(value)}"
+    if "enum" in schema and value not in schema["enum"]:
+        yield f"{at}: must be one of {', '.join(json.dumps(e) for e in schema['enum'])}, got {json.dumps(value)}"
+    if "oneOf" in schema:
+        failures = [list(errors(value, s, root, at)) for s in schema["oneOf"]]
+        matching = failures.count([])
+        if matching == 0:
+            # A shape failing only inside the value has the right type.
+            closest = min(failures, key=lambda f: (sum(m.startswith(f"{at}: ") for m in f), len(f)))
+            yield f"{at}: matches none of its {len(failures)} shapes; the closest fails with: {'; '.join(closest)}"
+        elif matching > 1:
+            yield f"{at}: matches {matching} of its shapes, must match exactly one"
+    if isinstance(value, str):
+        if len(value.strip()) < schema.get("minLength", 0):
+            yield f"{at}: must not be empty"
+        if "pattern" in schema and not re.search(schema["pattern"], value):
+            yield f"{at}: must match /{schema['pattern']}/, got {json.dumps(value)}"
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        if "minimum" in schema and value < schema["minimum"]:
+            yield f"{at}: must be at least {schema['minimum']}, got {value}"
+    if isinstance(value, list):
+        if len(value) < schema.get("minItems", 0):
+            yield f"{at}: must have at least {schema['minItems']} item(s)"
+        if "items" in schema:
+            for i, item in enumerate(value):
+                yield from errors(item, schema["items"], root, f"{at}[{i}]")
+    if isinstance(value, dict):
+        properties = schema.get("properties", {})
+        for key in schema.get("required", []):
+            if key not in value:
+                yield f"{at}: '{key}' is missing"
+        extra = schema.get("additionalProperties", True)
+        for key, item in value.items():
+            if key in properties:
+                yield from errors(item, properties[key], root, f"{at}.{key}")
+            elif extra is False:
+                yield f"{at}: unknown key '{key}'"
+            elif isinstance(extra, dict):
+                yield from errors(item, extra, root, f"{at}.{key}")
+
+
+def placeholders(value, at="$"):
+    """Yields one message per string still holding a template placeholder."""
+    if isinstance(value, str) and PLACEHOLDER_RE.match(value.strip()):
+        yield f"{at}: template placeholder left in place: {json.dumps(value)}"
+    elif isinstance(value, list):
+        for i, item in enumerate(value):
+            yield from placeholders(item, f"{at}[{i}]")
+    elif isinstance(value, dict):
+        for key, item in value.items():
+            yield from placeholders(item, f"{at}.{key}")
+
+
+def blocks(lines):
+    """(name, first body line, end line) of each NAME … END_NAME block."""
+    found, i = [], 0
+    while i < len(lines):
+        name = lines[i].strip()
+        if MARKER_RE.match(name) and not name.startswith("END_"):
+            end = next((j for j in range(i + 1, len(lines)) if lines[j].strip() == f"END_{name}"), None)
+            if end is not None:
+                found.append((name, i + 1, end))
+                i = end
+        i += 1
+    return found
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Validate the signal block that ends an agent's turn.")
+    parser.add_argument("--expect", help="comma-separated signals the block may be")
+    parser.add_argument("path", nargs="?", help="file holding the text (default: standard input)")
+    args = parser.parse_args()
+    try:
+        text = pathlib.Path(args.path).read_text() if args.path else sys.stdin.read()
+    except OSError as error:
+        print(error)
+        return 2
+
+    lines = text.splitlines()
+    found = blocks(lines)
+    if not found:
+        print("no signal block: a line with the name, the JSON object, a line with END_<name>")
+        return 1
+    problems = []
+    if len(found) > 1:
+        problems.append(f"{len(found)} signal blocks ({', '.join(b[0] for b in found)}): end the turn with exactly one")
+    name, start, end = found[-1]
+    trailing = [line for line in lines[end + 1:] if line.strip() and not FENCE_RE.match(line.strip())]
+    if trailing:
+        problems.append(f"text after END_{name}: nothing may follow the block")
+    expected = args.expect.split(",") if args.expect else None
+    if expected and name not in expected:
+        problems.append(f"{name}: expected {' or '.join(expected)}")
+
+    schema_path = SCHEMAS / f"{name}.schema.json"
+    try:
+        schema = json.loads(schema_path.read_text())
+        check_schema(schema)
+    except FileNotFoundError:
+        problems.append(f"{name}: unknown signal (no {schema_path})")
+        print("\n".join(problems))
+        return 1
+    except (OSError, json.JSONDecodeError, SchemaError) as error:
+        print(f"{schema_path}: {error}")
+        return 2
+
+    try:
+        value = json.loads("\n".join(lines[start:end]))
+    except json.JSONDecodeError as error:
+        problems.append(f"{name}: the body is not valid JSON: {error.msg} (line {start + error.lineno}, column {error.colno})")
+    else:
+        try:
+            problems.extend(f"{name} {message}" for message in errors(value, schema, schema))
+            problems.extend(f"{name} {message}" for message in placeholders(value))
+        except SchemaError as error:
+            print(f"{schema_path}: {error}")
+            return 2
+
+    if problems:
+        print("\n".join(problems))
+        return 1
+    print(f"ok {name}")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

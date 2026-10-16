@@ -72,6 +72,9 @@ copilot-install:
 		install -m 755 "$$b" $(COPILOT_BIN_DIR)/; \
 		echo "Installed command: $(COPILOT_BIN_DIR)/$$(basename $$b)"; \
 	done
+	@rm -rf $(COPILOT_HOME)/signals
+	@cp -r $(COPILOT_SRC_DIR)/signals $(COPILOT_HOME)/signals
+	@echo "Installed signal schemas: $(COPILOT_HOME)/signals"
 	@rm -rf $(COPILOT_HOME)/hooks
 	@cp -r $(COPILOT_SRC_DIR)/hooks $(COPILOT_HOME)/hooks
 	@chmod 755 $(COPILOT_HOME)/hooks/scripts/*.py

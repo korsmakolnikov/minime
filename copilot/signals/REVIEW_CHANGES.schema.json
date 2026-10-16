@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "REVIEW_CHANGES",
+  "description": "The changes the user asked for in martin's review of a squashed unit; kent has each applied by its agent.",
+  "type": "object",
+  "required": ["unit", "unit_commit", "changes"],
+  "additionalProperties": false,
+  "properties": {
+    "unit": {
+      "type": "object",
+      "required": ["scope", "iteration"],
+      "additionalProperties": false,
+      "properties": {
+        "scope": {"type": "string", "minLength": 1},
+        "iteration": {"type": "integer", "minimum": 1}
+      }
+    },
+    "unit_commit": {"$ref": "#/$defs/commit"},
+    "changes": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["where", "what", "who", "unit"],
+        "additionalProperties": false,
+        "properties": {
+          "where": {"type": "string", "minLength": 1, "description": "file:line."},
+          "what": {"type": "string", "minLength": 1, "description": "What to change."},
+          "who": {"enum": ["unclebob", "ford", "hughes"], "description": "unclebob for code, ford for interfaces and ADL, hughes for the spec."},
+          "unit": {
+            "oneOf": [
+              {"const": "this"},
+              {
+                "type": "object",
+                "required": ["scope", "commit"],
+                "additionalProperties": false,
+                "properties": {
+                  "scope": {"type": "string", "minLength": 1},
+                  "commit": {"$ref": "#/$defs/commit"}
+                },
+                "description": "An earlier, squashed unit."
+              }
+            ]
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "commit": {"type": "string", "pattern": "^[0-9a-f]{7,40} \\S", "description": "A short hash and the subject."}
+  }
+}

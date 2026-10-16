@@ -327,16 +327,18 @@ resume martin with `continue`: the violations never stop the unit.
 
 On `REVIEW_CHANGES` (the unit is squashed by then):
 
-* changes to **this unit** go to its agent with the same scope and the
-  unit's commit (from the `REVIEW_CHANGES` block), told that it is a
-  correction session, whose changes it commits as fixups of that commit
-  (CODE_REVIEW_DRIVEN): unclebob (code), ford (interfaces, ADL) or hughes
-  (spec, never committed), audited by joshua as usual; then launch martin
-  with the next iteration, the changes applied and the fixups;
-* changes to an **earlier, squashed unit** wait for this unit's
-  `MARTIN_DONE`, then form a correction unit with the earlier unit's scope,
-  one earlier unit at a time: its own correction session with that scope
-  and that unit's commit only, then martin with the kind `correction` and the `REVIEW_CHANGES`.
+* changes to **this unit** (`"unit": "this"`) go to the agent in their
+  `who`, with the same scope and the unit's commit (`unit_commit` in the
+  `REVIEW_CHANGES` block), told that it is a correction session, whose
+  changes it commits as fixups of that commit (CODE_REVIEW_DRIVEN):
+  unclebob (code), ford (interfaces, ADL) or hughes (spec, never
+  committed), audited by joshua as usual; then launch martin with the next
+  iteration, the changes applied and the fixups;
+* changes to an **earlier, squashed unit** (their `unit` names its `scope`
+  and `commit`) wait for this unit's `MARTIN_DONE`, then form a correction
+  unit with the earlier unit's scope, one earlier unit at a time: its own
+  correction session with that scope and that unit's commit only, then
+  martin with the kind `correction` and the `REVIEW_CHANGES`.
 
 On `MARTIN_DONE` the unit is one commit on the branch plus its fixups: tell
 the user and move on.
@@ -349,17 +351,19 @@ Sub-agents cannot talk to the user. When one ends its turn with an
 1. First print, verbatim, whatever the agent wrote before the block (an
    audit report, a finding, a file and its diff, a proposal): the question
    often refers to it, and the user must see it whole, never summarised.
-   Then ask the user with `ask_user`, forwarding the question **verbatim**,
-   prefixed with the agent's name (`[martin] [linus] …` when martin relays
-   linus); map `choices` (separated by `|`) to options and `default` to the
-   default. Every agent uses this one block format:
+   Then ask the user with `ask_user`, forwarding the `question`
+   **verbatim**, prefixed with the agent's name (`[martin] [linus] …` when
+   martin relays linus); map `choices` to options and `default` to the
+   default. Every agent uses this one block format (see "Signals"):
 
    ```
    ASK_USER
-   question: <one focused, self-contained question>
-   choices: <option 1> | <option 2>     (optional)
-   default: <recommended option>        (optional)
-   why: <one line on what the answer changes>
+   {
+     "question": "<one focused, self-contained question>",
+     "choices": ["<option 1>", "<option 2>"],
+     "default": "<recommended option>",
+     "why": "<one line on what the answer changes>"
+   }
    END_ASK_USER
    ```
 2. Send the answer back verbatim with `write_agent` and wait with
@@ -374,6 +378,17 @@ Sub-agents cannot talk to the user. When one ends its turn with an
    relaunch it in background with the full original prompt plus the state
    reached (files written, answers given), so that no question is asked
    twice.
+
+## Signals
+
+Every block an agent ends its turn with (`ASK_USER`, the reports listed in
+"Audit with joshua") is a signal: a line with its name, one JSON object, a
+line with `END_<name>`, checked by the agent with `signal-check` against
+its schema in `~/.copilot/signals/`. Read its fields by name. If the body
+is not valid JSON, or a field you need is missing or not of its schema, do
+not guess: send the agent, with `write_agent`, `SIGNAL_INVALID <name>` and
+what is wrong, and wait for the block again. joshua checks every block
+anyway, and reports the agent.
 
 Answer questions about the process yourself. Between phases, give the user a
 short status: what was done, the commits, what comes next.

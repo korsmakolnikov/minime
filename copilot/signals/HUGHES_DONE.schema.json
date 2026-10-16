@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "HUGHES_DONE",
+  "description": "hughes's report at the end of a pass on the domain spec.",
+  "type": "object",
+  "required": ["pass", "spec", "spec_check", "summary", "open_questions"],
+  "additionalProperties": false,
+  "properties": {
+    "pass": {"enum": ["domain", "contracts"]},
+    "spec": {"type": "string", "minLength": 1, "description": "The spec path, .sources/spec.yaml."},
+    "spec_check": {"const": "ok", "description": "What spec-check printed for the pass: hughes reports only on ok."},
+    "summary": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}, "description": "The entities and relations, or per component its contracts and properties, by id."},
+    "pbt_library": {"type": "string", "minLength": 1, "description": "Contracts pass only: whether the project has StreamData or Hypothesis."},
+    "open_questions": {"type": "array", "items": {"type": "string", "minLength": 1}}
+  }
+}

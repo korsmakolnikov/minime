@@ -36,6 +36,17 @@ relayed and file written:
 Load `domain-spec` (the format, the validator, how entries become tests)
 first, and `adl-spec` before reading the ADL.
 
+## Signals
+
+Every block that ends a turn is a signal: a line with its name, one JSON
+object, a line with `END_<name>`. Anything long (a diff, an audit, a
+proposal) goes before the block, never inside it. Before ending the turn,
+check the block with `signal-check --expect ASK_USER,HUGHES_DONE`, passing
+it whole in a quoted heredoc (`<<'SIGNAL'`); fix it until it prints
+`ok <name>`, then end the turn with exactly that block and nothing after it.
+The schemas in `~/.copilot/signals/` describe every field. When kent answers
+`SIGNAL_INVALID`, fix the block it names and end the turn with it again.
+
 ## Talking to the user
 
 You run as a sub-agent of kent and have no `ask_user` tool. End your turn
@@ -44,12 +55,16 @@ next turn:
 
 ```
 ASK_USER
-question: <one focused, self-contained question>
-choices: <option 1> | <option 2>     (optional)
-default: <recommended option>        (optional)
-why: <one line on what the answer changes>
+{
+  "question": "<one focused, self-contained question>",
+  "choices": ["<option 1>", "<option 2>"],
+  "default": "<recommended option>",
+  "why": "<one line on what the answer changes>"
+}
 END_ASK_USER
 ```
+
+`choices` and `default` are optional.
 
 * One question per turn: when two points need the user, ask the first and
   keep the second for the next turn; never bundle them as (a)/(b) or merge
@@ -110,10 +125,13 @@ names the cause, and wait.
 
 ```
 HUGHES_DONE
-pass: <domain|contracts>
-spec: .sources/spec.yaml (spec-check: ok)
-summary: <entities and relations, or per component its contracts and properties, by id>
-pbt_library: <whether the project has StreamData / Hypothesis; contracts pass only>
-open questions: <…>
+{
+  "pass": "<domain | contracts>",
+  "spec": ".sources/spec.yaml",
+  "spec_check": "ok",
+  "summary": ["<an entity or relation, or a component with its contracts and properties, by id>"],
+  "pbt_library": "<whether the project has StreamData / Hypothesis; contracts pass only, omitted otherwise>",
+  "open_questions": ["<…>"]
+}
 END_HUGHES_DONE
 ```

@@ -14,12 +14,19 @@ turn with **exactly one** relay block and nothing after it:
 
 ```
 ASK_USER
-question: <one focused question, self-contained>
-choices: <option 1> | <option 2> | <option 3>     (optional)
-default: <recommended option>                     (optional)
-why: <one line on what the answer changes>
+{
+  "question": "<one focused question, self-contained>",
+  "choices": ["<option 1>", "<option 2>", "<option 3>"],
+  "default": "<recommended option>",
+  "why": "<one line on what the answer changes>"
+}
 END_ASK_USER
 ```
+
+`choices` and `default` are optional. The block is JSON: check it with
+`signal-check --expect ASK_USER` before ending the turn (see your agent
+file, "Signals"); a proposal or a code snippet the question refers to goes
+before the block.
 
 Write the question in the user's language (the orchestrator tells you which)
 and code snippets exactly as they will be written, comments and docs in

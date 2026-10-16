@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SIMON_UPDATED",
+  "description": "simon's answer to each message from kent, once the documentation is written.",
+  "type": "object",
+  "required": ["event", "files", "changes", "open_points"],
+  "additionalProperties": false,
+  "properties": {
+    "event": {"type": "string", "pattern": "^(LAUNCH|SOURCES_CHANGED [a-z]+|FLOWCHART)$"},
+    "files": {"type": "array", "items": {"type": "string", "minLength": 1}, "description": "The files written."},
+    "changes": {"type": "array", "items": {"type": "string", "minLength": 1}, "description": "Elements, relationships and diagrams added, changed or removed."},
+    "open_points": {
+      "type": "object",
+      "required": ["count", "new"],
+      "additionalProperties": false,
+      "properties": {
+        "count": {"type": "integer", "minimum": 0},
+        "new": {"type": "array", "items": {"type": "string", "minLength": 1}}
+      }
+    }
+  }
+}
