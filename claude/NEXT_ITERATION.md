@@ -62,9 +62,9 @@ condividono le tre leggi e poco altro.
 | Fake it | esplicito e severo (il valore fisso è l'unica implementazione ammessa) | terza legge + triangolazione | comune: fake it severo **e** triangolazione |
 | Codice vietato | elenco (validazione, errori, default, docstring, log, type hint) | — | comune |
 | Budget di tentativi | un solo tentativo di correzione per passo | — | solo interattivo |
-| Refactor | sei sotto-passi proposti uno a uno (SOLID, complessità, idiomaticità, produzione, test, suite) | SOLID, produzione, test, `elixir-style`, controlli statici, refactor vuoto con il verdetto | interattivo: i sei sotto-passi, con i controlli statici in 4f e un refactor vuoto se nessuno committa; workflow: Copilot |
+| Refactor | sei sotto-passi proposti uno a uno (SOLID, complessità, idiomaticità, produzione, test, suite) | SOLID, produzione, test, `elixir-style`, controlli statici, refactor vuoto con il verdetto | i due moduli del ciclo per intero (helper privati del test compresi), mai il materiale di test condiviso (lo rivede martin); interattivo: cinque sotto-passi (4a–4e) e un refactor vuoto se nessuno committa |
 | Commit | `git commit` diretto, `test:`/`feat:`/`refactor:` senza scope | comando `linus`, fasi, scope, `check-message`, amend del red, regression, characterisation, fixup | `linus` in tutti e due i modi; lo scope si chiede in STEP 0 nel modo interattivo |
-| Suite completa | solo in 4f | dopo ogni green e ogni refactor; sistemi grandi solo test correlati | interattivo: 4f; workflow: Copilot; sistemi grandi in entrambi |
+| Test e controlli statici | suite in 4f | suite dopo ogni green e refactor; formatter prima di red e green; controlli a ogni ciclo; dialyzer a fine unità | mai la suite completa (la CI); dopo ogni commit i test che includono i file del commit; ai punti di chiusura (fine unità, fine correzione, STEP 5 interattivo) i test correlati al branch e i controlli della skill `<linguaggio>-static-checks` |
 | Precondizione "i test devono girare" | STEP 0 non lancia nulla | rifiuto categorico se non girano | comune: STEP 0 ora fa una prova |
 | Red che passa subito | STOP e chiede | characterisation (rompere l'asserzione, poi green vuoto) | interattivo: STOP; workflow: characterisation |
 | Solo Copilot | — | activity log, analisi statica a fine unità, sessioni di correzione, harness da kent, spec e PBT, interfacce come contratto, segnali | solo workflow |
@@ -85,6 +85,10 @@ finirebbero a martin invece che a kent: per ora no.
 - `claude/agents/unclebob.md` a due modi, comando `unclebob`.
 - `make install` installa agenti, skill (Claude e comuni), hook e comandi.
 
+- unclebob: test e controlli statici fuori dai cicli, skill comune
+  `elixir-static-checks` (campi `projects` e `tools`), confine del refactor
+  sui due moduli del ciclo; tolta la tabella "Large systems".
+
 ## Da fare
 
 1. Gli altri agenti, dal contenuto Copilot, con hook nel frontmatter e
@@ -95,6 +99,10 @@ finirebbero a martin invece che a kent: per ora no.
      l'hook); niente eventi a joshua, che legge `/tmp/kent-events.jsonl`.
    - **hughes**, **ford**, **martin**, **simon**: port quasi diretto; tolta
      la parte "controlla il blocco con signal-check" (lo fa l'hook).
+   - **martin**: rivede esplicitamente il materiale di test condiviso
+     (support, factory, harness) dell'unità, che unclebob non tocca nei
+     cicli; valutare se lancia lui i controlli statici
+     (`<linguaggio>-static-checks`) in review e li registra come modifiche.
    - **joshua**: audit sui transcript e su `/tmp/kent-events.jsonl` e
      `/tmp/kent-guard.jsonl`; checklist ridotta alle regole di giudizio.
    - **argyris** (`claude --agent argyris`) e una skill `minime-sync` per

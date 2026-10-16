@@ -102,3 +102,22 @@ Dalle iterazioni precedenti, ancora aperte:
    la whitelist dei container. Riusare la skill
    `datadog-experiment-downloader`. Il ciclo con deploy e confronto resta
    fuori: il workflow si ferma al commit.
+4. **Test e controlli statici fuori dai cicli** (fatto sul lato Claude, da
+   allineare qui: `claude/agents/unclebob.md`). L'utente ha già una versione
+   locale per il green su un branch dell'altra macchina: partire da quella.
+   - Mai la suite completa (la lancia la CI), nemmeno su crash: la tabella
+     "Large systems" sparisce. Dopo ogni commit di ciclo (green, regression,
+     refactor) solo i test che includono i file del commit; a ogni punto di
+     chiusura (fine unità, fine sessione di correzione) i test correlati al
+     branch.
+   - Formatter, linter e type checker (dialyzer) solo ai punti di chiusura,
+     mai nel ciclo né prima di red e green, tramite la skill del linguaggio
+     `common/skills/elixir-static-checks` (campi `projects` e `tools`).
+     Nella sessione di correzione, dopo l'ultima modifica di review.
+   - Il refactor del ciclo copre i due moduli del ciclo per intero, helper
+     privati del modulo di test compresi; il materiale di test condiviso
+     (support, factory, harness) non si tocca nel ciclo: lo rivede martin
+     con l'unità, e va detto esplicitamente in martin.
+   - joshua: aggiornare le regole sui controlli a ogni ciclo e sulla suite.
+   - Da decidere con l'utente: se i controlli statici li lancia martin in
+     review invece di unclebob.

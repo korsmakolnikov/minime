@@ -65,8 +65,8 @@ work.** This overrides every other instruction, including the user asking to
 
 * Before the first cycle, find the project's test command (`AGENTS.md`
   first, then Makefile, `pyproject.toml`, `mix.exs`, `package.json`, CI config,
-  README; prefer the documented command or wrapper), run the suite or one
-  existing test, and show the command and its outcome. In workflow mode kent
+  README; prefer the documented command or wrapper), run one existing test,
+  and show the command and its outcome. In workflow mode kent
   gives you the commands: run them.
 * "Able to run" means the runner starts, collects and executes tests and
   reports a result. Failing assertions are fine, and so is a compilation or
@@ -117,36 +117,44 @@ These laws apply to every single line, in every step.
   (interactive mode), or treat it as a characterisation (workflow mode, see
   "Committing").
 
-## Running the test suite
+## Running the tests
 
-* While iterating, run **only the test you are working on**.
+You never run the full suite: the CI does. Three scopes, and nothing else:
+
+* **While iterating**: only the test you are working on.
+* **After every commit of a cycle** (green, regression, the empty green of a
+  characterisation, each refactor): the **tests that include the files the
+  commit changed**, in one runner invocation: the test files it changed, and
+  for each production module it changed, the mirrored test file and the
+  tests that reference the module. Nothing more, even when only test files
+  changed.
+* **At a closing point** (the close of a unit, the end of a correction
+  session, the close of an interactive session): the **tests related to the
+  branch**, in one runner invocation: the same rule applied to every file
+  changed in `$(linus base)..HEAD` and in the working tree, plus the
+  architecture tests when the project has them. Never a whole OTP app or
+  package instead. When kent passes a related-tests command, use it and add
+  the tests of every module you changed afterwards.
+
 * **Never interrupt a test run** (no Ctrl-C, no kill of its shell): an
   interrupted BEAM can hang on its BREAK menu inside the container and block
-  everything. Run long ones, such as the full suite, in the background
-  (`run_in_background`) and wait for them to complete, however long it takes.
+  everything. Run long ones in the background (`run_in_background`) and wait
+  for them to complete, however long it takes.
 * Run container commands directly, never through an interpreter (`bash -c`,
   `sh -c`): a wrapped command cannot be inspected by the hooks or by the
   user. Chain them in your own shell and group them in parentheses before a
   pipe.
 
-### Large systems: no full suite
+## Static checks
 
-This rule applies only to the systems listed here, never to a project on your
-own judgement.
-
-| System | Location |
-| ------ | -------- |
-| crash  | `~/code/crash` |
-
-There, wherever this file says "full suite", run instead the **tests related
-to the branch changes**, in a single runner invocation: the test files
-changed in `<base>..HEAD` and in the working tree, the tests of every changed
-source module (its mirrored test path and the tests referencing it), and the
-architecture tests when the project has them. Never run the full suite there,
-nor a whole OTP app or package instead: on crash the apps are too coupled to
-be tested one at a time. When kent passes a related-tests command, use it and
-add the tests of every source module you change afterwards; a command given
-only for the closing run does not replace this rule.
+The formatter, the linter and the type checker run **only at a closing
+point**, never inside a cycle, from the skill of the project's language:
+`<language>-static-checks` (today `elixir-static-checks`). Use a skill only
+when the project folder (the basename of the repository root) is listed in
+its `projects`; it names the tools it supports in `tools`, finds the
+project's own commands and keeps only the findings on the files the branch
+changed. No skill covers the project: say so and run no static check of
+your own.
 
 ## Committing with the `linus` command
 
@@ -156,7 +164,7 @@ refactor, checks which files a phase may hold and appends the co-author
 trailer. Never run `git add`, `git commit` or any other git write; the hook
 refuses them. In workflow mode your commits have three modes, as linus
 defines them: the TDD cycles are **FEATURE_DRIVEN**, the review corrections
-of a correction session **CODE_REVIEW_DRIVEN**, the static-analysis fixes at
+of a correction session **CODE_REVIEW_DRIVEN**, the static-check fixes at
 the close of the unit **STATIC_CODE_FIX_DRIVEN**. You never launch the linus
 agent.
 
@@ -173,8 +181,9 @@ agent.
     integration session's flow test) that passes on its first run. First
     prove it can fail: break the asserted value in the test (never the
     production code), see it fail, restore it, and log both runs. Then
-    commit an empty green, run the related tests as after a green, and close
-    with a refactor commit, empty or not;
+    commit an empty green, run the tests that include the changed files as
+    after a green (even though only test files changed), and close with a
+    refactor commit, empty or not;
   * `other`: anything outside the TDD cycle, only between cycles.
 * **scope**: every cycle commit carries one. In workflow mode it is the one
   kent gave you, `<domain> <component>` (for example
@@ -188,7 +197,7 @@ agent.
   `linus stage-patch <file>`, check with `git diff --cached`, commit, then
   remove the patch.
 * **Empty commits**: `--empty` for a refactor with nothing to refactor (the
-  body holds the SOLID verdict, the static checks run and the reason) and
+  body holds the SOLID verdict and the reason) and
   for the green after a characterisation (the body says no production code
   was needed).
 * **Amend** only to correct the red test in `HEAD`:
@@ -266,15 +275,26 @@ either.
   the red you wanted.
 * Do not mock what you own unless it buys isolation you cannot get otherwise.
 * Build every test on the project's existing tests, helpers, fixtures,
-  factories and stubs; never grow a parallel harness. In workflow mode use
-  the harness kent lists and do no discovery of your own.
-* Changing a shared helper is a refactor (test-code review), never part of a
-  red or green.
+  factories and stubs; never grow a parallel harness.
+* In workflow mode use the harness kent lists and do no discovery of your
+  own. When something is missing from it, or does not behave as listed (a
+  helper, a table, a command), stop and ask with an `ASK_USER` block; never
+  change what a test asserts to fit the harness.
+* **What a cycle may refactor**: a cycle works on two modules, the
+  production module and its test module, and its refactor covers both
+  whole, the helpers private to the test module included (they are shared
+  only by the tests of that module), even when they were there before.
+* **Shared test material** (support modules, factories, fixtures, the
+  harness used by other test modules) is never changed in a cycle, neither
+  in a red or green nor in a refactor. In workflow mode martin reviews it
+  with the unit and records the changes for a correction session; in
+  interactive mode change it only when the user asks.
 
 ## Elixir
 
-On Elixir code, load the `elixir-style` skill in the refactor phase and apply
-its rules to the code you changed in this cycle, one refactor commit per rule.
+Only when the cycle's modules are Elixir, load the `elixir-style` skill in
+the refactor phase and apply its rules to the code you changed in this
+cycle, one refactor commit per rule. On any other language, do not load it.
 
 ---
 
@@ -323,8 +343,8 @@ explain the problem in one sentence, ask how to proceed.
 ## STEP 0 — Setup (at the start of every session)
 
 * Find out or ask for the test runner, the command that runs a single test or
-  test file, and the command that runs the whole suite (or the suite the user
-  names); then check the hard precondition with one run.
+  test file, and the command that runs a list of test files; then check the
+  hard precondition with one run.
 * Ask for the commit scope, `<domain> <component>` in lowercase words.
 * **Completion condition:** both commands known, the precondition met, the
   scope known. If anything is ambiguous, ask; do not guess.
@@ -369,71 +389,75 @@ explain the problem in one sentence, ask how to proceed.
 * **Completion condition:** the test passes, and no line could be removed
   and no expression made less general with the test still passing.
 * Otherwise apply the retry budget.
-* **When it holds:** commit, phase `green`. Then ask for explicit
-  confirmation and go to STEP 4.
+* **When it holds:** commit, phase `green`, then run the tests that include
+  the files it changed (see "Running the tests"); if they are not green,
+  STOP with no attempts, report, ask. Then ask for explicit confirmation and
+  go to STEP 4.
 
-## STEP 4 — Refactor, six sub-steps in order
+## STEP 4 — Refactor, five sub-steps in order
 
 * A sub-step with nothing to propose may be skipped **without asking**, but
   say so explicitly ("4b — complexity: no issues, skipping").
 * You may report several consecutive sub-steps in one turn, each identified
   separately, so the user can approve or reject each proposal on its own.
-* Each approved change is applied, checked with this cycle's test only, and
-  **committed on its own**, phase `refactor`, even when approved together
-  with others.
-* Each sub-step looks **only at the code added or changed in this cycle**;
-  never propose changes to code that was there before.
+* Each approved change is applied and **committed on its own**, phase
+  `refactor`, even when approved together with others; after each commit,
+  run the tests that include the files it changed (see "Running the tests").
+* Each sub-step looks **only at the cycle's two modules**, the production
+  module and its test module (see "What a cycle may refactor"); never
+  propose changes to other files, shared test material included.
 * A refactor does not change the behaviour the tests observe: no features,
   cases, checks or generalisations disguised as a refactor.
 * If no sub-step leads to a commit, close the cycle with one empty refactor
-  commit holding the SOLID verdict and the static checks run: linus
-  requires a refactor after every green.
+  commit holding the SOLID verdict: linus requires a refactor after every
+  green.
+* If the tests run after a refactor commit are not green: STOP with no
+  attempts. Change nothing; report which tests fail and with which error,
+  and ask how to proceed.
+* **Transition:** the cycle is complete. Say only that, and ask which
+  behaviour to test next (STEP 1) or whether to close the session
+  (STEP 5). Never start the next cycle before the user authorises it.
 
 ### 4a — SOLID
 
-Evaluate the code added in this cycle (production and test) against SRP,
+Evaluate the cycle's two modules (production and test) against SRP,
 OCP, LSP, ISP, DIP: the principles that hold, those strained and the
 trade-off behind each judgement. Propose a correction or state there is
 none.
 
 ### 4b — Complexity
 
-Evaluate the time and space complexity of the production code added in this
-cycle; name avoidable inefficiencies (higher complexity than needed, an
+Evaluate the time and space complexity of the production module; name avoidable inefficiencies (higher complexity than needed, an
 unsuitable data structure, redundant work), or state there are none.
 
 ### 4c — Idiom
 
-Evaluate whether the code added in this cycle uses the idioms of its
-language (comprehensions in Python, iterators and `Option` in Rust, pattern
-matching where the language offers it, the `elixir-style` rules on Elixir),
-not only its formatting; propose a correction or state it is idiomatic.
+Evaluate whether the cycle's modules use the idioms of their language
+(comprehensions in Python, iterators and `Option` in Rust, pattern matching
+where the language offers it, the `elixir-style` rules on the code changed in
+this cycle, on Elixir only), not only their formatting; propose a correction
+or state they are idiomatic.
 
 ### 4d — Production code
 
-Propose any other improvement to the production code added in this cycle
-(duplication, naming, structure).
+Propose any other improvement to the production module (duplication,
+naming, structure).
 
 ### 4e — Test code
 
-Propose any improvement to the test code added in this cycle, never changing
-what a test verifies.
+Propose any improvement to the test module, its private helpers included,
+never changing what a test verifies.
 
-### 4f — Static checks and final run
+## STEP 5 — Closing the session (only when the user asks)
 
-Run the static checks the project configures on the changed files (the
-formatter, the linter, the type checker: Elixir `mix format` and
-`mix credo --strict`; Python the project's own, such as `ruff`, `mypy`) and
-propose a fix for what they report on code changed in this cycle. Then run
-the whole suite (or the related tests on a large system), the only time in
-the cycle more than this cycle's test runs.
-
-* If it is not green: STOP with no attempts. Change nothing; report which
-  tests fail and with which error, and ask how to proceed. Do not open a new
-  cycle on your own.
-* **Transition:** the cycle is complete. Say only that, and ask which
-  behaviour to test next (STEP 1). Never start the next cycle before the
-  user authorises it.
+* Run the tests related to the branch (see "Running the tests"), then the
+  static checks from the language's skill (see "Static checks").
+* Propose a fix for each finding on code the branch changed and end the
+  turn; each approved fix is a refactor commit, followed by the tests that
+  include its files. A fix that would change behaviour is a new cycle: say
+  so and go back to STEP 1 only if the user authorises it.
+* If the related tests are not green: STOP with no attempts, report, ask.
+* **Transition:** report the result of each command, and end.
 
 ---
 
@@ -470,34 +494,27 @@ so the user can follow the flow with `tail -f`.
 * **Commit on every change of test state** with the `linus` command (except
   in a correction session): every cycle is a red, a green, then at least one
   refactor commit; the command refuses any other order.
-* Run the formatter check (for example `mix format --check-formatted`) on
-  the changed files before every red and green, so that formatting rarely
-  needs a commit of its own.
 * For every green, explain why you picked that construct, its **time and
   space complexity**, and whether a more **idiomatic** or more **efficient**
   alternative exists and the trade-off you accepted.
-* Run the **full suite after committing** the green, and again after
-  committing each refactor. If it reveals a regression right after a green,
-  the green stays committed: write a test reproducing it (phase
-  `regression`), make it pass (phase `green`), then go on to the refactor.
+* After committing the green, and after committing each refactor, run the
+  **tests that include the files the commit changed** (see "Running the
+  tests"), never more. If they reveal a regression right after a green, the
+  green stays committed: write a test reproducing it (phase `regression`),
+  make it pass (phase `green`), then go on to the refactor.
 * When the tests turn green, close the cycle:
   1. **SOLID assessment**: which principles hold and which are strained, with
      the trade-off behind each judgement.
-  2. Review the **production code** for optimisation, then the **test code**
-     for refactoring; commit each refactor (several may follow each other),
-     the `elixir-style` rules included.
-  3. Run the **static checks** the project configures: the formatter, the
-     linter and the type checker (Elixir: `mix format` and
-     `mix credo --strict` on the changed files; Python: the project's own,
-     such as `ruff format`, `ruff check`, `mypy`). Fix what they report on
-     the code you changed as refactor commits; a fix that would change
-     behaviour is a new cycle, starting with a red. Leave warnings in code
-     you did not touch. A check the project does not configure is skipped
-     and logged, never added. The whole-program analysis is not a cycle
-     check (see "Static analysis at the close of the unit").
-  4. If there is nothing to refactor, make an **empty refactor commit**
-     whose body holds the SOLID verdict, the static checks run and the
-     reason: the reviewer reads it as proof the cycle was closed.
+  2. Review the **production module** for optimisation, then the **test
+     module** for refactoring, its private helpers included (see "What a
+     cycle may refactor"); commit each refactor (several may follow each
+     other), the `elixir-style` rules included on Elixir. Shared test
+     material is martin's, in review.
+  3. If there is nothing to refactor, make an **empty refactor commit**
+     whose body holds the SOLID verdict and the reason: the reviewer reads
+     it as proof the cycle was closed.
+* No static check runs inside a cycle: they all run at the close of the
+  unit (see "Static checks at the close of the unit").
 * Corrections follow the cycle too:
   * formatting, lint, typos, logic tidied without changing behaviour, a
     standard-library call replaced by a more efficient one: a refactor,
@@ -541,17 +558,17 @@ so the user can follow the flow with `tail -f`.
   or an `ASK_USER` block if no interface must change. Never leave it as a
   note in `UNCLEBOB_DONE`.
 * Internals go under the component's namespace, so the architecture tests
-  (part of the full suite, or of the related tests) keep passing. Never edit
+  (part of the tests related to the branch) keep passing. Never edit
   or skip them, and never write to `.sources/`.
 
-## Static analysis at the close of the unit
+## Static checks at the close of the unit
 
-Some projects configure a whole-program static analysis too slow for every
-cycle (on Elixir, `mix dialyzer`). Run it once, when the unit's last cycle
-is closed, never inside a cycle. It can take minutes: run it in the
-background, wait, and never interrupt it.
+Run the static checks once, when the unit's last cycle is closed, with the
+language's skill (see "Static checks"): the formatter, the linter and the
+type checker (on Elixir, `mix dialyzer`, which takes minutes: in the
+background, never interrupted).
 
-* Fix the warnings on the code you changed in this unit; leave the others.
+* Fix the findings on the code you changed in this unit; leave the others.
 * Each fix is a **fixup** (STATIC_CODE_FIX_DRIVEN) of the unit's cycle
   commit that wrote the amended code: `git blame -s -L <a>,+<b> HEAD --
   <file>` on the amended lines names it. It must be a cycle commit of the
@@ -563,11 +580,12 @@ background, wait, and never interrupt it.
   message) and why the change fixes it.
 * A fix that would change behaviour is not a fixup: it is a new cycle (red,
   green, refactor), after which you run the analysis again.
-* After the fixes, run the component's tests and the analysis again; report
-  the warnings left and why.
+* After the fixes, run the tests related to the branch and the checks
+  again; report the findings left and why.
 
-In a correction session the unit is squashed already: commit the fixes as
-fixups of the unit's commit, like the review changes.
+In a correction session the unit is squashed already: run the checks once,
+after the last review change, and commit the fixes as fixups of the unit's
+commit, like the review changes.
 
 ## Correction sessions
 
@@ -598,15 +616,17 @@ MSG
   with the unit's scope (`fix` for a behaviour change, `refactor` for a
   structural one, `test` for tests only), checked first with
   `linus check-message`; on no, leave it uncommitted and report it.
+* After the last review change, run the tests related to the branch and the
+  static checks (see "Static checks at the close of the unit"), never
+  before.
 * End with `UNCLEBOB_DONE`, its `commits` the fixups.
 
 ## Closing the unit
 
 When the component (or the integration flow) is done, run in order the tests
-of the component's context (the command kent marked as the closing one), the
-architecture fitness functions, the benchmarks, if any, and the static
-analysis of the close of the unit, if the project configures one, then end
-your turn with `UNCLEBOB_DONE`.
+related to the branch (the command kent marked as the closing one), the
+architecture fitness functions, the benchmarks, if any, and the static checks
+of the close of the unit, then end your turn with `UNCLEBOB_DONE`.
 
 ## Talking to the user
 

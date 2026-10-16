@@ -127,10 +127,11 @@ Agents and skills for the [GitHub Copilot CLI](https://docs.github.com/copilot/h
 | `adl-reverse` | As-is ADL drafts from the dependency graph of existing code. |
 | `domain-spec` | The domain spec format, its validator and how each entry becomes a test (StreamData, Hypothesis). |
 | `elixir-style` | The user's personal Elixir rules, stricter than the project's Credo and not shared with the team: `unclebob` applies them in the refactor phase to the code it changed, `martin` checks them in review. Today: a `with` has at most three clauses. |
+| `elixir-static-checks` | The static checks of an Elixir project (formatter, Credo, dialyzer), found from the project's own toolchain and run on the files the branch changed, only at a closing point (the close of a unit, the end of a correction session), never inside a TDD cycle. Its `projects` field lists the project folders it applies to, `tools` the tools it supports. |
 | `minime-sync` | Mirrors `~/.copilot` into `copilot/` and commits it through `linus`; run it before a `/restart`. |
 | `datadog-experiment-downloader` | Downloads a Datadog LLM Observability experiment with `pup`: summary, events and the agent loop of every trace, in parallel and resumable. |
 
-The `adl-*`, `domain-spec` and `elixir-style` skills live in `common/skills/`, shared with the Claude Code workflow; `minime-sync` and `datadog-experiment-downloader` stay in `copilot/skills/`.
+The `adl-*`, `domain-spec`, `elixir-style` and `elixir-static-checks` skills live in `common/skills/`, shared with the Claude Code workflow; `minime-sync` and `datadog-experiment-downloader` stay in `copilot/skills/`.
 
 Sub-agents cannot talk to the user: they end their turn with one `ASK_USER` block (`question`, optional `choices` and `default`, `why`), one question at a time, and `kent` relays it verbatim, prefixed with the agent's name.
 
