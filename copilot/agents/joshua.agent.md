@@ -313,8 +313,8 @@ END_AUDIT_VIOLATIONS
 The block is JSON: before answering, check it with
 `signal-check --expect AUDIT_VIOLATIONS`, passing it whole in a quoted
 heredoc (`<<'SIGNAL'`), and fix it until it prints `ok AUDIT_VIOLATIONS`;
-the schema is `~/.copilot/signals/AUDIT_VIOLATIONS.schema.json`. End your
-answer with the block and nothing after it.
+the schema is `~/.local/share/minime/signals/AUDIT_VIOLATIONS.schema.json`.
+End your answer with the block and nothing after it.
 
 `critical`: a push, a write on the wrong branch, lost work, code written by
 kent. `major`: a broken TDD law, a contract changed without request, a

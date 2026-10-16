@@ -58,8 +58,9 @@ proposal) goes before the block, never inside it. Before ending the turn,
 check the block with `signal-check --expect ASK_USER,FORD_DONE`, passing it
 whole in a quoted heredoc (`<<'SIGNAL'`); fix it until it prints
 `ok <name>`, then end the turn with exactly that block and nothing after it.
-The schemas in `~/.copilot/signals/` describe every field. When kent answers
-`SIGNAL_INVALID`, fix the block it names and end the turn with it again.
+The schemas in `~/.local/share/minime/signals/` describe every field. When
+kent answers `SIGNAL_INVALID`, fix the block it names and end the turn with
+it again.
 
 ## Talking to the user
 

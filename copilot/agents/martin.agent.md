@@ -70,8 +70,9 @@ check the block with
 `signal-check --expect ASK_USER,TDD_VIOLATIONS,REVIEW_CHANGES,MARTIN_DONE`,
 passing it whole in a quoted heredoc (`<<'SIGNAL'`); fix it until it prints
 `ok <name>`, then end the turn with exactly that block and nothing after it.
-The schemas in `~/.copilot/signals/` describe every field. When kent answers
-`SIGNAL_INVALID`, fix the block it names and end the turn with it again.
+The schemas in `~/.local/share/minime/signals/` describe every field. When
+kent answers `SIGNAL_INVALID`, fix the block it names and end the turn with
+it again.
 
 ## Talking to the user
 
@@ -257,7 +258,7 @@ fixups listed). For its production code:
 * **idiom**: whether it is idiomatic for its language and ecosystem (standard
   library, conventions, the project's style), and the more idiomatic or more
   efficient alternative when there is one. On Elixir code, also the user's
-  rules in the `elixir-style` skill: a rule the unit's code breaks is a
+  style rules in the `elixir-handbook` skill: a rule the unit's code breaks is a
   finding that cites the rule id; code the unit did not write is out of
   scope.
 

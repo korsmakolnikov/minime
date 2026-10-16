@@ -2,13 +2,87 @@
 
 My Claude Code and GitHub Copilot CLI subagents and skills.
 
-- [unclebob](#unclebob) — subagent that drives TDD cycles.
-- [scaffold](#scaffold) — skill that bootstraps a new project (currently C).
-- [Copilot workflow](#copilot-workflow) — architecture-first workflow for the GitHub Copilot CLI.
+- [Architecture](#architecture) — how the pieces fit together.
+- [unclebob](#unclebob) — TDD agent, interactive on its own, autonomous in the workflow.
+- [Claude Code workflow](#claude-code-workflow) — the architecture-first workflow on Claude Code: agents, tools, hooks, `toolchain.yaml`.
+- [Copilot workflow](#copilot-workflow) — the same workflow on the GitHub Copilot CLI.
+- [Installation](#installation-1)
+
+# Architecture
+
+Keep these diagrams in step with the repository: update them in the same
+change that adds, removes or moves an agent, a skill, a tool, a hook or an
+install target, together with `INSTALLED` in the Makefile (`make
+clean-check` verifies it).
+
+What the repository holds and where `make` installs it:
+
+```
+ repository                                       make target        installed in
+ ──────────                                       ───────────        ────────────
+ common/   shared by both CLIs                    common-install
+   bin/      linus, spec-check, signal-check, toolchain, git-read,
+             shopping-list, session-state, flow-log, audit-log,
+             events-query, minime-migrate, adl-graph, scaffold ─────► ~/.local/bin/
+   lib/      minime/ (the tools' library, drivers, templates) ───► ~/.local/share/minime/lib/
+   signals/  *.schema.json ──────────────────────────────────────► ~/.local/share/minime/signals/
+   skills/   adl-*, domain-spec, domain-model, elixir-handbook,   install ──────► ~/.claude/skills/
+             python-handbook, python-scaffold, c-scaffold,        copilot-install ► ~/.copilot/skills/
+             workflow-files
+ claude/   Claude Code                            install
+   agents/   kent, hughes, ford, unclebob, martin, simon,
+             joshua, argyris, marvin, linus ─────────────────────► ~/.claude/agents/
+   hooks/    guard.py, signal_stop.py, flow_hook.py ─────────────► ~/.claude/minime/hooks/
+   bin/      unclebob ───────────────────────────────────────────► ~/.local/bin/
+ copilot/  GitHub Copilot CLI                     copilot-install
+   agents/   *.agent.md (9 agents) ──────────────────────────────► ~/.copilot/agents/
+   skills/   minime-sync, datadog-… ─────────────────────────────► ~/.copilot/skills/
+   hooks/    auto_approve.py, notify.py ─────────────────────────► ~/.copilot/hooks/
+   settings.json, copilot-instructions.md ───────────────────────► ~/.copilot/
+   bin/      kent, argyris ──────────────────────────────────────► ~/.local/bin/
+ tests/    the tools and the hooks                make test
+                                                  clean: removes all of it (INSTALLED)
+```
+
+How the agents work together on a project (Claude Code; the Copilot
+workflow is the same before its refactor, with hughes in two passes around
+ford and no marvin):
+
+```
+                                         user
+                          questions, approvals │ ▲ ASK_USER, relayed verbatim
+                                               ▼ │
+ ┌──────────────────────── kent: orchestrator, main thread (claude --agent kent) ──────────────────────┐
+ │ frames the work, scaffolds a new project, writes the shopping list and toolchain.yaml, launches    │
+ │ every agent with what it needs, relays its questions; never writes code                           │
+ └──┬──────────────┬───────────────┬───────────────┬──────────────┬────────────┬────────────┬─────────┘
+    │ 2            │ 1b, 3         │ 4, 5          │ 6, per unit  │ 7          │ background │ background
+    ▼              ▼               ▼               ▼              ▼            ▼            ▼
+ hughes          ford            unclebob        martin         marvin       simon        joshua
+ the domain:     as-is ADL,      TDD per         TDD audit,     AGENTS.md,   C4 and       audits every
+ entities,       target ADL,     component       squash,        CLAUDE.md    Mermaid      sub-agent turn
+ events, ops,    boundaries,     from the        review with                 class and    from transcripts
+ properties      interfaces,     inside out,     the user                    sequence     and hook logs
+ (reads no       components      then the        (test map,                  diagrams         │
+ code)           map, fitness    whole flow      shared test                     │            ▼
+    │              │               │  ▲          material)                       ▼      audit-log
+    ▼              ▼               │  └─────────────┘ REVIEW_CHANGES → kent   .documentation/   │
+ .sources/       .sources/*.adl,   ▼    → correction session (fixups)         <branch>/        ▼
+ spec.yaml       components.yaml  commits via linus                                       argyris, own
+    ▲              │                                                                     session: fixes
+    └──────────────┴── DOMAIN_CHANGE_REQUEST / INTERFACE_CHANGE_REQUEST, through kent    the agent files
+                                                                                         in minime
+ Numbers: kent's steps (1a scaffold, 1b shopping list and as-is ADL, 2 domain, 3 architecture,
+ 4 components, 5 flow, 6 review, 7 agent instructions).
+ Every agent: its shell runs only its tools (guard.py); every call is logged (flow_hook.py);
+ every sub-agent turn ends with a JSON signal block checked before kent sees it (signal_stop.py);
+ build, tests and checks through `toolchain`, as the language's handbook explains; git writes only
+ through linus; nobody pushes.
+```
 
 # unclebob
 
-Subagent for [Claude Code](https://code.claude.com) that drives Test-Driven Development cycles according to Robert C. Martin's Three Laws of TDD, as a step-by-step procedure with explicit completion conditions.
+Agent for [Claude Code](https://code.claude.com) that drives Test-Driven Development cycles according to Robert C. Martin's Three Laws of TDD, in two modes: **interactive** when you run it on its own (below: you design every test and approve every step), and **workflow** when kent launches it on a component (it works cycle after cycle from the interfaces and the domain spec, and reports with signal blocks; see [Claude Code workflow](#claude-code-workflow)).
 
 ## The Three Laws of TDD
 
@@ -27,24 +101,24 @@ Each cycle covers a single behavior and requires the user's explicit authorizati
 
 | Step | Phase | What it does | Commit |
 |------|-------|--------------|--------|
-| 0 | Setup | Identifies the runner and the commands for a single test / the full suite, without running them (at session start) | — |
+| 0 | Setup | Checks with `toolchain show` how the project builds and tests, runs one test to prove the tests run, asks for the commit scope | — |
 | 1 | Authorization | Asks the user which behavior to test | — |
 | 2 | Red | Writes a single test, runs it alone, verifies that it fails | `test:` |
-| 3 | Green | Writes the minimum code that makes that test pass | `feat:` |
+| 3 | Green | Writes the minimum code that makes that test pass, then runs the tests that include the changed files | `feat:` |
 | 4a | Blue | SOLID check | `refactor:` |
 | 4b | Blue | Time and space complexity check | `refactor:` |
 | 4c | Blue | Language idiomaticity check | `refactor:` |
 | 4d | Blue | Production code refactor proposal | `refactor:` |
 | 4e | Blue | Test code refactor proposal | `refactor:` |
-| 4f | Blue | Runs the full suite (only once per cycle); if it fails, stops and asks | — |
+| 5 | Close | Only on request: the tests related to the branch and the static checks of the language's handbook | `refactor:` |
 
 Cross-cutting rules:
 
-- Each step allows a single correction attempt beyond the first; typos, syntax errors and changes requested by the user do not count. Two cases allow no attempts and stop the procedure immediately: a test that already passes in the Red phase, and a red suite at step 4f. The agent never changes what a test verifies.
+- Each step allows a single correction attempt beyond the first; typos, syntax errors and changes requested by the user do not count. Two cases allow no attempts and stop the procedure immediately: a test that already passes in the Red phase, and tests that fail after a green or a refactor commit. The agent never changes what a test verifies.
 - The procedure is to be interpreted literally: when in doubt, the most restrictive reading applies, every proposal waits for approval before being applied, and every confirmation request ends the turn.
-- During the cycle only the current test runs; the full suite runs only at step 4f.
+- During the cycle only the current test runs, and after each commit the tests that include the files it changed. The full suite never runs: the CI runs it. Tests and static checks run through `toolchain`; the language's handbook skill (`elixir-handbook`, `python-handbook`) explains them.
 - Blue-phase sub-steps with nothing to propose are skipped with an explicit notice; multiple sub-steps may be submitted for confirmation in a single interaction, but each approved correction gets its own commit.
-- Commit messages follow Conventional Commits and never reference the state of the tests. `test:` describes the feature, `feat:` how it was implemented, `refactor:` the choices and the reasons. Each commit includes only the files touched in that step.
+- Every commit goes through the `linus` command, with the phase and the scope. Commit messages follow Conventional Commits and never reference the state of the tests. `test:` describes the feature, `feat:` how it was implemented, `refactor:` the choices and the reasons. Each commit includes only the files touched in that step.
 
 ## Installation
 
@@ -52,55 +126,107 @@ See [Installation](#installation-1) at the bottom.
 
 ## Usage
 
-Start the agent as the session's primary agent:
+Start the interactive mode as the session's main agent:
 
 ```sh
-claude --agent unclebob
+unclebob          # the same as claude --agent unclebob
 ```
 
-Do not use it as a delegated subagent (`@unclebob` from a regular session): the procedure stops to ask for confirmation many times per cycle, and a delegated subagent runs in an isolated context that cannot talk directly to the user.
+Do not delegate to it from a regular session (`@unclebob`): the procedure stops to ask for confirmation many times per cycle, and a delegated subagent cannot talk to you directly. Its hooks are active in both modes: its shell runs only its tools (`toolchain`, `linus`, `git-read`, …).
 
-# scaffold
+# Claude Code workflow
 
-Skill for [Claude Code](https://code.claude.com) that bootstraps a new project in the current directory: directory layout, build system, unit tests, README with CI badge, GitHub Actions CI, `git init` and an empty `start.` commit. It knows nothing about the project's domain; it only automates the tedious first steps. One language per invocation; new languages are added as `claude/skills/scaffold/<language>/templates/`.
+The architecture-first workflow, run by kent as the main thread:
 
-## Usage
-
-Create the project directory, start `claude` inside it and run:
-
-```
-/scaffold C
-```
-
-The skill asks for the project name and the language-specific options, renders the templates, runs `git init` + `git commit -m "start." --allow-empty`, then verifies with `make && make test`. The scaffolded files are **not** committed: that is up to you (or the primary agent). If the directory is already inside a git repository (monorepo), `git init` and the empty commit are skipped.
-
-Invocation is explicit only (`disable-model-invocation: true`): the primary agent never triggers it on its own.
-
-## Languages
-
-### C
-
-| Question | Default |
-|----------|---------|
-| Project name | directory basename |
-| C standard | 23 (latest) |
-| Target architecture | `uname -m` of the host (`i686` on `x86_64` is handled with `-m32`; other targets need a cross compiler via `CMAKE_FLAGS`) |
-| GitHub repository (`owner/name`, for the badge) | `gh api user` login + basename |
-
-Produces:
-
-```
-src/                      main.c + <name>.c
-include/<name>.h
-tests/test_<ident>.c      Unity
-Makefile                  make (build), make test, make run, make deps, make clean
-CMakeLists.txt            executable + static library + Unity via FetchContent (v2.6.1)
-README.md                 with the CI badge
-.github/workflows/ci.yml  make deps / make / make test in an ubuntu:latest container
-.gitignore
+```sh
+claude --agent kent       # the workflow, in the project's directory
+unclebob                  # unclebob alone, interactive (claude --agent unclebob)
+claude --agent argyris    # fixes the agent files from joshua's log, in ~/code/minime
+claude --agent linus      # commits for you, outside the workflow
+tail -f /tmp/kent-flow.log   # follow every agent's calls
 ```
 
-`make deps` installs gcc, make, cmake and git on Ubuntu/Debian (apt) and Arch (pacman). `C_STANDARD`, `TARGET_ARCH`, `BUILD_TYPE`, `BUILD_DIR` and `CMAKE_FLAGS` can be overridden on the `make` command line.
+kent frames the work and, on a new project, scaffolds it (`python-scaffold`,
+`c-scaffold`); on an existing one it writes the shopping list and has ford
+draft the as-is ADL. hughes writes the domain from the shopping list (it
+reads no code); ford the architecture, the interfaces and the components
+map; unclebob each component test-first, from the inside out, then the whole
+flow; martin audits, squashes and reviews each unit with you; marvin writes
+the project's `AGENTS.md` (and `CLAUDE.md`) at the end. joshua audits every
+turn and simon documents, in background. The agents' files are in
+`claude/agents/`; the plan and what is left are in `claude/NEXT_ITERATION.md`.
+
+## Tools instead of a shell
+
+No agent improvises shell commands: each runs only its own tools, the
+commands in `common/bin`, and `claude/hooks/guard.py` refuses anything else
+(and command substitution, unquoted heredocs, writes outside the agent's
+files). Reading goes through the Read tool, searching through `rg` (this
+Claude Code has no Grep or Glob tools).
+
+| Tool | What it does | Used by |
+|---|---|---|
+| `toolchain` | build, the tests to run (one, a commit's files, the branch's: never the full suite), the static checks | unclebob, ford, martin |
+| `linus` | every git write: the TDD phases, fixups, squash, partial staging (`hunks`, `stage-hunks`) | unclebob, ford, martin, marvin, argyris, linus |
+| `git-read` | read-only git (`{base}` stands for the branch's base) | everyone but hughes |
+| `spec-check` | the spec (`domain`), ford's components map (`realization`), the spec ids the tests cite (`coverage`) | hughes, ford, unclebob, martin, joshua |
+| `shopping-list` | the branch's shopping list (kent writes, the others read) | kent, all |
+| `scaffold` | a new project from the language's templates, `git init`, `toolchain.yaml` | kent |
+| `adl-graph` | the dependency graph for the as-is ADL, in the container if any | ford |
+| `minime-migrate` | brings a project's workflow files to the current layout | kent, `make update` |
+| `session-state` | kent's progress, to resume a session | kent |
+| `events-query` | the sub-agent turns, their transcripts, the guard's refusals | joshua, argyris |
+| `audit-log` | joshua's violation log: append, pending, handled, archive | joshua, argyris |
+| `flow-log` | a line in the activity log | everyone |
+
+## Hooks
+
+Declared in each agent's frontmatter, active only while that agent runs:
+
+* `guard.py <agent>` (PreToolUse): the agent's tools and files.
+* `flow_hook.py <agent>` (PostToolUse): one line per call in
+  `/tmp/kent-flow.log`.
+* `signal_stop.py --expect …` (Stop, SubagentStop for a sub-agent): the
+  turn's final signal block is checked with `signal-check`; an invalid one
+  goes back to the agent, which ends its turn again. Every check is logged
+  in `/tmp/kent-events.jsonl` for joshua.
+
+## toolchain.yaml
+
+How the project builds, tests and checks, at the project's root.
+`scaffold` writes it for a new project, kent for an existing one;
+`toolchain show` prints what will run. Like the other workflow files it is
+versioned on Claude Code and never on Copilot (below).
+
+```yaml
+toolchain: 1
+language: elixir                  # elixir | python: the driver
+exec: [edgar, exec, crash]        # prefix of every command (a container wrapper)
+exec_stdin: [docker, exec, -i, crash]   # the same with stdin open (adl-graph)
+env: {MIX_ENV: test}              # extra environment
+commands:                         # replace a driver command; {paths} expands to the paths
+  test: [make, test, "ARGS={paths}"]
+architecture_tests: [test/architecture]
+```
+
+Without it, the language is detected (`mix.exs`, `pyproject.toml`) and the
+driver's defaults run on the host. The languages' knowledge (test layout,
+property-based testing, doubles and contract tests, style rules) is in the
+handbooks: `elixir-handbook`, `python-handbook`.
+
+## The workflow's files
+
+`.sources/` (shopping lists, `spec.yaml`, the ADL, `components.yaml`),
+`.documentation/<branch>/` (simon), `toolchain.yaml` and the logs in `/tmp`
+are the workflow's control centre; the `workflow-files` skill says who
+writes and reads each.
+
+* **Claude Code** (personal and open-source projects): versioned. The
+  agents write them and kent commits them with `linus`, only between units
+  (`docs(workflow): …`), so none falls inside a unit martin squashes.
+* **Copilot** (code shared with colleagues): never committed. `make update`
+  adds them to that machine's global git ignore (`minime-migrate
+  --ignore-workflow-files`) and `linus` refuses them there.
 
 # Copilot workflow
 
@@ -110,10 +236,10 @@ Agents and skills for the [GitHub Copilot CLI](https://docs.github.com/copilot/h
 |-------|------|
 | `kent` | Orchestrator, run as the main agent. Studies the code, writes the preliminary findings (every unknown of the iteration) to `.sources/shopping_lists/<branch>.md`, runs `hughes` for the domain, `ford`, `hughes` again for the contracts, then `unclebob` one component at a time and the functional test, with `martin` reviewing and squashing each unit as soon as it is written, relays their questions to the user, keeps `joshua` informed and forwards every change of the sources to `simon`. Never writes code or commits. Every agent logs to `/tmp/kent-flow.log`, each line tagged with the agent's name. |
 | `joshua` | Auditor, on `claude-sonnet-5.5`. Runs in background beside `kent` for the whole session and checks every agent against its file and launch prompt. `kent` never waits for it: it notes launches and relayed answers, and audits each agent's whole block when the agent reports; `kent` reads its answers at its checkpoints. Read-only: violations never stop the workflow; `kent` prints them, and `joshua` logs them, with `martin`'s TDD violations and every permission prompt `joshua` itself caused, to `/tmp/joshua.log` for `argyris`. |
-| `hughes` | Interviews the user to write the domain spec, `.sources/spec.yaml`, validated by the `spec-check` command in `copilot/bin/`: entities, relations and constraints before `ford`; the contracts of the component operations and the properties for property-based tests after it. `unclebob` turns each entry into a red test. |
+| `hughes` | Interviews the user to write the domain spec, `.sources/spec.yaml`, validated by the `spec-check` command in `common/bin/`: entities, relations and constraints before `ford`; the contracts of the component operations and the properties for property-based tests after it. `unclebob` turns each entry into a red test. |
 | `ford` | Interviews the user to write the ADL, then generates fitness functions, scaffold and component interfaces. No business logic. Commits its work itself with the `linus` command (phase `architecture`). |
 | `unclebob` | Implements the internals test-first, one red test at a time: every cycle is a red commit, a green commit and at least one refactor commit (empty when there is nothing to refactor). Refuses to work when the tests cannot run. Treats `ford`'s interfaces as a contract. Commits everything itself with the `linus` command, without launching an agent per commit: its cycles (`FEATURE_DRIVEN`), the review corrections of a correction session as fixups of the unit's commit (`CODE_REVIEW_DRIVEN`) and its static-analysis fixups at the close of a unit (`STATIC_CODE_FIX_DRIVEN`). |
-| `linus` | The `linus` command in `copilot/bin/` is the only write path to git: it records each commit's phase, refuses any order other than red, green, refactor, writes fixups, appends the Copilot co-author trailer naming the model, and squashes a unit only when the range is exactly that unit and its cycle is closed. Every workflow agent runs it itself for its own work; the `linus` agent (`claude-sonnet-5.5`) is for commits outside the workflow (`copilot --agent linus`), and its file defines the rules and the three modes, by the kind of work: `FEATURE_DRIVEN` (the TDD cycles and `ford`'s architecture), `CODE_REVIEW_DRIVEN` (the review corrections to a squashed unit, fixups of the unit's commit) and `STATIC_CODE_FIX_DRIVEN` (fixups of the unit's commits for the static-analysis warnings found when the unit is done, folded into the unit by its squash). |
+| `linus` | The `linus` command in `common/bin/` is the only write path to git: it records each commit's phase, refuses any order other than red, green, refactor, writes fixups, appends the co-author trailer naming the CLI (Copilot or Claude, from `LINUS_COAUTHOR` or the `CLAUDECODE` variable) and the model, and squashes a unit only when the range is exactly that unit and its cycle is closed. Every workflow agent runs it itself for its own work; the `linus` agent (`claude-sonnet-5.5`) is for commits outside the workflow (`copilot --agent linus`), and its file defines the rules and the three modes, by the kind of work: `FEATURE_DRIVEN` (the TDD cycles and `ford`'s architecture), `CODE_REVIEW_DRIVEN` (the review corrections to a squashed unit, fixups of the unit's commit) and `STATIC_CODE_FIX_DRIVEN` (fixups of the unit's commits for the static-analysis warnings found when the unit is done, folded into the unit by its squash). |
 | `martin` | Reviewer, run after every unit `unclebob` writes: each component, then the final functional test, and each correction to a squashed unit. First audits from the commits that the unit was built test-first, logs every incoherence through `joshua` for `argyris` and shows the user the whole audit, commit by commit, cycle by cycle; only once the user approves it, squashes the unit into one commit with `linus squash`; then reviews that commit (SOLID, complexity, idiom, outcomes of every called function, spec coverage) and walks the user through its diff, file by file. The requested changes are applied by the unit's agent, which commits each as a fixup of the unit's commit; `martin` reviews those fixups in the next iteration and never commits anything but the squash. The workflow ends with the review of the functional test. |
 | `simon` | Architecture documenter. Runs in background beside `kent` for the whole session: whenever `ford` or `hughes` change the sources, writes for the user, in `.documentation/<branch>/`, a [Structurizr](https://structurizr.com) DSL workspace of the C4 model and `architecture.md`, with the domain model, the component interfaces, the architecture rules, the contracts and the sequence diagrams in Mermaid. Every element cites its source, and `joshua` checks that nothing diverges from what `ford` and `hughes` wrote. Flowcharts only on request. |
 | `argyris` | Maintainer of the agent files. Runs in a session of its own (the `argyris` launcher in `copilot/bin/`), before `kent` on the backlog or beside it in another terminal, so `kent` never restarts. Reads the violations pending in `/tmp/joshua.log`, proposes a fix to the agent and skill files for each, applies the approved ones, mirrors them here and appends a `HANDLED <id>` line for each one settled; once nothing is pending, archives the log. Started again after a stop, it resumes from the violations still pending. Changes reach each agent at its next launch. |
@@ -126,13 +252,15 @@ Agents and skills for the [GitHub Copilot CLI](https://docs.github.com/copilot/h
 | `adl-scaffold` | Namespaces and interfaces, without logic. |
 | `adl-reverse` | As-is ADL drafts from the dependency graph of existing code. |
 | `domain-spec` | The domain spec format, its validator and how each entry becomes a test (StreamData, Hypothesis). |
-| `elixir-style` | The user's personal Elixir rules, stricter than the project's Credo and not shared with the team: `unclebob` applies them in the refactor phase to the code it changed, `martin` checks them in review. Today: a `with` has at most three clauses. |
+| `elixir-handbook` | How to work on an Elixir project, shared by every agent: finding its toolchain, building it, running one test, the tests that include a file and the tests related to a branch (never the full suite), the static checks (formatter, Credo, dialyzer) at closing points only, and the user's personal style rules, stricter than the project's Credo (today: a `with` has at most three clauses). Its `projects` field lists the project folders it applies to, `tools` the tools it supports. One `<language>-handbook` per language. |
 | `minime-sync` | Mirrors `~/.copilot` into `copilot/` and commits it through `linus`; run it before a `/restart`. |
 | `datadog-experiment-downloader` | Downloads a Datadog LLM Observability experiment with `pup`: summary, events and the agent loop of every trace, in parallel and resumable. |
 
+The `adl-*`, `domain-spec` and `elixir-handbook` skills live in `common/skills/`, shared with the Claude Code workflow; `minime-sync` and `datadog-experiment-downloader` stay in `copilot/skills/`.
+
 Sub-agents cannot talk to the user: they end their turn with one `ASK_USER` block (`question`, optional `choices` and `default`, `why`), one question at a time, and `kent` relays it verbatim, prefixed with the agent's name.
 
-Every block that ends an agent's turn is a signal: a line with its name, one JSON object and a line with `END_<name>`, while diffs and long reports stay in the text before it. Each signal (`ASK_USER`, `HUGHES_DONE`, `FORD_DONE`, `INTERFACE_CHANGE_REQUEST`, `UNCLEBOB_DONE`, `TDD_VIOLATIONS`, `REVIEW_CHANGES`, `MARTIN_DONE`, `SIMON_UPDATED`, `AUDIT_VIOLATIONS`) has a JSON Schema in `copilot/signals/`. The `signal-check` command in `copilot/bin/` validates a block against it, without dependencies: it supports only the subset of JSON Schema the signals use and refuses a schema with any other keyword; it also requires a single block at the end of the text and no template placeholder (`"<…>"`) left in place. Each agent checks its block before ending its turn, and `joshua` checks again every block in `events.jsonl` when it audits the agent: a block that fails is a `major` violation. `kent` reads the fields by name and sends `SIGNAL_INVALID` back for a block it cannot read.
+Every block that ends an agent's turn is a signal: a line with its name, one JSON object and a line with `END_<name>`, while diffs and long reports stay in the text before it. Each signal (`ASK_USER`, `HUGHES_DONE`, `FORD_DONE`, `INTERFACE_CHANGE_REQUEST`, `UNCLEBOB_DONE`, `TDD_VIOLATIONS`, `REVIEW_CHANGES`, `MARTIN_DONE`, `SIMON_UPDATED`, `AUDIT_VIOLATIONS`) has a JSON Schema in `common/signals/`. The `signal-check` command in `common/bin/` validates a block against it, without dependencies: it supports only the subset of JSON Schema the signals use and refuses a schema with any other keyword; it also requires a single block at the end of the text and no template placeholder (`"<…>"`) left in place. Each agent checks its block before ending its turn, and `joshua` checks again every block in `events.jsonl` when it audits the agent: a block that fails is a `major` violation. `kent` reads the fields by name and sends `SIGNAL_INVALID` back for a block it cannot read.
 
 Start with `kent` (the launcher in `copilot/bin/`: `copilot --agent kent` plus `--add-dir` for the root of the repository it starts in, `~/.copilot` and `~/code/minime`, since reaching them otherwise asks for path access, which the permission hook cannot answer; other options pass through), or `copilot --agent unclebob` for a plain TDD session. Follow the whole flow with `tail -f /tmp/kent-flow.log`. Run `argyris` (same launcher shape) whenever you want to fix the agent files: before `kent`, on the violations left by earlier sessions, or beside it in another terminal.
 
@@ -157,9 +285,16 @@ The names:
 Requires `make` and the `claude` CLI in your `PATH`. Works on any distribution (tested on Arch and Ubuntu): the Makefile copies agents into `~/.claude/agents/` and skills into `~/.claude/skills/`.
 
 ```sh
-make install     # installs all agents in claude/agents/ and all skills in claude/skills/
+make install     # common-install, then the agents, skills and hooks of claude/ and the shared skills
 make uninstall   # removes them
 make reinstall   # uninstall + install
+make clean       # removes everything any target installed, for both CLIs, old names included;
+                 # missing paths are skipped (make clean && make install-copilot starts afresh)
+make clean-check # fails if the repository installs something clean does not know about
+make test        # the tests of the tools and the hooks (tests/)
+make structurizr-install  # structurizr-cli for simon (Java from the distribution)
+make claude-cli  # installs Claude Code, if missing (Arch Linux, Ubuntu)
+make copilot-cli # installs the Copilot CLI, if missing (Node.js from the distribution)
 make list        # lists the installed agents and skills
 make check       # checks that the claude CLI is available
 ```
@@ -167,9 +302,11 @@ make check       # checks that the claude CLI is available
 For the Copilot workflow:
 
 ```sh
-make copilot-install   # installs or overwrites agents, skills, signal schemas and hooks
-                       # in ~/.copilot/, settings and copilot-instructions.md in ~/.copilot/
-                       # and linus, kent, argyris, spec-check and signal-check in ~/.local/bin/
+make common-install    # installs the tools (common/bin/) in ~/.local/bin/, their library and
+                       # the signal schemas in ~/.local/share/minime/, shared by both workflows
+make copilot-install   # (or install-copilot) common-install, then agents, skills and hooks in ~/.copilot/,
+                       # settings and copilot-instructions.md in ~/.copilot/
+                       # and the kent and argyris launchers in ~/.local/bin/
 ```
 
 The hooks in `copilot/hooks/` keep the agents unattended:

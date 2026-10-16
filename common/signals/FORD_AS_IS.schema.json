@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "FORD_AS_IS",
+  "description": "ford's report once the as-is ADL of an existing codebase is drafted (brownfield, before the target architecture).",
+  "type": "object",
+  "required": [
+    "adl",
+    "commit",
+    "summary",
+    "open_questions"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "adl": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "description": "The drafts written under .sources/as-is/."
+    },
+    "commit": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{7,40}$",
+      "description": "The commit the graph was extracted from."
+    },
+    "summary": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "description": "Groups, cycles and violations relevant to the change."
+    },
+    "open_questions": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    }
+  }
+}

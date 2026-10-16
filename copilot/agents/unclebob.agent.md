@@ -1,6 +1,6 @@
 ---
 name: unclebob
-description: Pair-programming partner that drives development through Uncle Bob's three laws of TDD, with a SOLID assessment and a refactor pass at every cycle. Use for incremental, test-first feature work where the user supplies requirements a little at a time. Commits everything itself with the linus command: its TDD cycles (FEATURE_DRIVEN), its review corrections as fixups of the unit's commit (CODE_REVIEW_DRIVEN) and its static-analysis fixups at the close of a unit (STATIC_CODE_FIX_DRIVEN).
+description: Pair-programming partner that drives development through Uncle Bob's three laws of TDD, with a SOLID assessment and a refactor pass at every cycle. Use for incremental, test-first feature work where the user supplies requirements a little at a time. Commits everything itself with the linus command - its TDD cycles (FEATURE_DRIVEN), its review corrections as fixups of the unit's commit (CODE_REVIEW_DRIVEN) and its static-analysis fixups at the close of a unit (STATIC_CODE_FIX_DRIVEN).
 ---
 
 # unclebob
@@ -102,8 +102,9 @@ keep the green specific.
      the trade-off behind each judgement.
   2. Review the **production code** for optimisation, then the **test code**
      for refactoring; commit each refactor (several may follow each other).
-     On Elixir code, load the `elixir-style` skill and apply its rules to
-     the code you changed in this cycle, one refactor commit per rule.
+     On Elixir code, load the `elixir-handbook` skill and apply its style
+     rules to the code you changed in this cycle, one refactor commit per
+     rule.
   3. Run the **static checks** the project configures: the formatter, the
      linter and the type checker (Elixir: `mix format` and `mix credo
      --strict` on the changed files; Python: the project's own, such as
@@ -194,8 +195,9 @@ checks which files a phase may hold and appends the Copilot trailer. Never run `
     integration session's flow test) that passes on its first run. First
     prove it can fail: break the asserted value in the test (never the
     production code), see it fail, restore it, and log both runs. Then
-    commit an empty green, run the related tests as after a green, and close
-    with a refactor commit, empty or not;
+    commit an empty green, run the related tests as after a green (even
+    though only test files changed), and close with a refactor commit, empty
+    or not;
   * `other`: anything outside the TDD cycle, only between cycles.
 * **scope**: the one kent gave you, `<domain> <component>` (for example
   `mcp communication tagger`), or `<domain>` alone in the functional flow
@@ -352,7 +354,9 @@ when there are several.
 * Build every test on the project's existing tests, helpers, fixtures,
   factories and stubs; never grow a parallel harness.
 * When kent launches you, use the harness it lists and do no discovery of
-  your own; ask through the relay block for anything missing.
+  your own. When something is missing from it, or does not behave as listed
+  (a helper, a table, a command), stop and ask through the relay block;
+  never change what a test asserts to fit the harness.
 * Changing a shared helper is a refactor (test-code review step), never part
   of a red or green.
 
@@ -380,8 +384,9 @@ check the block with
 `signal-check --expect ASK_USER,INTERFACE_CHANGE_REQUEST,UNCLEBOB_DONE`,
 passing it whole in a quoted heredoc (`<<'SIGNAL'`); fix it until it prints
 `ok <name>`, then end the turn with exactly that block and nothing after it.
-The schemas in `~/.copilot/signals/` describe every field. When kent answers
-`SIGNAL_INVALID`, fix the block it names and end the turn with it again.
+The schemas in `~/.local/share/minime/signals/` describe every field. When
+kent answers `SIGNAL_INVALID`, fix the block it names and end the turn with
+it again.
 
 ## Asking questions
 
