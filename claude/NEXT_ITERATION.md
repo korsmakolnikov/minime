@@ -145,6 +145,7 @@ source, si versionano:
 - `minime-migrate` tocca il gitignore globale solo con
   `--ignore-workflow-files` (lo passa `make update`, lato Copilot);
 - marvin può indicarli in `AGENTS.md`.
+- La versione LangGraph deciderà a runtime, con un flag.
 
 ## Da fare
 

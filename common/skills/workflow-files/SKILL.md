@@ -1,6 +1,6 @@
 ---
 name: workflow-files
-description: The control files of the agentic workflow - .sources/ (ADL, spec, components map, shopping lists), .documentation/, toolchain.yaml and the logs under /tmp - who writes each, who reads it, and why none of them is versioned. Load it before reading or writing any of them, or when a project's layout looks out of date.
+description: The control files of the agentic workflow - .sources/ (ADL, spec, components map, shopping lists), .documentation/, toolchain.yaml and the logs under /tmp - who writes each, who reads it, and why they are versioned on Claude Code and never on Copilot. Load it before reading or writing any of them, or when a project's layout looks out of date.
 ---
 
 # workflow-files
