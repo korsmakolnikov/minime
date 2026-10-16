@@ -193,11 +193,10 @@ Declared in each agent's frontmatter, active only while that agent runs:
 
 ## toolchain.yaml
 
-How the project builds, tests and checks, at the project's root. It is
-**never versioned**: the global git ignore lists it (`minime-migrate` adds
-it, with `.sources/` and `.documentation/`), and marvin never mentions it in
-`AGENTS.md`. `scaffold` writes it for a new project, kent for an existing
-one; `toolchain show` prints what will run.
+How the project builds, tests and checks, at the project's root.
+`scaffold` writes it for a new project, kent for an existing one;
+`toolchain show` prints what will run. Like the other workflow files it is
+versioned on Claude Code and never on Copilot (below).
 
 ```yaml
 toolchain: 1
@@ -219,8 +218,15 @@ handbooks: `elixir-handbook`, `python-handbook`.
 
 `.sources/` (shopping lists, `spec.yaml`, the ADL, `components.yaml`),
 `.documentation/<branch>/` (simon), `toolchain.yaml` and the logs in `/tmp`
-are the workflow's control centre, and none is versioned: the
-`workflow-files` skill says who writes and reads each.
+are the workflow's control centre; the `workflow-files` skill says who
+writes and reads each.
+
+* **Claude Code** (personal and open-source projects): versioned. The
+  agents write them and kent commits them with `linus`, only between units
+  (`docs(workflow): …`), so none falls inside a unit martin squashes.
+* **Copilot** (code shared with colleagues): never committed. `make update`
+  adds them to that machine's global git ignore (`minime-migrate
+  --ignore-workflow-files`) and `linus` refuses them there.
 
 # Copilot workflow
 

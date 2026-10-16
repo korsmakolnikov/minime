@@ -48,7 +48,8 @@ every shell command with `[simon]`.
 * **Facts only.** Every element, relationship and message cites its source.
   Never invent a component, a relationship, a call or an error to make a
   diagram look complete: leave it out and list the gap under "Open points".
-* `.documentation/` is never committed. **No agent ever pushes.** You never
+* You never commit: kent commits `.documentation/` with the workflow's
+  other files, between units. **No agent ever pushes.** You never
   ask the user anything: you only answer kent.
 * No flowcharts unless kent forwards a request of the user's.
 

@@ -39,6 +39,10 @@ SEPARATORS = {";", "&&", "||", "|", "&", "(", ")", "|&"}
 LINUS_READS = {"base", "range", "next", "check-message", "hunks", "--help", "-h", "help"}
 MINIME = "~/code/minime"
 
+# The workflow's own files, versioned on Claude Code (see workflow-files).
+WORKFLOW_FILES = ["repo:.sources/", "repo:.documentation/", "repo:toolchain.yaml"]
+LINUS_VALUE_FLAGS = {"--phase", "--model", "-F", "--scope", "--from", "--target"}
+
 # Tool -> the subcommands allowed (None: any). Shared by most agents.
 COMMON = {"flow-log": None, "git-read": None, "rg": None}
 RG_REFUSED = ("--pre", "-z", "--search-zip")
@@ -57,7 +61,9 @@ AGENTS = {
     "kent": {
         "tools": {**COMMON, "shopping-list": None, "session-state": None, "scaffold": None,
                   "minime-migrate": None, "toolchain": {"show", "related"}, "spec-check": None},
-        "linus": set(),
+        # kent commits the workflow's files between units, and nothing else
+        "linus": {"stage", "commit"},
+        "linus_paths": WORKFLOW_FILES,
         "edit": ["repo:toolchain.yaml"],
     },
     "hughes": {
@@ -244,6 +250,24 @@ def strip_prefixes(words):
     return words
 
 
+def check_linus_paths(agent, rules, args, cwd, root):
+    paths, skip = [], False
+    for arg in args:
+        if skip:
+            skip = False
+        elif arg in LINUS_VALUE_FLAGS:
+            skip = True
+        elif not arg.startswith("-"):
+            paths.append(arg)
+    if not paths:
+        raise Deny(f"{agent} commits only named paths: {readable(rules['linus_paths'])}.")
+    places = [place(s, root) for s in rules["linus_paths"]]
+    for path in paths:
+        full = os.path.normpath(os.path.join(cwd, os.path.expanduser(path)))
+        if not any(p is not None and inside(full, p) for p in places):
+            raise Deny(f"{agent} may commit only {readable(rules['linus_paths'])}, not {path}.")
+
+
 def same_prefix(words, entry):
     want = [os.path.expanduser(w) for w in entry.split()]
     have = [os.path.expanduser(w) for w in words[:len(want)]]
@@ -282,6 +306,8 @@ def check_bash(agent, rules, command, cwd, root):
                 if sub not in LINUS_READS and sub not in rules["linus"]:
                     allowed = ", ".join(sorted(rules["linus"])) or "none"
                     raise Deny(f"{agent} may not run linus {sub}: its linus writes are {allowed}.")
+                if sub not in LINUS_READS and "linus_paths" in rules:
+                    check_linus_paths(agent, rules, words[2:], cwd, root)
             elif tools[name] is not None and sub not in tools[name] and sub not in ("-h", "--help"):
                 raise Deny(f"{agent} may run {name} only as: {', '.join(sorted(tools[name]))}.")
         for path in targets:

@@ -130,6 +130,22 @@ finirebbero a martin invece che a kent: per ora no.
     `minime-migrate`;
   - `tests/`: 21 test su guard e tool, tutti verdi.
 
+## Decisione del 17 ottobre: i file del flusso si versionano su Claude Code
+
+Su Copilot `.sources/`, `.documentation/` e `toolchain.yaml` restano fuori
+da git (codice aziendale condiviso con colleghi ignari dell'esperimento). Su
+Claude Code, dove ci saranno solo strumenti personali e per lo più open
+source, si versionano:
+
+- kent li committa (`docs(workflow): …`, fase `other`) solo tra un'unità e
+  l'altra: prima del primo unclebob, dopo ogni `MARTIN_DONE`, alla fine; il
+  guard gli permette `linus stage/commit` solo su quei percorsi;
+- `linus` li rifiuta solo su Copilot; `linus squash` ignora le loro
+  modifiche non in stage;
+- `minime-migrate` tocca il gitignore globale solo con
+  `--ignore-workflow-files` (lo passa `make update`, lato Copilot);
+- marvin può indicarli in `AGENTS.md`.
+
 ## Da fare
 
 0. **Per il 17 ottobre: il ruolo di argyris e come chiudere il loop

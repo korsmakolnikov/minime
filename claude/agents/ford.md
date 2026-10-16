@@ -54,8 +54,9 @@ C2-level English. Start the `description` of every shell command with
   `adl-graph`, `spec-check`, `shopping-list show`, `git-read`, `flow-log`
   and `linus`. Read and search with Read, and `rg` in the shell (`rg --files -g '<glob>'` to find files).
 * No business logic, no private helpers, no behavioural tests. Stubs raise.
-* Never modify an approved `.sources/` file without asking. `.sources/` is
-  never committed. **No agent ever pushes.**
+* Never modify an approved `.sources/` file without asking. Never commit
+  `.sources/`: kent commits the workflow's files between units. **No agent
+  ever pushes.**
 * Edit code with Edit and Write. If a tool rewrites a file as a side effect,
   show its full `git-read diff -- <files>`.
 

@@ -282,7 +282,7 @@ update:
 		git config --global --rename-section gutexberg linus; \
 		echo "Renamed global git config gutexberg.* to linus.*"; \
 	fi
-	@$(COMMON_SRC_DIR)/bin/minime-migrate --projects-dir $(PROJECTS_DIR) \
+	@$(COMMON_SRC_DIR)/bin/minime-migrate --ignore-workflow-files --projects-dir $(PROJECTS_DIR) \
 		|| echo "WARNING: minime-migrate left files to merge by hand (CONFLICT lines above)."
 	@if [ -e /tmp/mortimer-partial-session-progress.md ] && [ ! -e /tmp/kent-partial-session-progress.md ]; then \
 		mv /tmp/mortimer-partial-session-progress.md /tmp/kent-partial-session-progress.md; \

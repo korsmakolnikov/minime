@@ -31,7 +31,8 @@ and write the code.
 
 ## toolchain.yaml and the toolchain command
 
-`toolchain.yaml`, at the project root and never committed, tells `toolchain`
+`toolchain.yaml`, at the project root (versioned on Claude Code, never on
+Copilot: see `workflow-files`), tells `toolchain`
 how this project runs its commands: the container wrapper (`exec`, for
 example `[edgar, exec, crash]`), extra environment, and any command the
 project replaces. `toolchain show` prints what will run. When the file is

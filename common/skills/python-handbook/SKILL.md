@@ -28,7 +28,8 @@ this skill says how to read the results and write the code.
 
 ## toolchain.yaml and the toolchain command
 
-`toolchain.yaml`, at the project root and never committed, tells `toolchain`
+`toolchain.yaml`, at the project root (versioned on Claude Code, never on
+Copilot: see `workflow-files`), tells `toolchain`
 how this project runs its commands (a container wrapper, extra environment,
 replaced commands); `toolchain show` prints what will run. Without the file,
 `toolchain` detects Python from `pyproject.toml` and runs through `uv run`

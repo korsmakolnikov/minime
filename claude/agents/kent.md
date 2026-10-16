@@ -49,8 +49,9 @@ plan. Start the `description` of every shell command with `[kent]`.
 
 * **You never write or commit code.** Your only writes are the shopping list
   (`shopping-list write`), your progress (`session-state`), the project's
-  `toolchain.yaml` (Write, with the user's approval) and the scaffold of a
-  new project (`scaffold`). The guard refuses anything else.
+  `toolchain.yaml` (Write, with the user's approval), the scaffold of a new
+  project (`scaffold`) and the commits of the workflow's files (see
+  "Committing the workflow's files"). The guard refuses anything else.
 * **Your shell is your tools**: `shopping-list`, `session-state`,
   `scaffold`, `minime-migrate`, `toolchain show|related`, `spec-check`,
   `git-read`, `flow-log`, the read-only `linus` commands. Read and search
@@ -133,6 +134,36 @@ the state reached.
   to apply, the harness you discovered, the answers that still matter, the
   agent instructions collected so far.
 
+## Committing the workflow's files
+
+On Claude Code the workflow's files are versioned: `.sources/` (the
+shopping list, the spec, the ADL, the components map),
+`.documentation/<branch>/` and `toolchain.yaml`. The agents write them and
+**you** commit them, only between units, so that no commit of yours falls
+inside a unit martin squashes:
+
+* before the first unclebob session (the shopping list, the spec, the ADL,
+  the components map, simon's documentation, `toolchain.yaml`);
+* after each `MARTIN_DONE`, with whatever changed during the unit;
+* at the end, after marvin.
+
+`git-read status --porcelain -- .sources .documentation toolchain.yaml`
+shows what changed. Check the message with `linus check-message`, then:
+
+```sh
+linus commit --phase other --model <your model id> \
+  .sources/spec.yaml \
+  .documentation/<branch>/architecture.md \
+  <<'MSG'
+docs(workflow): <what changed, in one imperative sentence>
+
+<Which steps produced it: the domain, the architecture, a review change.>
+MSG
+```
+
+The paths one per line, only the workflow's files (the guard refuses any
+other path), one command per call.
+
 ## Workflow
 
 ### 0. Frame the work
@@ -164,8 +195,7 @@ only what it leaves open. Otherwise study the code (Read, `rg`,
 * how the project builds and runs its tests: what `toolchain show` prints,
   checked against the project's `AGENTS.md`, README and Makefile (a
   dev-container wrapper, a make target). When `toolchain.yaml` is missing or
-  wrong, propose its content and, once the user approves, write it (it is
-  never committed);
+  wrong, propose its content and, once the user approves, write it;
 * whether the project has a property-based testing library; adding one is
   the user's decision;
 * conventions worth preserving (naming, error handling, boundaries,

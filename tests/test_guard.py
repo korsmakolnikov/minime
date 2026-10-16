@@ -60,6 +60,7 @@ class GuardTest(unittest.TestCase):
         self.allowed("kent", "shopping-list write <<'EOF'\n# list\nEOF")
         self.denied("ford", "shopping-list write <<'EOF'\nx\nEOF", "only as: path, show")
         self.denied("kent", "toolchain test --branch", "only as: related, show")
+        self.denied("kent", "linus fixup --target a x", "may not run linus fixup")
         self.allowed("joshua", "audit-log append <<'AUDIT'\n## V-1\nAUDIT")
         self.denied("joshua", "audit-log archive", "only as")
         self.allowed("argyris", "audit-log archive")
@@ -119,8 +120,14 @@ class GuardTest(unittest.TestCase):
         # kent runs as the main thread: its hook sees unclebob's calls too
         self.assertEqual(self.decision("kent", "Bash", agent_type="unclebob",
                                        command="linus commit --phase red a")[0], None)
-        self.assertEqual(self.decision("kent", "Bash", command="linus commit --phase red a")[0], "deny")
+        self.assertEqual(self.decision("kent", "Bash", command="linus commit --phase red src/a.py")[0], "deny")
         self.assertEqual(self.decision("unclebob", "Bash", agent_type="unclebob", command="rm x")[0], "deny")
+
+    def test_kent_commits_only_the_workflow_files(self):
+        self.allowed("kent", "linus commit --phase other --model m \\\n  .sources/spec.yaml \\\n  toolchain.yaml \\\n  <<'MSG'\ndocs(workflow): x\nMSG")
+        self.denied("kent", "linus commit --phase other --model m src/a.py <<'MSG'\nx\nMSG", "not src/a.py")
+        self.denied("kent", "linus commit --phase other <<'MSG'\nx\nMSG", "only named paths")
+        self.denied("kent", "linus squash --scope x --from a", "may not run linus squash")
 
     def test_hughes_has_no_linus(self):
         self.denied("hughes", "linus range", "`linus`")

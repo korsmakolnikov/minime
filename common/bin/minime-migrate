@@ -2,8 +2,8 @@
 """Brings a project's workflow files from older layouts to the current one.
 
 Usage:
-  minime-migrate [--dry-run] [--no-global] [<project>...]
-  minime-migrate [--dry-run] [--no-global] --projects-dir <dir>
+  minime-migrate [--dry-run] [--ignore-workflow-files] [<project>...]
+  minime-migrate [--dry-run] [--ignore-workflow-files] --projects-dir <dir>
 
 Without a project, the repository of the current directory. With
 --projects-dir, every git repository up to three levels below <dir>.
@@ -16,8 +16,10 @@ A file moves when the destination lacks it, and the old copy goes when the
 destination holds the same content; a file that differs stays where it is
 and is reported, for the user to merge by hand. Emptied old folders go.
 
-Global migration (unless --no-global): the workflow files are never
-versioned, so the global git ignore file lists them (WORKFLOW_IGNORES).
+With --ignore-workflow-files (the Copilot machine, through `make update`):
+the workflow's files are never versioned there, so the global git ignore
+file lists them (WORKFLOW_IGNORES). On Claude Code they are versioned: no
+flag, and the global ignore file is left alone.
 """
 import argparse
 import filecmp
@@ -98,7 +100,7 @@ def main():
     parser.add_argument("projects", nargs="*")
     parser.add_argument("--projects-dir")
     parser.add_argument("--dry-run", action="store_true")
-    parser.add_argument("--no-global", action="store_true")
+    parser.add_argument("--ignore-workflow-files", action="store_true")
     args = parser.parse_args()
     roots = args.projects or (projects(os.path.expanduser(args.projects_dir)) if args.projects_dir else [repo_root()])
     conflicts = 0
@@ -107,7 +109,7 @@ def main():
             raise ToolError(f"not a git repository: {root}")
         for old, new in MOVES:
             conflicts += merge(root, old, new, args.dry_run)
-    if not args.no_global:
+    if args.ignore_workflow_files:
         global_ignore(args.dry_run)
     return 1 if conflicts else 0
 

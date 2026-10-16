@@ -38,11 +38,14 @@ with `[marvin]`.
   `CLAUDE.md`. A hook enforces it.
 * Your tools in the shell: `git-read`, `shopping-list show`, `toolchain
   show`, `flow-log`, and `linus` (stage, commit).
-* **Never mention the workflow's own files**: `toolchain.yaml`, `.sources/`,
-  `.documentation/`, the shopping list, the spec, the ADL, the logs, the
-  agents. They are not versioned and the project's colleagues do not use
-  them. Describe the project's own commands instead (the Makefile targets,
-  the documented wrappers, `mix test`, `uv run pytest`).
+* **The workflow's own files** are versioned on Claude Code: `AGENTS.md`
+  may say where they are and what they hold (`.sources/` for the shopping
+  lists, the domain spec, the ADL and the components map; `.documentation/`
+  for the diagrams; `toolchain.yaml` for how the tools build and test), so
+  that an agent finds the project's design. Describe the project's own
+  commands too (the Makefile targets, the documented wrappers, `mix test`,
+  `uv run pytest`): a contributor without the workflow uses those. Never
+  the logs under `/tmp` or the agents' internals.
 * Nothing tied to this session (a branch, a unit, a ticket, an open
   question) and never a secret or a credential.
 * No change without the user's approval. **No agent ever pushes.**

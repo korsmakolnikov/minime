@@ -148,6 +148,8 @@ kent:
   its `ASK_USER`; never answers for the user.
 * Sends simon every `HUGHES_DONE`, `FORD_AS_IS` and `FORD_DONE`, and the
   integration flow; launches marvin at the end.
+* Commits the workflow's files (`docs(workflow): …`) only between units:
+  before the first unclebob session, after each `MARTIN_DONE`, at the end.
 
 simon (check the documentation against the sources as they are now):
 

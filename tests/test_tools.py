@@ -78,15 +78,37 @@ class ToolTest(unittest.TestCase):
         self.write(".adl/clash", "1")
         self.write(".sources/clash", "2")
         self.write(".shopping_lists/m.md", "m")
-        run = self.sh("minime-migrate", ok=False)
+        run = self.sh("minime-migrate", "--ignore-workflow-files", ok=False)
         self.assertEqual(run.returncode, 1)
         self.assertIn("CONFLICT", run.stdout)
         self.assertTrue(os.path.exists(os.path.join(self.repo, ".sources/a.adl")))
         self.assertTrue(os.path.exists(os.path.join(self.repo, ".sources/shopping_lists/m.md")))
         self.assertFalse(os.path.exists(os.path.join(self.repo, ".shopping_lists")))
         self.assertEqual(sorted(os.listdir(os.path.join(self.repo, ".adl"))), ["clash"])
+        self.write(".adl/again", "a")
+        self.sh("minime-migrate", ok=False)
         with open(os.path.join(self.home, ".config", "git", "ignore")) as ignore:
             self.assertEqual(ignore.read().split(), [".sources/", ".documentation/", "toolchain.yaml"])
+
+    def test_minime_migrate_leaves_the_global_ignore_alone_by_default(self):
+        self.write(".adl/a.adl", "a")
+        self.sh("minime-migrate")
+        self.assertFalse(os.path.exists(os.path.join(self.home, ".config", "git", "ignore")))
+
+    def test_linus_workflow_files(self):
+        self.sh("git", "switch", "-qc", "feat/w")
+        self.write(".sources/spec.yaml", "spec: 2\n")
+        claude = dict(self.env, LINUS_COAUTHOR="claude", LINUS_MODEL="m")
+        copilot = dict(self.env, LINUS_COAUTHOR="copilot", LINUS_MODEL="m")
+        msg = "docs(workflow): add the domain spec\n\nThe first pass of the domain.\n"
+        args = ["linus", "commit", "--phase", "other", ".sources/spec.yaml"]
+        refused = subprocess.run(args, cwd=self.repo, env=copilot, input=msg, capture_output=True, text=True)
+        self.assertNotEqual(refused.returncode, 0)
+        self.assertIn("never committed on Copilot", refused.stdout + refused.stderr)
+        self.sh("git", "reset", "-q")
+        done = subprocess.run(args, cwd=self.repo, env=claude, input=msg, capture_output=True, text=True)
+        self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+        self.assertIn("spec.yaml", self.sh("git", "show", "--stat", "HEAD").stdout)
 
     def test_git_read(self):
         self.assertIn("base", self.sh("git-read", "log", "--oneline").stdout)

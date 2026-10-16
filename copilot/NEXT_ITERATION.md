@@ -172,4 +172,9 @@ Dalle iterazioni precedenti, ancora aperte:
     finché il refactor non è fatto. `audit-log` scrive le righe `HANDLED`
     nello stesso formato di argyris. Riferimento: `claude/agents/` e
     `claude/hooks/guard.py` (la tabella dei tool per agente).
+12. **File del flusso** (17 ottobre): su Copilot restano non versionati;
+    `linus` ora rifiuta anche `toolchain.yaml` quando gira lì, e `make
+    update` aggiunge al gitignore globale anche `toolchain.yaml`
+    (`minime-migrate --ignore-workflow-files`). Su Claude Code si versionano:
+    non copiare quella parte nel refactor.
 

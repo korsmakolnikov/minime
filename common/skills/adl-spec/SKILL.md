@@ -65,9 +65,10 @@ ASSERT(creation has NO DEPENDENCY on completion)
 ## The `.sources/` folder
 
 The input of the workflow, the ADL files written by ford, the domain spec
-written by hughes and kent's shopping lists, lives in `.sources/` at the project root, **never
-committed** (the user ignores it globally): never stage it. simon documents
-them in `.documentation/<branch>/`, never committed either.
+written by hughes and kent's shopping lists, lives in `.sources/` at the project root. simon
+documents them in `.documentation/<branch>/`. Whether they are versioned
+depends on the CLI (the `workflow-files` skill): never on Copilot, where
+nobody stages them; on Claude Code kent commits them between units.
 
 ```
 .sources/

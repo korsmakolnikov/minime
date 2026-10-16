@@ -37,7 +37,7 @@ src/<package>/            __init__.py, py.typed
 tests/test_import.py      one test, so the runner has something to run
 .github/workflows/ci.yml  uv, make install, make check, make test
 .gitignore, README.md
-toolchain.yaml            language: python; never committed
+toolchain.yaml            language: python (see workflow-files for versioning)
 ```
 
 then `git init` and an empty `start.` commit, unless the directory is inside

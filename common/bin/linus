@@ -307,10 +307,15 @@ trailer() {
   esac
 }
 
+# The workflow's own files: versioned on Claude Code, never on Copilot.
+WORKFLOW_FILES_RE='(^|/)\.(sources|documentation)/|^toolchain\.yaml$'
+WORKFLOW_PATHSPEC=(. ':!.sources' ':!.documentation' ':!toolchain.yaml')
+
 require_staged() {
   git diff --cached --quiet && die "Nothing is staged."
-  if git diff --cached --name-only | grep -qE '(^|/)\.(sources|documentation)/'; then
-    die "Staged changes include .sources/ or .documentation/ files, which are never committed. Unstage them."
+  [ -n "${COAUTHOR:-}" ] || load_coauthor
+  if [ "$COAUTHOR" = copilot ] && git diff --cached --name-only | grep -qE "$WORKFLOW_FILES_RE"; then
+    die "Staged changes include the workflow's files (.sources/, .documentation/, toolchain.yaml), which are never committed on Copilot. Unstage them."
   fi
   return 0
 }
@@ -474,8 +479,10 @@ squash)
   validate_message "$MSG_FILE"
   [ "$(subject_scope "$(sed -n 1p "$MSG_FILE")")" = "$SCOPE" ] ||
     die "The message must carry the scope ($SCOPE): '$(sed -n 1p "$MSG_FILE")'"
-  git diff --quiet && git diff --cached --quiet ||
-    die "The work tree has uncommitted changes: a squash needs a clean tree."
+  # The workflow's files may change while a unit is open; kent commits them
+  # between units, so they do not count here.
+  git diff --quiet -- "${WORKFLOW_PATHSPEC[@]}" && git diff --cached --quiet ||
+    die "The work tree has uncommitted changes: a squash needs a clean tree (the workflow's files aside)."
   from=$(git rev-parse --verify -q "$FROM^{commit}") || die "Unknown commit '$FROM'."
   load_base
   in_branch "$from" || die "$FROM is outside the branch (<base>..HEAD)."

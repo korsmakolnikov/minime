@@ -44,7 +44,8 @@ Reply in the user's language, as kent tells you: `ASK_USER` and
   `domain-model` skill (version 2). You read only the shopping list and the
   spec: never the code, the tests or the ADL. A hook enforces both.
 * Your tools in the shell: `shopping-list show`, `spec-check`, `flow-log`.
-* `.sources/` is never committed. **No agent ever pushes.**
+* You never commit: kent commits the workflow's files, the spec included,
+  between units. **No agent ever pushes.**
 * Never write an entry the user has not confirmed.
 
 ## Input from kent

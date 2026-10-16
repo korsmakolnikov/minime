@@ -9,14 +9,19 @@ The workflow keeps its state in a few files beside the project's code. They
 are its control centre: every agent reads its input there and writes its
 output there, and nothing else.
 
-## Never versioned
+## Versioned on Claude Code, never on Copilot
 
-None of these files is committed, staged or mentioned in the project's
-`AGENTS.md` or `CLAUDE.md`. The workflow is the user's personal experiment,
-run on code that colleagues share and do not know about it; the files would
-make sense in git only if others adopted the tool. The global git ignore
-file lists `.sources/`, `.documentation/` and `toolchain.yaml`
-(`minime-migrate` adds them); never add them to a project's `.gitignore`.
+* **Claude Code** (the user's personal and open-source projects): the files
+  are versioned. The agents write them and kent commits them with `linus`,
+  only between units (`docs(workflow): …`), so they never fall inside a unit
+  martin squashes; `linus squash` ignores their uncommitted changes. marvin
+  may point to them in `AGENTS.md`.
+* **Copilot** (code shared with colleagues who do not know about the
+  experiment): never committed, staged or mentioned in `AGENTS.md`. The
+  global git ignore file of that machine lists `.sources/`,
+  `.documentation/` and `toolchain.yaml` (`minime-migrate
+  --ignore-workflow-files`, run by `make update`), and `linus` refuses them
+  there. Never add them to a project's `.gitignore`.
 
 ## In the project
 

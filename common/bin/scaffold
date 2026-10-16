@@ -10,8 +10,8 @@ In the current directory, which must be the (empty) project directory. The
 templates of <language> are rendered with {{KEY}} replaced in paths and
 contents; the tool refuses to overwrite a file or to leave a placeholder.
 Then: `git init` and an empty "start." commit (skipped inside an existing
-repository), and toolchain.yaml (never committed). The scaffolded files are
-not committed: the next commit is the user's or the workflow's.
+repository), and toolchain.yaml. The scaffolded files are not committed:
+the next commit is the user's or the workflow's.
 
 `verify` runs the project's task runner: install the dependencies (network),
 then the tests and the static checks, and reports each step.
@@ -150,7 +150,7 @@ def main():
                 out.write(text)
             os.chmod(dest, mode & 0o777)
     if toolchain:
-        print(("would create " if dry else "created ") + "toolchain.yaml (never committed)")
+        print(("would create " if dry else "created ") + "toolchain.yaml")
         if not dry:
             open("toolchain.yaml", "w").write(toolchain)
     if dry:
@@ -163,9 +163,6 @@ def main():
         subprocess.run(["git", "init", "-q"], check=True)
         subprocess.run(["git", "commit", "-q", "--allow-empty", "-m", "start."], check=True)
         print("git: initialised, empty commit \"start.\"")
-    ignored = subprocess.run(["git", "check-ignore", "-q", "toolchain.yaml"]).returncode == 0
-    if toolchain and not ignored:
-        print("WARNING: toolchain.yaml is not git-ignored: run minime-migrate (global ignore)")
     print("next: scaffold verify (installs the dependencies, then builds, checks and tests)")
     return 0
 
