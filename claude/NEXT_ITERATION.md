@@ -155,6 +155,91 @@ finirebbero a martin invece che a kent: per ora no.
    rifiuti del guard, cicli e commit per unità, tempo, token, correzioni di
    review.
 
+## Refactor dell'architettura degli agenti (decisioni del 16 ottobre)
+
+Da fare sul lato Claude; Copilot lo applica dal suo `NEXT_ITERATION.md`.
+
+1. **Tool al posto di bash.** Nessun agente lancia bash direttamente: un
+   tool per ogni compito (test, controlli, commit, scaffolding, log…),
+   l'agente resta agnostico su come si fa. Motivo: Copilot inventa ogni
+   volta script nuovi per le stesse cose. In attesa della decisione
+   sull'inventario dei comandi (lista per agente fatta in sessione); da
+   capire la forma: server MCP, comandi in `common/bin` con un'allow-list
+   esatta nel guard, o tool del grafo nella versione LangGraph.
+2. **kent senza bash e senza conoscenza di dominio o architettura.**
+   - `adl-reverse` passa a ford (ADL as-is nel ramo brownfield);
+   - kent non lancia i test: li prova unclebob (precondizione);
+   - shopping list con Write limitato a quel file;
+   - `/tmp/kent-flow.log` scritto dagli hook, non dagli agenti;
+   - spostamento delle cartelle legacy solo in `make update` (aggiungere
+     `.shopping_lists/` → `.sources/shopping_lists/`);
+   - kent detiene il workflow: sa quali passi avvengono; gli altri vedono
+     solo il proprio scope.
+3. **Scaffolding a kent, con skill e tool.** Una skill
+   `<linguaggio>-scaffold` per linguaggio (prima **Python**: il primo
+   progetto sarà la versione LangGraph; poi Elixir, C dalla skill
+   esistente). Cartelle, toolchain, task runner, git, GHA e CI: compiti
+   deterministici, quindi tool scritti in Python (più leggibile di bash)
+   che la skill collega (`git init`, `make build`, …). ford scaffolda poi
+   solo l'architettura.
+4. **hughes prima di ford, solo dominio.** Legge la shopping list, non il
+   codice; l'esito è la spec: entità, value object, segnali o eventi che si
+   scambiano, relazioni, invarianti, vincoli di sistema, proprietà espresse
+   sulle operazioni di dominio. Un passaggio solo; `adl-spec` tolta. Un
+   segnale verso hughes quando il dominio cambia (simmetrico di
+   `INTERFACE_CHANGE_REQUEST`).
+5. **ford: architettura, interfacce e contratti.** Decide quali elementi
+   sono interfacce (behaviour, protocol, classe astratta) e quali classi
+   concrete, firme, errori, direzione delle dipendenze, e per ogni
+   componente gli id della spec che realizza. `INTERFACE_CHANGE_REQUEST`
+   torna solo a ford.
+6. **Il modello comune tra hughes e ford.** Serve una lingua condivisa per
+   il modello (entità, value object, segnali): hughes lo definisce, ford lo
+   usa per il contenuto delle interfacce. L'ADL probabilmente non basta:
+   valutare un formato YAML come la spec, o un'estensione della spec.
+   **Id condivisi**: gli id della spec citati nell'ADL e nel codice (come
+   commenti, anche temporanei fino alla PR) danno un piccolo database
+   relazionale su file; un checker (`spec-check` esteso) verifica che ogni
+   id sia realizzato da un componente e coperto da un test.
+7. **unclebob e la mappa dei test.**
+   - Il sapere legato al linguaggio (StreamData, Hypothesis, Mox,
+     librerie di test) passa da `domain-spec` e dagli agenti alla
+     `<linguaggio>-handbook`.
+   - unclebob riceve l'elenco completo di componenti e interfacce: sa cosa
+     può sostituire con un doppio (solo le interfacce dichiarate), da dove
+     a dove testare, da dove cominciare.
+   - L'ADL e le interfacce sono la mappa della struttura dei test; la spec
+     è la mappa di vincoli e proprietà.
+   - Ordine: per componente, dal particolare al generale. Unit test del
+     componente, poi integrazione verso l'interfaccia più esterna, fino al
+     test di integrazione completo. I test di integrazione verificano
+     l'input e l'output alle interfacce (aderenza ai contratti), non di
+     nuovo il comportamento; test di contratto condivisi tra doppio e
+     implementazione reale; i vincoli di sistema della spec verificati nel
+     test completo.
+8. **minsky, nuovo agente**: scrive i file di istruzioni del progetto a
+   fine workflow, al posto di kent. `AGENTS.md` sempre; `CLAUDE.md` solo
+   quando il workflow gira su Claude Code. Riceve i fatti raccolti
+   (shopping list, `open_points`, comandi che hanno funzionato), mostra il
+   diff, committa `docs(agents)`. Nome: Marvin Minsky, *The Society of
+   Mind* (la mente come società di agenti) e le K-line (la memoria che
+   riattiva uno stato mentale: lo stato di partenza di un agente).
+
+## Ricerche
+
+- **Un DSL nostro per gli agenti**, che unisca modello di dominio, ADL e
+  spec con un unico sistema di id; esistono DSL pensati per interagire con
+  gli agenti, da studiare.
+- **Copilot su questa macchina per i benchmark** Claude contro Copilot.
+  Vincolo: l'account Copilot aziendale è legato all'account GitHub
+  personale, i token aziendali non si possono usare da un computer diverso
+  da quello aziendale, e lì non si può installare Claude Code. Da capire se
+  esiste una strada praticabile (un piano Copilot personale?).
+- **Ragionamenti di Opus**: nei transcript locali di Claude Code
+  (`~/.claude/projects/*/*.jsonl`) i blocchi `thinking` sono salvati vuoti,
+  con la sola firma; restano leggibili messaggi e chiamate ai tool. Da
+  verificare cosa salva Copilot in `~/.copilot/session-state/<id>/`.
+
 ## Da verificare
 
 - Se gli hook nel frontmatter valgono anche per l'agente lanciato come

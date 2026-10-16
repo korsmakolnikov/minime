@@ -143,3 +143,20 @@ Dalle iterazioni precedenti, ancora aperte:
    verifica). `make clean && make install-copilot` riparte da zero, tenendo
    `~/.bash_copilot`. Sostituisce anche il `rm -rf` di `elixir-style` del
    punto 5.
+10. **Refactor dell'architettura degli agenti** (decisioni del 16 ottobre,
+    dettagli in `claude/NEXT_ITERATION.md`, "Refactor dell'architettura
+    degli agenti"): applicarlo anche qui, dopo il lato Claude; Claude farà
+    la review del lavoro. In breve:
+    - nessun agente lancia bash: un tool per ogni compito (forma da
+      decidere);
+    - kent senza bash: `adl-reverse` a ford, niente test, shopping list
+      con edit, log dagli hook, cartelle legacy in `make update`,
+      scaffolding con le skill `<linguaggio>-scaffold` (prima Python);
+    - hughes prima di ford, solo dominio, dalla shopping list e senza
+      codice; ford decide interfacce, classi concrete e contratti e lega
+      i componenti agli id della spec; un modello comune tra i due;
+    - unclebob con l'elenco completo di componenti e interfacce, sapere
+      del linguaggio nella handbook, test dal componente all'integrazione
+      completa, integrazione su input e output alle interfacce;
+    - nuovo agente **minsky** per `AGENTS.md` (sempre) e `CLAUDE.md` (solo
+      su Claude Code), al posto di kent.
