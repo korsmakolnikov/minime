@@ -92,6 +92,14 @@ finirebbero a martin invece che a kent: per ora no.
   controlli statici e regole di stile; sostituisce `elixir-style`. Una
   `<linguaggio>-handbook` per linguaggio: le peculiarità di un ecosistema
   stanno lì, gli agenti dicono solo cosa lanciare e quando.
+- `make clean` (lista esplicita `INSTALLED` di tutto ciò che i target
+  installano, nomi vecchi compresi; i percorsi mancanti si saltano) e
+  `make clean-check`, che fallisce se la lista non copre qualcosa;
+  `install-copilot` come alias di `copilot-install`. Provato in una HOME
+  finta: dopo `install`, `copilot-install` e `clean` resta solo
+  `~/.bash_copilot`, voluto.
+- Diagrammi ASCII dell'architettura nel README ("Architecture"): vanno
+  aggiornati con ogni cambio di struttura, insieme a `INSTALLED`.
 - kent mantiene `AGENTS.md` e `CLAUDE.md` del progetto (scritto in
   `copilot/agents/kent.agent.md`, "The project's agent instructions"): il
   guard glielo permette (`name:AGENTS.md`, `linus stage`/`commit`) e lo
@@ -121,16 +129,20 @@ finirebbero a martin invece che a kent: per ora no.
    l'utente a ogni comando (regole `allow`/`deny` nel frontmatter non
    esistono: `permissionMode` per agente, o un hook `PermissionRequest`).
 3. README: sezione del workflow Claude Code.
-4. **Scaffolding di un progetto nuovo.** kent oggi non sa crearne uno. Una
-   skill per linguaggio (Elixir, Python, C), probabilmente parte della
+4. **Scaffolding di un progetto nuovo.** kent oggi non sa crearne uno.
+   Esiste già `claude/skills/scaffold` (solo C: CMake + Make, template,
+   `make deps` per Arch e Ubuntu), da riusare. Una skill per linguaggio
+   (Elixir, Python, C), probabilmente parte della
    `<linguaggio>-handbook` o accanto a lei: layout, build (C: CMake + Make),
    test runner e libreria property-based, formatter, linter, type checker,
    `AGENTS.md` iniziale, `.gitignore`. Da decidere chi lo esegue (ford,
    dopo l'ADL?) e come si inserisce nel ramo greenfield di kent.
-5. **simon da rivedere.** Produce il C4 in Structurizr DSL (forse mai
-   concordato) e non scrive i markdown con i diagrammi Mermaid che servono:
-   i sequence diagram delle iterazioni esplorate, costruite o corrette, e i
-   class diagram. Da approfondire prima del porting.
+5. **simon da rivedere.** Il workspace Structurizr DSL (`workspace.dsl`, C4)
+   è giusto; accanto però scrive un altro file, non ancora identificato, e
+   non scrive `architecture.md`, il markdown con i sequence diagram Mermaid
+   delle iterazioni esplorate, costruite o corrette e i class diagram, che
+   pure le sue istruzioni chiedono. Da approfondire su una
+   `.documentation/<branch>/` vera prima del porting.
 6. **Makefile: installazione delle CLI.** Un target per installare Claude
    Code e uno per Copilot CLI, solo Arch Linux e Ubuntu, come il resto.
 7. **Versione LangGraph.** Un orchestratore in LangGraph, per imparare il

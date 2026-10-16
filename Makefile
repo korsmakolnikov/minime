@@ -34,7 +34,64 @@ OLD_BINS         := gutexberg mortimer
 PROJECTS_DIR     ?= $(HOME)/code
 SHELL_RC_FILES   := $(wildcard $(HOME)/.bashrc $(HOME)/.bash_aliases $(HOME)/.bash_profile $(HOME)/.profile $(HOME)/.zshrc)
 
-.PHONY: install uninstall reinstall list check common-install copilot-install update
+# Every file and folder the install targets copy into the system, for both
+# CLIs, with the names they had before a rename, so that clean also removes
+# what a rename left behind. Keep it updated: add an entry when an agent,
+# skill, command, hook or setting file is added, and keep the old one when it
+# is renamed or removed. `make clean-check` lists what the repository installs
+# and this list misses. ~/.bash_copilot is left out on purpose: it holds the
+# user's autonomy settings, and copilot-install never overwrites it.
+INSTALLED := \
+	$(AGENTS_DEST_DIR)/unclebob.md \
+	$(SKILLS_DEST_DIR)/adl-fitness \
+	$(SKILLS_DEST_DIR)/adl-interview \
+	$(SKILLS_DEST_DIR)/adl-reverse \
+	$(SKILLS_DEST_DIR)/adl-scaffold \
+	$(SKILLS_DEST_DIR)/adl-spec \
+	$(SKILLS_DEST_DIR)/domain-spec \
+	$(SKILLS_DEST_DIR)/elixir-handbook \
+	$(SKILLS_DEST_DIR)/elixir-style \
+	$(SKILLS_DEST_DIR)/elixir-static-checks \
+	$(SKILLS_DEST_DIR)/scaffold \
+	$(HOME)/.claude/minime \
+	$(BIN_DIR)/unclebob \
+	$(BIN_DIR)/linus \
+	$(BIN_DIR)/spec-check \
+	$(BIN_DIR)/signal-check \
+	$(SIGNALS_DIR) \
+	$(COPILOT_HOME)/agents/argyris.agent.md \
+	$(COPILOT_HOME)/agents/ford.agent.md \
+	$(COPILOT_HOME)/agents/hughes.agent.md \
+	$(COPILOT_HOME)/agents/joshua.agent.md \
+	$(COPILOT_HOME)/agents/kent.agent.md \
+	$(COPILOT_HOME)/agents/linus.agent.md \
+	$(COPILOT_HOME)/agents/martin.agent.md \
+	$(COPILOT_HOME)/agents/simon.agent.md \
+	$(COPILOT_HOME)/agents/unclebob.agent.md \
+	$(COPILOT_HOME)/agents/mortimer.agent.md \
+	$(COPILOT_HOME)/agents/sherlock.agent.md \
+	$(COPILOT_HOME)/agents/gutexberg.agent.md \
+	$(COPILOT_HOME)/agents/soong.agent.md \
+	$(COPILOT_HOME)/skills/adl-fitness \
+	$(COPILOT_HOME)/skills/adl-interview \
+	$(COPILOT_HOME)/skills/adl-reverse \
+	$(COPILOT_HOME)/skills/adl-scaffold \
+	$(COPILOT_HOME)/skills/adl-spec \
+	$(COPILOT_HOME)/skills/domain-spec \
+	$(COPILOT_HOME)/skills/elixir-handbook \
+	$(COPILOT_HOME)/skills/elixir-style \
+	$(COPILOT_HOME)/skills/elixir-static-checks \
+	$(COPILOT_HOME)/skills/minime-sync \
+	$(COPILOT_HOME)/skills/datadog-experiment-downloader \
+	$(COPILOT_HOME)/hooks \
+	$(COPILOT_HOME)/settings.json \
+	$(COPILOT_HOME)/copilot-instructions.md \
+	$(COPILOT_BIN_DIR)/kent \
+	$(COPILOT_BIN_DIR)/argyris \
+	$(COPILOT_BIN_DIR)/gutexberg \
+	$(COPILOT_BIN_DIR)/mortimer
+
+.PHONY: install install-copilot uninstall reinstall list check common-install copilot-install update clean clean-check
 
 install: check common-install
 	@mkdir -p $(AGENTS_DEST_DIR) $(SKILLS_DEST_DIR) $(HOOKS_DEST_DIR) $(BIN_DIR)
@@ -73,6 +130,29 @@ uninstall:
 	done
 
 reinstall: uninstall install
+
+install-copilot: copilot-install
+
+# Removes everything in INSTALLED; a path that does not exist is skipped.
+clean:
+	@for f in $(INSTALLED); do \
+		if [ -e "$$f" ] || [ -L "$$f" ]; then rm -rf "$$f"; echo "Removed: $$f"; fi; \
+	done
+	@rmdir $(dir $(SIGNALS_DIR)) 2>/dev/null || true
+
+# Lists what the repository installs and INSTALLED misses; fails if anything.
+clean-check:
+	@missing=0; \
+	for p in $(foreach f,$(AGENTS),$(AGENTS_DEST_DIR)/$(notdir $(f))) \
+		$(foreach s,$(COMMON_SKILLS) $(SKILLS),$(SKILLS_DEST_DIR)/$(notdir $(s))) \
+		$(foreach b,$(CLAUDE_BINS) $(COMMON_BINS),$(BIN_DIR)/$(notdir $(b))) \
+		$(foreach f,$(COPILOT_AGENTS),$(COPILOT_HOME)/agents/$(notdir $(f))) \
+		$(foreach s,$(COMMON_SKILLS) $(COPILOT_SKILLS),$(COPILOT_HOME)/skills/$(notdir $(s))) \
+		$(foreach b,$(COPILOT_BINS),$(COPILOT_BIN_DIR)/$(notdir $(b))); do \
+		case " $(INSTALLED) " in *" $$p "*) ;; *) echo "Missing from INSTALLED: $$p"; missing=1 ;; esac; \
+	done; \
+	[ $$missing -eq 0 ] && echo "INSTALLED covers everything the repository installs."; \
+	exit $$missing
 
 list:
 	@echo "Agents:"; ls -1 $(AGENTS_DEST_DIR) 2>/dev/null || echo "  none installed in $(AGENTS_DEST_DIR)."

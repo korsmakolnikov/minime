@@ -5,6 +5,73 @@ My Claude Code and GitHub Copilot CLI subagents and skills.
 - [unclebob](#unclebob) — subagent that drives TDD cycles.
 - [scaffold](#scaffold) — skill that bootstraps a new project (currently C).
 - [Copilot workflow](#copilot-workflow) — architecture-first workflow for the GitHub Copilot CLI.
+- [Architecture](#architecture) — how the pieces fit together.
+
+# Architecture
+
+Keep this diagram in step with the repository: update it in the same change
+that adds, removes or moves an agent, a skill, a command, a hook or an
+install target.
+
+What the repository holds and where `make` installs it:
+
+```
+ repository                                   make target       installed in
+ ──────────                                   ───────────       ────────────
+ common/   shared by both CLIs                common-install
+   bin/      linus, spec-check, signal-check ─────────────────► ~/.local/bin/
+   signals/  *.schema.json ───────────────────────────────────► ~/.local/share/minime/signals/
+   skills/   adl-*, domain-spec,              install,  ──────► ~/.claude/skills/
+             elixir-handbook                  copilot-install ► ~/.copilot/skills/
+ copilot/  GitHub Copilot CLI                 copilot-install
+   agents/   *.agent.md (9 agents) ───────────────────────────► ~/.copilot/agents/
+   skills/   minime-sync, datadog-… ──────────────────────────► ~/.copilot/skills/
+   hooks/    auto_approve.py, notify.py ──────────────────────► ~/.copilot/hooks/
+   settings.json, copilot-instructions.md ────────────────────► ~/.copilot/
+   bin/      kent, argyris ───────────────────────────────────► ~/.local/bin/
+ claude/   Claude Code                        install
+   agents/   unclebob.md (port in progress) ──────────────────► ~/.claude/agents/
+   skills/   scaffold ────────────────────────────────────────► ~/.claude/skills/
+   hooks/    guard.py, signal_stop.py ────────────────────────► ~/.claude/minime/hooks/
+   bin/      unclebob ────────────────────────────────────────► ~/.local/bin/
+                                              clean: removes all of it (INSTALLED in the Makefile)
+```
+
+How the agents work together on a project (complete on Copilot; on Claude
+Code only unclebob so far, see `claude/NEXT_ITERATION.md`):
+
+```
+                                     user
+                     questions and approvals │ ▲ ASK_USER blocks, relayed verbatim
+                                             ▼ │
+  ┌──────────────────────────── kent: orchestrator, main thread ─────────────────────────────┐
+  │ frames the work, writes the shopping list, launches every agent, relays their questions, │
+  │ keeps the project's AGENTS.md / CLAUDE.md                                                │
+  └────┬─────────────┬──────────────┬────────────────┬───────────────────┬──────────────┬────┘
+       │ 2, 4        │ 3            │ 5, 6           │ after each unit   │ background   │ background
+       ▼             ▼              ▼                ▼                   ▼              ▼
+    hughes         ford          unclebob          martin              simon          joshua
+    domain spec    ADL,          TDD cycles per    audits the TDD      C4 workspace   audits every
+    and contracts  interfaces,   component, then   commits, squashes   and docs of    report against
+                   fitness       the whole flow    the unit, reviews   the sources    the agents' rules
+                   tests                           it with the user                        │
+       │             │              │  ▲           │                     │              ▼
+       ▼             ▼              │  └───────────┘ review changes:     ▼        /tmp/joshua.log
+    .sources/      code +           │    correction session, kent   .documentation/       │
+    spec.yaml      .sources/ ADL    ▼    (fixups of the unit)       <branch>/             ▼
+                                commits                                             argyris, own
+                                                                                    session: fixes
+                                                                                    agents and skills
+  Rules that hold for every agent:
+  · git writes only through the linus command: red → green → refactor per cycle, one squash per unit
+  · each turn of a sub-agent ends with one JSON signal block, checked by signal-check
+  · how to build, test and check a language: the <language>-handbook skill (elixir-handbook)
+  · nobody pushes: the user does
+  Enforced by hooks: Copilot auto_approve.py (permissions); Claude Code guard.py (per-agent
+  writes, git, linus) and signal_stop.py (rejects an invalid signal block before kent sees it)
+  Logs: /tmp/kent-flow.log (activity), /tmp/kent-events.jsonl and /tmp/kent-guard.jsonl (Claude Code)
+  Numbers on the arrows: kent's workflow steps (see Copilot workflow).
+```
 
 # unclebob
 
@@ -27,24 +94,24 @@ Each cycle covers a single behavior and requires the user's explicit authorizati
 
 | Step | Phase | What it does | Commit |
 |------|-------|--------------|--------|
-| 0 | Setup | Identifies the runner and the commands for a single test / the full suite, without running them (at session start) | — |
+| 0 | Setup | Identifies the commands for a single test and for a list of test files, runs one test to prove the tests run, asks for the commit scope | — |
 | 1 | Authorization | Asks the user which behavior to test | — |
 | 2 | Red | Writes a single test, runs it alone, verifies that it fails | `test:` |
-| 3 | Green | Writes the minimum code that makes that test pass | `feat:` |
+| 3 | Green | Writes the minimum code that makes that test pass, then runs the tests that include the changed files | `feat:` |
 | 4a | Blue | SOLID check | `refactor:` |
 | 4b | Blue | Time and space complexity check | `refactor:` |
 | 4c | Blue | Language idiomaticity check | `refactor:` |
 | 4d | Blue | Production code refactor proposal | `refactor:` |
 | 4e | Blue | Test code refactor proposal | `refactor:` |
-| 4f | Blue | Runs the full suite (only once per cycle); if it fails, stops and asks | — |
+| 5 | Close | Only on request: the tests related to the branch and the static checks of the language's handbook | `refactor:` |
 
 Cross-cutting rules:
 
-- Each step allows a single correction attempt beyond the first; typos, syntax errors and changes requested by the user do not count. Two cases allow no attempts and stop the procedure immediately: a test that already passes in the Red phase, and a red suite at step 4f. The agent never changes what a test verifies.
+- Each step allows a single correction attempt beyond the first; typos, syntax errors and changes requested by the user do not count. Two cases allow no attempts and stop the procedure immediately: a test that already passes in the Red phase, and tests that fail after a green or a refactor commit. The agent never changes what a test verifies.
 - The procedure is to be interpreted literally: when in doubt, the most restrictive reading applies, every proposal waits for approval before being applied, and every confirmation request ends the turn.
-- During the cycle only the current test runs; the full suite runs only at step 4f.
+- During the cycle only the current test runs, and after each commit the tests that include the files it changed. The full suite never runs: the CI runs it. How to run tests and static checks comes from the language's handbook skill (`elixir-handbook`).
 - Blue-phase sub-steps with nothing to propose are skipped with an explicit notice; multiple sub-steps may be submitted for confirmation in a single interaction, but each approved correction gets its own commit.
-- Commit messages follow Conventional Commits and never reference the state of the tests. `test:` describes the feature, `feat:` how it was implemented, `refactor:` the choices and the reasons. Each commit includes only the files touched in that step.
+- Every commit goes through the `linus` command, with the phase and the scope. Commit messages follow Conventional Commits and never reference the state of the tests. `test:` describes the feature, `feat:` how it was implemented, `refactor:` the choices and the reasons. Each commit includes only the files touched in that step.
 
 ## Installation
 
@@ -162,6 +229,9 @@ Requires `make` and the `claude` CLI in your `PATH`. Works on any distribution (
 make install     # installs all agents in claude/agents/ and all skills in claude/skills/
 make uninstall   # removes them
 make reinstall   # uninstall + install
+make clean       # removes everything any target installed, for both CLIs, old names included;
+                 # missing paths are skipped (make clean && make install-copilot starts afresh)
+make clean-check # fails if the repository installs something clean does not know about
 make list        # lists the installed agents and skills
 make check       # checks that the claude CLI is available
 ```
@@ -172,7 +242,7 @@ For the Copilot workflow:
 make common-install    # installs linus, spec-check and signal-check (common/bin/) in
                        # ~/.local/bin/ and the signal schemas in ~/.local/share/minime/signals/,
                        # shared by both workflows
-make copilot-install   # common-install, then agents, skills and hooks in ~/.copilot/,
+make copilot-install   # (or install-copilot) common-install, then agents, skills and hooks in ~/.copilot/,
                        # settings and copilot-instructions.md in ~/.copilot/
                        # and the kent and argyris launchers in ~/.local/bin/
 ```

@@ -134,6 +134,12 @@ Dalle iterazioni precedenti, ancora aperte:
    scrivere in ford, unclebob, martin).
 7. **Scaffolding di un progetto nuovo**: kent non sa crearne uno. Skill per
    Elixir, Python e C (CMake + Make); dettagli in `claude/NEXT_ITERATION.md`.
-8. **simon da rivedere**: C4 in Structurizr DSL forse mai concordato, e
-   mancano i markdown con i sequence diagram Mermaid delle iterazioni e i
-   class diagram.
+8. **simon da rivedere**: il `workspace.dsl` (C4) è giusto, ma scrive anche
+   un altro file non ancora identificato e non scrive `architecture.md`, con
+   i sequence diagram Mermaid delle iterazioni e i class diagram, che le sue
+   istruzioni già chiedono. Guardare una `.documentation/<branch>/` vera.
+9. **`make clean`**: rimuove tutto ciò che i target installano (lista
+   `INSTALLED` nel Makefile, da tenere aggiornata; `make clean-check` la
+   verifica). `make clean && make install-copilot` riparte da zero, tenendo
+   `~/.bash_copilot`. Sostituisce anche il `rm -rf` di `elixir-style` del
+   punto 5.
