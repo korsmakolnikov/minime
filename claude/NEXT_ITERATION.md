@@ -159,13 +159,32 @@ finirebbero a martin invece che a kent: per ora no.
 
 Da fare sul lato Claude; Copilot lo applica dal suo `NEXT_ITERATION.md`.
 
-1. **Tool al posto di bash.** Nessun agente lancia bash direttamente: un
-   tool per ogni compito (test, controlli, commit, scaffolding, log…),
-   l'agente resta agnostico su come si fa. Motivo: Copilot inventa ogni
-   volta script nuovi per le stesse cose. In attesa della decisione
-   sull'inventario dei comandi (lista per agente fatta in sessione); da
-   capire la forma: server MCP, comandi in `common/bin` con un'allow-list
-   esatta nel guard, o tool del grafo nella versione LangGraph.
+1. **Tool al posto di bash.** Nessun agente lancia bash liberamente: un
+   tool per ogni compito, l'agente resta agnostico su come si fa. Motivi:
+   Copilot inventa ogni volta script nuovi per le stesse cose, e un tool
+   stabile è un livello di sicurezza in più. Forma decisa: comandi in
+   `common/bin` (Python, condivisi con Copilot) e il guard che in Bash
+   permette solo quelli, per agente (un server MCP eventualmente dopo).
+   Ricerca e lettura con i tool nativi (Read, Grep, Glob: già su ripgrep).
+   Tool approvati:
+   - `flow-log`: una riga nel log delle attività (lo usano anche gli hook);
+   - `shopping-list`: legge e scrive la shopping list del branch;
+   - `minime-migrate`: porta file e cartelle legacy alla struttura attuale
+     (sostituisce il passo di kent e la parte progetti di `make update`;
+     ogni cambio futuro di struttura si aggiunge lì);
+   - `tests` (un test, file, file del commit, branch), `build`,
+     `static-checks`: i comandi del linguaggio stanno nelle handbook e nei
+     loro driver, non negli agenti;
+   - `git-read` (log, show, diff, blame, status) e `linus` con un
+     sottocomando per lo stage di parte di un file (niente patch a mano);
+   - `spec-check`, `adl-graph` (gli script di `adl-reverse`);
+   - `structurizr-cli` installata da un target make, non dal container;
+   - `scaffold <linguaggio>` e i suoi passi (`git init`, build, CI…);
+   - `session-state` per la ripresa di kent;
+   - `events-query` per joshua;
+   - `audit-log`: joshua aggiunge, argyris segna `HANDLED` e archivia
+     (niente `rm`);
+   - `signal-check` resta negli hook (`SubagentStop`), non è un tool.
 2. **kent senza bash e senza conoscenza di dominio o architettura.**
    - `adl-reverse` passa a ford (ADL as-is nel ramo brownfield);
    - kent non lancia i test: li prova unclebob (precondizione);
@@ -215,13 +234,15 @@ Da fare sul lato Claude; Copilot lo applica dal suo `NEXT_ITERATION.md`.
      test di integrazione completo. I test di integrazione verificano
      l'input e l'output alle interfacce (aderenza ai contratti), non di
      nuovo il comportamento; test di contratto condivisi tra doppio e
-     implementazione reale; i vincoli di sistema della spec verificati nel
-     test completo.
-8. **minsky, nuovo agente**: scrive i file di istruzioni del progetto a
+     implementazione reale (in Elixir lo fa già Hammox; altrove va
+     costruito); ogni proprietà della spec testata nello strato più piccolo
+     della cipolla in cui può funzionare, spesso ma non sempre il flusso
+     completo.
+8. **marvin, nuovo agente**: scrive i file di istruzioni del progetto a
    fine workflow, al posto di kent. `AGENTS.md` sempre; `CLAUDE.md` solo
    quando il workflow gira su Claude Code. Riceve i fatti raccolti
    (shopping list, `open_points`, comandi che hanno funzionato), mostra il
-   diff, committa `docs(agents)`. Nome: Marvin Minsky, *The Society of
+   diff, committa `docs(agents)`. Nome: marvin, da Marvin Minsky, *The Society of
    Mind* (la mente come società di agenti) e le K-line (la memoria che
    riattiva uno stato mentale: lo stato di partenza di un agente).
 

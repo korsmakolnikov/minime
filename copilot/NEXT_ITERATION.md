@@ -158,5 +158,5 @@ Dalle iterazioni precedenti, ancora aperte:
     - unclebob con l'elenco completo di componenti e interfacce, sapere
       del linguaggio nella handbook, test dal componente all'integrazione
       completa, integrazione su input e output alle interfacce;
-    - nuovo agente **minsky** per `AGENTS.md` (sempre) e `CLAUDE.md` (solo
+    - nuovo agente **marvin** per `AGENTS.md` (sempre) e `CLAUDE.md` (solo
       su Claude Code), al posto di kent.
