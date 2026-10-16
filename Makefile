@@ -4,8 +4,12 @@ AGENTS_DEST_DIR := $(HOME)/.claude/agents
 SKILLS_SRC_DIR  := $(CLAUDE_SRC_DIR)/skills
 SKILLS_DEST_DIR := $(HOME)/.claude/skills
 
+HOOKS_SRC_DIR   := $(CLAUDE_SRC_DIR)/hooks
+HOOKS_DEST_DIR  := $(HOME)/.claude/minime/hooks
+
 AGENTS := $(wildcard $(AGENTS_SRC_DIR)/*.md)
 SKILLS := $(wildcard $(SKILLS_SRC_DIR)/*)
+CLAUDE_BINS := $(wildcard $(CLAUDE_SRC_DIR)/bin/*)
 
 # Commands and signal schemas shared by the Copilot and the Claude Code
 # workflows.
@@ -32,16 +36,24 @@ SHELL_RC_FILES   := $(wildcard $(HOME)/.bashrc $(HOME)/.bash_aliases $(HOME)/.ba
 
 .PHONY: install uninstall reinstall list check common-install copilot-install update
 
-install: check
-	@mkdir -p $(AGENTS_DEST_DIR) $(SKILLS_DEST_DIR)
+install: check common-install
+	@mkdir -p $(AGENTS_DEST_DIR) $(SKILLS_DEST_DIR) $(HOOKS_DEST_DIR) $(BIN_DIR)
 	@for f in $(AGENTS); do \
 		cp "$$f" $(AGENTS_DEST_DIR)/; \
 		echo "Installed agent: $(AGENTS_DEST_DIR)/$$(basename $$f)"; \
 	done
-	@for s in $(SKILLS); do \
+	@for s in $(COMMON_SKILLS) $(SKILLS); do \
 		rm -rf "$(SKILLS_DEST_DIR)/$$(basename $$s)"; \
 		cp -r "$$s" $(SKILLS_DEST_DIR)/; \
 		echo "Installed skill: $(SKILLS_DEST_DIR)/$$(basename $$s)"; \
+	done
+	@rm -rf $(HOOKS_DEST_DIR)
+	@mkdir -p $(HOOKS_DEST_DIR)
+	@install -m 755 $(HOOKS_SRC_DIR)/*.py $(HOOKS_DEST_DIR)/
+	@echo "Installed hooks: $(HOOKS_DEST_DIR)"
+	@for b in $(CLAUDE_BINS); do \
+		install -m 755 "$$b" $(BIN_DIR)/; \
+		echo "Installed command: $(BIN_DIR)/$$(basename $$b)"; \
 	done
 
 uninstall:
@@ -49,9 +61,15 @@ uninstall:
 		rm -f $(AGENTS_DEST_DIR)/$$(basename $$f); \
 		echo "Removed agent: $(AGENTS_DEST_DIR)/$$(basename $$f)"; \
 	done
-	@for s in $(SKILLS); do \
+	@for s in $(COMMON_SKILLS) $(SKILLS); do \
 		rm -rf "$(SKILLS_DEST_DIR)/$$(basename $$s)"; \
 		echo "Removed skill: $(SKILLS_DEST_DIR)/$$(basename $$s)"; \
+	done
+	@rm -rf $(HOOKS_DEST_DIR)
+	@echo "Removed hooks: $(HOOKS_DEST_DIR)"
+	@for b in $(CLAUDE_BINS); do \
+		rm -f $(BIN_DIR)/$$(basename $$b); \
+		echo "Removed command: $(BIN_DIR)/$$(basename $$b)"; \
 	done
 
 reinstall: uninstall install
