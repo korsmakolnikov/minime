@@ -170,5 +170,5 @@ END_SIMON_UPDATED
 The block is JSON: before ending the turn, check it with
 `signal-check --expect SIMON_UPDATED`, passing it whole in a quoted heredoc
 (`<<'SIGNAL'`), and fix it until it prints `ok SIMON_UPDATED`. The schema is
-`~/.copilot/signals/SIMON_UPDATED.schema.json`. When kent answers
+`~/.local/share/minime/signals/SIMON_UPDATED.schema.json`. When kent answers
 `SIGNAL_INVALID`, fix the block and end the turn with it again.

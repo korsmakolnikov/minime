@@ -11,7 +11,7 @@ signal's name, a JSON object, and a line holding only END_<name>:
     {"question": "…", "why": "…"}
     END_ASK_USER
 
-The schema is <name>.schema.json in $SIGNAL_SCHEMAS (default ~/.copilot/signals).
+The schema is <name>.schema.json in $SIGNAL_SCHEMAS (default ~/.local/share/minime/signals).
 Besides the schema, every string must be filled in: a whole value such as
 "<hash subject>" is a template placeholder left in place.
 
@@ -26,7 +26,7 @@ import pathlib
 import re
 import sys
 
-SCHEMAS = pathlib.Path(os.environ.get("SIGNAL_SCHEMAS", "~/.copilot/signals")).expanduser()
+SCHEMAS = pathlib.Path(os.environ.get("SIGNAL_SCHEMAS", "~/.local/share/minime/signals")).expanduser()
 MARKER_RE = re.compile(r"^[A-Z][A-Z_]*[A-Z]$")
 PLACEHOLDER_RE = re.compile(r"^<[^<>]+>$")
 FENCE_RE = re.compile(r"^`{3,}\s*$")

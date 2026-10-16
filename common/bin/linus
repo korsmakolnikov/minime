@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# linus: the single write path to git used by the linus agent.
+# linus: the single write path to git of the workflow agents, on Copilot CLI
+# and on Claude Code alike.
 # Every change is a new commit; the TDD cycle (red, green, refactor) is
 # enforced from the phase recorded for each commit. Code-review corrections
 # are fixups of a branch commit, or review commits with the user's consent.
@@ -9,6 +10,8 @@ set -euo pipefail
 RED='\033[0;31m'
 NC='\033[0m'
 COPILOT_EMAIL='223556219+Copilot@users.noreply.github.com'
+CLAUDE_EMAIL='noreply@anthropic.com'
+TRAILER_RE='^Co-[Aa]uthored-[Bb]y: (Copilot|Claude) '
 TYPES='feat|fix|test|refactor|perf|docs|style|build|ci|chore|revert'
 SCOPE_RE='\(([a-z0-9._/-]+( [a-z0-9._/-]+)*)\)'
 CONVENTIONAL_RE="^($TYPES)($SCOPE_RE)?!?: [^ ].*[^.]\$"
@@ -41,7 +44,7 @@ Write:
   commit --phase <phase> [--empty] [<path>...] <<'MSG'
                                 Stage the given paths, then commit everything staged.
                                 The message comes from stdin: the subject line, a
-                                blank line and a body. The Copilot trailer is appended.
+                                blank line and a body. The co-author trailer is appended.
   amend --phase <phase> [<path>...]
                                 Stage the given paths (tests only) and amend HEAD,
                                 keeping its message. Only a red, regression or
@@ -61,7 +64,7 @@ Write:
                                 as "fixup! <subject of <commit>>" (code review, or
                                 static analysis at the close of a unit). The
                                 target must lie in <base>..HEAD. Stdin holds only
-                                the body; the Copilot trailer is appended. The
+                                the body; the co-author trailer is appended. The
                                 commit is recorded as a "fixup"; never autosquashed.
 
 Phases and the TDD cycle (the last cycle commit of the branch decides):
@@ -86,9 +89,12 @@ Phases and the TDD cycle (the last cycle commit of the branch decides):
   A squashed unit ends the cycle history: the cycle guard does not look past it.
 
   commit and squash accept -F <file> instead of stdin and --model <id>. The
-  model named in the trailer is --model, else $LINUS_MODEL, else the "model" of
-  ~/.copilot/settings.json. Each commit is appended to /tmp/kent-flow.log
-  when that file exists.
+  co-author trailer names the agent's CLI, $LINUS_COAUTHOR: "copilot"
+  (Co-authored-by: Copilot (<model>)) or "claude" (Co-Authored-By: Claude
+  (<model>)); unset, "claude" inside Claude Code (CLAUDECODE=1), else
+  "copilot". The model is --model, else $LINUS_MODEL, else the "model" of the
+  CLI's settings.json (~/.copilot or ~/.claude). Each commit is appended to
+  /tmp/kent-flow.log when that file exists.
 
 The base branch is $LINUS_BASE, else `git config linus.base`, else the first
 existing ref among origin/master, origin/main, master, main.
@@ -221,8 +227,19 @@ check_subject_scope() {
   return 0
 }
 
+# Sets COAUTHOR, the CLI the trailer names: claude or copilot.
+load_coauthor() {
+  COAUTHOR="${LINUS_COAUTHOR:-}"
+  if [ -z "$COAUTHOR" ]; then
+    if [ "${CLAUDECODE:-}" = 1 ]; then COAUTHOR=claude; else COAUTHOR=copilot; fi
+  fi
+  [[ "$COAUTHOR" == claude || "$COAUTHOR" == copilot ]] ||
+    die "LINUS_COAUTHOR must be claude or copilot, got '$COAUTHOR'."
+}
+
 default_model() {
   local settings="${COPILOT_HOME:-$HOME/.copilot}/settings.json"
+  [ "$COAUTHOR" = copilot ] || settings="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/settings.json"
   [ -f "$settings" ] || return 0
   sed -nE 's/^[[:space:]]*"model"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/p' "$settings" | head -n 1
 }
@@ -253,6 +270,7 @@ parse_commit_args() {
 }
 
 resolve_model() {
+  load_coauthor
   MODEL="${MODEL:-${LINUS_MODEL:-$(default_model)}}"
   [ -n "$MODEL" ] || die "No model: pass --model <id>, set LINUS_MODEL or a model in settings.json."
 }
@@ -281,7 +299,10 @@ flow_log() {
 }
 
 trailer() {
-  echo "Co-authored-by: Copilot ($MODEL) <$COPILOT_EMAIL>"
+  case "$COAUTHOR" in
+  claude) echo "Co-Authored-By: Claude ($MODEL) <$CLAUDE_EMAIL>" ;;
+  copilot) echo "Co-authored-by: Copilot ($MODEL) <$COPILOT_EMAIL>" ;;
+  esac
 }
 
 require_staged() {
@@ -293,14 +314,14 @@ require_staged() {
 }
 
 strip_existing_trailer() {
-  grep -v "^Co-authored-by: Copilot" "$1" | sed -e :a -e '/^\n*$/{$d;N;ba' -e '}'
+  grep -vE "$TRAILER_RE" "$1" | sed -e :a -e '/^\n*$/{$d;N;ba' -e '}'
 }
 
 message_problems() {
   local file="$1" subject blank body
   subject=$(sed -n 1p "$file")
   blank=$(sed -n 2p "$file")
-  body=$(sed -n '3,$p' "$file" | grep -v "^Co-authored-by: Copilot" | grep -v '^[[:space:]]*$' || true)
+  body=$(sed -n '3,$p' "$file" | grep -vE "$TRAILER_RE" | grep -v '^[[:space:]]*$' || true)
   [[ "$subject" =~ $CONVENTIONAL_RE ]] ||
     echo "Subject is not a Conventional Commit sentence without a trailing period: '$subject'"
   [ "${#subject}" -le 72 ] ||

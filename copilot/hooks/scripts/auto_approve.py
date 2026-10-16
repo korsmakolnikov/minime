@@ -15,10 +15,10 @@ cluster commands are always denied, and git commands that throw away
 uncommitted work always ask. Commands run in a container (`docker exec`,
 `docker compose exec`, `edgar exec`) are judged like host commands, and only
 in the containers listed in COPILOT_CONTAINERS in ~/.bash_copilot. Reads
-(view, grep, glob) of the agent and skill definitions and of the signal
-schemas under ~/.copilot, and reads, edits and file creations under /tmp,
-are approved too; other edits ask unless the editing agent is autonomous
-(AUTONOMY_<AGENT> in ~/.bash_copilot).
+(view, grep, glob) of the agent and skill definitions under ~/.copilot and
+of the signal schemas under ~/.local/share/minime, and reads, edits and file
+creations under /tmp, are approved too; other edits ask unless the editing
+agent is autonomous (AUTONOMY_<AGENT> in ~/.bash_copilot).
 
 Every request left to the user is logged, with the reason, to
 /tmp/copilot-hook-asks.jsonl.
@@ -86,7 +86,8 @@ SHELL_CLOSERS = {"fi", "done", "}", "break", "continue"}
 READ_TOOLS = {"view", "grep", "glob", "read"}
 EDIT_TOOLS = {"edit", "create", "Edit", "Write"}
 READABLE_ROOTS = tuple(
-    os.path.realpath(os.path.expanduser(p)) for p in ("~/.copilot/agents", "~/.copilot/skills", "~/.copilot/signals")
+    os.path.realpath(os.path.expanduser(p))
+    for p in ("~/.copilot/agents", "~/.copilot/skills", "~/.local/share/minime/signals")
 )
 
 

@@ -7,9 +7,16 @@ SKILLS_DEST_DIR := $(HOME)/.claude/skills
 AGENTS := $(wildcard $(AGENTS_SRC_DIR)/*.md)
 SKILLS := $(wildcard $(SKILLS_SRC_DIR)/*)
 
+# Commands and signal schemas shared by the Copilot and the Claude Code
+# workflows.
+COMMON_SRC_DIR   := common
+BIN_DIR          ?= $(HOME)/.local/bin
+SIGNALS_DIR      ?= $(HOME)/.local/share/minime/signals
+COMMON_BINS      := $(wildcard $(COMMON_SRC_DIR)/bin/*)
+
 COPILOT_SRC_DIR  := copilot
 COPILOT_HOME     ?= $(HOME)/.copilot
-COPILOT_BIN_DIR  ?= $(HOME)/.local/bin
+COPILOT_BIN_DIR  ?= $(BIN_DIR)
 COPILOT_AGENTS   := $(wildcard $(COPILOT_SRC_DIR)/agents/*.agent.md)
 COPILOT_SKILLS   := $(wildcard $(COPILOT_SRC_DIR)/skills/*)
 COPILOT_BINS     := $(wildcard $(COPILOT_SRC_DIR)/bin/*)
@@ -22,7 +29,7 @@ OLD_BINS         := gutexberg mortimer
 PROJECTS_DIR     ?= $(HOME)/code
 SHELL_RC_FILES   := $(wildcard $(HOME)/.bashrc $(HOME)/.bash_aliases $(HOME)/.bash_profile $(HOME)/.profile $(HOME)/.zshrc)
 
-.PHONY: install uninstall reinstall list check copilot-install update
+.PHONY: install uninstall reinstall list check common-install copilot-install update
 
 install: check
 	@mkdir -p $(AGENTS_DEST_DIR) $(SKILLS_DEST_DIR)
@@ -57,7 +64,19 @@ check:
 		&& echo "claude CLI found: $$(command -v claude)" \
 		|| echo "WARNING: claude CLI not found in PATH (file installation proceeds anyway)."
 
-copilot-install:
+common-install:
+	@mkdir -p $(BIN_DIR) $(SIGNALS_DIR)
+	@for b in $(COMMON_BINS); do \
+		install -m 755 "$$b" $(BIN_DIR)/; \
+		echo "Installed command: $(BIN_DIR)/$$(basename $$b)"; \
+	done
+	@rm -f $(SIGNALS_DIR)/*.schema.json
+	@cp $(COMMON_SRC_DIR)/signals/*.schema.json $(SIGNALS_DIR)/
+	@echo "Installed signal schemas: $(SIGNALS_DIR)"
+	@case ":$$PATH:" in *":$(BIN_DIR):"*) ;; \
+		*) echo "WARNING: $(BIN_DIR) is not in PATH; linus will not be found." ;; esac
+
+copilot-install: common-install
 	@mkdir -p $(COPILOT_HOME)/agents $(COPILOT_HOME)/skills $(COPILOT_BIN_DIR)
 	@for f in $(COPILOT_AGENTS); do \
 		cp "$$f" $(COPILOT_HOME)/agents/; \
@@ -72,9 +91,6 @@ copilot-install:
 		install -m 755 "$$b" $(COPILOT_BIN_DIR)/; \
 		echo "Installed command: $(COPILOT_BIN_DIR)/$$(basename $$b)"; \
 	done
-	@rm -rf $(COPILOT_HOME)/signals
-	@cp -r $(COPILOT_SRC_DIR)/signals $(COPILOT_HOME)/signals
-	@echo "Installed signal schemas: $(COPILOT_HOME)/signals"
 	@rm -rf $(COPILOT_HOME)/hooks
 	@cp -r $(COPILOT_SRC_DIR)/hooks $(COPILOT_HOME)/hooks
 	@chmod 755 $(COPILOT_HOME)/hooks/scripts/*.py
@@ -91,8 +107,6 @@ copilot-install:
 	fi
 	@command -v copilot >/dev/null 2>&1 \
 		|| echo "WARNING: copilot CLI not found in PATH (files were installed anyway)."
-	@case ":$$PATH:" in *":$(COPILOT_BIN_DIR):"*) ;; \
-		*) echo "WARNING: $(COPILOT_BIN_DIR) is not in PATH; linus will not be found." ;; esac
 
 update:
 	@for a in $(OLD_AGENTS); do \

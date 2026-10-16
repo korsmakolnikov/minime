@@ -20,12 +20,20 @@ viceversa.
   (`ASK_USER`, `HUGHES_DONE`, `FORD_DONE`, `INTERFACE_CHANGE_REQUEST`,
   `UNCLEBOB_DONE`, `TDD_VIOLATIONS`, `REVIEW_CHANGES`, `MARTIN_DONE`,
   `SIMON_UPDATED`, `AUDIT_VIOLATIONS`) ha le righe marcatore di sempre e un
-  oggetto JSON in mezzo, con uno schema in `copilot/signals/`. Il comando
-  `signal-check` (`copilot/bin/`, senza dipendenze) lo valida: sottoinsieme
+  oggetto JSON in mezzo, con uno schema in `common/signals/`. Il comando
+  `signal-check` (`common/bin/`, senza dipendenze) lo valida: sottoinsieme
   di JSON Schema, keyword sconosciute rifiutate, un solo blocco in fondo,
   niente segnaposto `<…>`. Gli agenti lo usano prima di chiudere il turno,
   joshua lo riusa su ogni blocco preso da `events.jsonl` (violazione
   `major`), kent risponde `SIGNAL_INVALID` a un blocco che non sa leggere.
+
+- **Comandi comuni.** `linus`, `spec-check`, `signal-check` e gli schemi dei
+  segnali stanno in `common/`, condivisi con il workflow Claude Code:
+  `make common-install` (chiamato da `make copilot-install`) li installa in
+  `~/.local/bin` e `~/.local/share/minime/signals`. linus sceglie il
+  trailer da `LINUS_COAUTHOR` (`copilot` o `claude`); senza, usa `claude`
+  dentro Claude Code (`CLAUDECODE=1`) e `copilot` altrimenti. Una modifica
+  a `common/` vale per tutti e due i lati: va provata su entrambi.
 
 ## Da fare sull'altro PC
 

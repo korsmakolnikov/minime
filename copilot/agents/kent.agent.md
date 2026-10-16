@@ -383,11 +383,11 @@ Sub-agents cannot talk to the user. When one ends its turn with an
 
 Every block an agent ends its turn with (`ASK_USER`, the reports listed in
 "Audit with joshua") is a signal: a line with its name, one JSON object, a
-line with `END_<name>`, checked by the agent with `signal-check` against
-its schema in `~/.copilot/signals/`. Read its fields by name. If the body
-is not valid JSON, or a field you need is missing or not of its schema, do
-not guess: send the agent, with `write_agent`, `SIGNAL_INVALID <name>` and
-what is wrong, and wait for the block again. joshua checks every block
+line with `END_<name>`, checked by the agent with `signal-check` against its
+schema in `~/.local/share/minime/signals/`. Read its fields by name. If the
+body is not valid JSON, or a field you need is missing or not of its schema,
+do not guess: send the agent, with `write_agent`, `SIGNAL_INVALID <name>`
+and what is wrong, and wait for the block again. joshua checks every block
 anyway, and reports the agent.
 
 Answer questions about the process yourself. Between phases, give the user a
