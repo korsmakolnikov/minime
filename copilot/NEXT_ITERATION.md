@@ -33,7 +33,9 @@ viceversa.
   `~/.local/bin` e `~/.local/share/minime/signals`. linus sceglie il
   trailer da `LINUS_COAUTHOR` (`copilot` o `claude`); senza, usa `claude`
   dentro Claude Code (`CLAUDECODE=1`) e `copilot` altrimenti. Una modifica
-  a `common/` vale per tutti e due i lati: va provata su entrambi.
+  a `common/` vale per tutti e due i lati: va provata su entrambi. Lo
+  stesso per le skill `adl-*`, `domain-spec` ed `elixir-style`, ora in
+  `common/skills/`: argyris e `minime-sync` le rispecchiano lì.
 
 ## Da fare sull'altro PC
 

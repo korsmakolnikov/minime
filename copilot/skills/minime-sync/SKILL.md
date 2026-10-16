@@ -37,7 +37,8 @@ Copy only what the mirror tracks (never `permissions-config.json`,
 ```sh
 (cd ~/code/minime \
   && cp ~/.copilot/agents/*.agent.md copilot/agents/ \
-  && for s in ~/.copilot/skills/*/; do cp -r "$s" copilot/skills/; done \
+  && for s in ~/.copilot/skills/*/; do n=$(basename "$s"); d=copilot/skills; \
+       [ -d common/skills/$n ] && d=common/skills; cp -r "$s" $d/; done \
   && cp -r ~/.copilot/hooks/. copilot/hooks/ \
   && cp ~/.copilot/settings.json ~/.copilot/copilot-instructions.md copilot/ \
   && cp ~/.bash_copilot copilot/bash_copilot \
@@ -49,9 +50,15 @@ Copy only what the mirror tracks (never `permissions-config.json`,
 Then look for files the live setup no longer has (renamed or deleted):
 
 ```sh
-(cd ~/code/minime && for d in agents skills hooks; do diff -rq ~/.copilot/$d copilot/$d; done \
+(cd ~/code/minime && for d in agents hooks; do diff -rq ~/.copilot/$d copilot/$d; done \
+  && for s in copilot/skills/*/ common/skills/*/; do diff -rq ~/.copilot/skills/$(basename $s) $s; done \
   && diff -rq ~/.local/share/minime/signals common/signals)
 ```
+
+Skills shared with the Claude Code workflow live in `common/skills/`; the
+loop above copies each live skill to the folder that already holds it, and a
+new skill to `copilot/skills/`. A change to a skill in `common/` reaches the
+Claude Code workflow too: say so to the user before committing it.
 
 An `Only in copilot/…` line is a file removed or renamed live: if renamed,
 `git mv old new` before copying (history follows the file), otherwise

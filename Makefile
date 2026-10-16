@@ -13,6 +13,7 @@ COMMON_SRC_DIR   := common
 BIN_DIR          ?= $(HOME)/.local/bin
 SIGNALS_DIR      ?= $(HOME)/.local/share/minime/signals
 COMMON_BINS      := $(wildcard $(COMMON_SRC_DIR)/bin/*)
+COMMON_SKILLS    := $(wildcard $(COMMON_SRC_DIR)/skills/*)
 
 COPILOT_SRC_DIR  := copilot
 COPILOT_HOME     ?= $(HOME)/.copilot
@@ -82,7 +83,7 @@ copilot-install: common-install
 		cp "$$f" $(COPILOT_HOME)/agents/; \
 		echo "Installed agent: $(COPILOT_HOME)/agents/$$(basename $$f)"; \
 	done
-	@for s in $(COPILOT_SKILLS); do \
+	@for s in $(COMMON_SKILLS) $(COPILOT_SKILLS); do \
 		rm -rf "$(COPILOT_HOME)/skills/$$(basename $$s)"; \
 		cp -r "$$s" $(COPILOT_HOME)/skills/; \
 		echo "Installed skill: $(COPILOT_HOME)/skills/$$(basename $$s)"; \
