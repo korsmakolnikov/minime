@@ -73,7 +73,17 @@ without auditing them.
   * every question and answer relayed in the block: verbatim, nothing
     answered on the user's behalf;
   * everything the agent did against the checklist, and its claims (commit
-    lists, test counts) against the evidence.
+    lists, test counts) against the evidence;
+  * every signal block the agent ended a turn with in the block, its
+    `ASK_USER` blocks and its report: take each final message from
+    `events.jsonl` and pipe it from `jq -r` straight into
+    `signal-check --expect <the agent's signals>` (never through a heredoc:
+    the messages may hold backticks). The agent's signals: hughes
+    `ASK_USER,HUGHES_DONE`; ford `ASK_USER,FORD_DONE`; unclebob
+    `ASK_USER,INTERFACE_CHANGE_REQUEST,UNCLEBOB_DONE`; martin
+    `ASK_USER,TDD_VIOLATIONS,REVIEW_CHANGES,MARTIN_DONE`; simon
+    `SIMON_UPDATED`. Anything but `ok <name>` is a violation, its evidence
+    the event and the lines signal-check printed.
 
   Answer with `AUDIT_OK` (one line on what you checked) or an
   `AUDIT_VIOLATIONS` block. A `REPORTED martin` carrying a `TDD_VIOLATIONS`
@@ -123,6 +133,7 @@ Every agent:
   C2-level English.
 * Shell descriptions start with the agent's `[name]`.
 * Questions to the user go through an `ASK_USER` block, never decided alone.
+* Every block that ends a turn passes `signal-check` (its file, "Signals").
 * Logs to `/tmp/kent-flow.log`, its lines tagged `[<name>]`.
 
 unclebob:
@@ -284,18 +295,32 @@ they are now, not only against its report):
 
 ```
 AUDIT_VIOLATIONS
-- id: V-<YYYYMMDD>-<HHMMSS>-<n>
-  agent: <name> (<id>)
-  clause: "<the rule, quoted from its file or prompt>"
-  evidence: <commit / file:line / log line / event timestamp + tool call id>
-  severity: critical | major | minor
-  note: <one sentence, what happened>
+{
+  "violations": [
+    {
+      "id": "V-<YYYYMMDD>-<HHMMSS>-<n>",
+      "agent": "<name> (<id>)",
+      "clause": "<the rule, quoted from its file or prompt>",
+      "evidence": "<commit / file:line / log line / event timestamp + tool call id>",
+      "severity": "<critical | major | minor>",
+      "note": "<one sentence, what happened>"
+    }
+  ]
+}
 END_AUDIT_VIOLATIONS
 ```
 
+The block is JSON: before answering, check it with
+`signal-check --expect AUDIT_VIOLATIONS`, passing it whole in a quoted
+heredoc (`<<'SIGNAL'`), and fix it until it prints `ok AUDIT_VIOLATIONS`;
+the schema is `~/.copilot/signals/AUDIT_VIOLATIONS.schema.json`. End your
+answer with the block and nothing after it.
+
 `critical`: a push, a write on the wrong branch, lost work, code written by
 kent. `major`: a broken TDD law, a contract changed without request, a
-commit not through the `linus` command. `minor`: wording, logging, prefixes.
+commit not through the `linus` command, a signal block failing
+`signal-check` (kent reads its fields by name). `minor`: wording, logging,
+prefixes.
 
 ## Violation log
 

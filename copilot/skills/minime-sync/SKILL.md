@@ -1,6 +1,6 @@
 ---
 name: minime-sync
-description: Mirrors the live Copilot setup in ~/.copilot (agents, skills, hooks, settings, global instructions), the autonomy settings in ~/.bash_copilot and the linus, kent, argyris and spec-check commands into ~/code/minime/copilot/, then records the change as a new commit with the linus command. Use before a /restart and whenever an agent, skill, hook or setting has changed.
+description: Mirrors the live Copilot setup in ~/.copilot (agents, skills, signal schemas, hooks, settings, global instructions), the autonomy settings in ~/.bash_copilot and the linus, kent, argyris, spec-check and signal-check commands into ~/code/minime/copilot/, then records the change as a new commit with the linus command. Use before a /restart and whenever an agent, skill, hook or setting has changed.
 ---
 
 # minime-sync
@@ -38,16 +38,17 @@ Copy only what the mirror tracks (never `permissions-config.json`,
 (cd ~/code/minime \
   && cp ~/.copilot/agents/*.agent.md copilot/agents/ \
   && for s in ~/.copilot/skills/*/; do cp -r "$s" copilot/skills/; done \
+  && cp ~/.copilot/signals/*.schema.json copilot/signals/ \
   && cp -r ~/.copilot/hooks/. copilot/hooks/ \
   && cp ~/.copilot/settings.json ~/.copilot/copilot-instructions.md copilot/ \
   && cp ~/.bash_copilot copilot/bash_copilot \
-  && cp ~/.local/bin/linus ~/.local/bin/kent ~/.local/bin/argyris ~/.local/bin/spec-check copilot/bin/)
+  && cp ~/.local/bin/linus ~/.local/bin/kent ~/.local/bin/argyris ~/.local/bin/spec-check ~/.local/bin/signal-check copilot/bin/)
 ```
 
 Then look for files the live setup no longer has (renamed or deleted):
 
 ```sh
-(cd ~/code/minime && for d in agents skills hooks; do diff -rq ~/.copilot/$d copilot/$d; done)
+(cd ~/code/minime && for d in agents skills signals hooks; do diff -rq ~/.copilot/$d copilot/$d; done)
 ```
 
 An `Only in copilot/…` line is a file removed or renamed live: if renamed,

@@ -360,16 +360,28 @@ when there are several.
 
 * Given a domain spec (`.sources/spec.yaml`), load the `domain-spec` skill: every
   contract and property of your component becomes at least one red test, one
-  at a time, citing its spec id in a comment. Report in `UNCLEBOB_DONE` the
-  ids covered and any left out, with the reason (the user decided, or the
-  entry cannot be tested as written, which you raise through the relay block
-  first).
+  at a time, citing its spec id in a comment. Report in `UNCLEBOB_DONE`
+  (`spec_ids`) the ids covered and any left out, with the reason (the user
+  decided, or the entry cannot be tested as written, which you raise through
+  the relay block first).
 * Keep Hypothesis strategies in a **shared generator module** next to the
   tests, as a single DSL for building domain objects.
 * Make a scenario's parameters **explicit at the call site**: a strategy that
   hardcodes a domain value hides the scenario.
 * Beware assertions that pass for the wrong reason: when a helper such as
   `sorted()` can silently accept a scalar, drop it and assert directly.
+
+## Signals (as a sub-agent of kent)
+
+Every block that ends a turn is a signal: a line with its name, one JSON
+object, a line with `END_<name>`. Anything long (a diff, an audit, a
+proposal) goes before the block, never inside it. Before ending the turn,
+check the block with
+`signal-check --expect ASK_USER,INTERFACE_CHANGE_REQUEST,UNCLEBOB_DONE`,
+passing it whole in a quoted heredoc (`<<'SIGNAL'`); fix it until it prints
+`ok <name>`, then end the turn with exactly that block and nothing after it.
+The schemas in `~/.copilot/signals/` describe every field. When kent answers
+`SIGNAL_INVALID`, fix the block it names and end the turn with it again.
 
 ## Asking questions
 
@@ -381,12 +393,16 @@ turn. The hard precondition is raised the same way.
 
 ```
 ASK_USER
-question: <one focused, self-contained question>
-choices: <option 1> | <option 2>     (optional)
-default: <recommended option>        (optional)
-why: <one line on what the answer changes>
+{
+  "question": "<one focused, self-contained question>",
+  "choices": ["<option 1>", "<option 2>"],
+  "default": "<recommended option>",
+  "why": "<one line on what the answer changes>"
+}
 END_ASK_USER
 ```
+
+`choices` and `default` are optional.
 
 ## Working inside an architecture defined by ford
 
@@ -402,9 +418,11 @@ written by ford (usually when kent launched you):
 
   ```
   INTERFACE_CHANGE_REQUEST
-  component: <module/package>
-  change: <the signature or rule you need, before and after>
-  reason: <the test or requirement that forces it>
+  {
+    "component": "<module or package; both, for a mismatch between contracts>",
+    "change": {"before": "<the signature or rule as it is>", "after": "<the one you need>"},
+    "reason": "<the test or requirement that forces it>"
+  }
   END_INTERFACE_CHANGE_REQUEST
   ```
 * On a mismatch between your contract and another component's (a value, error
@@ -427,11 +445,14 @@ written by ford (usually when kent launched you):
 
   ```
   UNCLEBOB_DONE
-  component: <module/package, or "integration">
-  implemented: <functions and behaviours>
-  tests: <test files added or changed>
-  checks: <each command run above and its result>
-  commits: <hashes and subjects>
-  open points: <anything the next session must know>
+  {
+    "component": "<module or package, or \"integration\">",
+    "implemented": ["<function or behaviour>"],
+    "tests": ["<test file added or changed>"],
+    "spec_ids": {"covered": ["<spec id>"], "left_out": [{"id": "<spec id>", "reason": "<…>"}]},
+    "checks": [{"command": "<each command run above, in order>", "result": "<its result>"}],
+    "commits": ["<short hash> <subject>"],
+    "open_points": ["<anything the next session must know>"]
+  }
   END_UNCLEBOB_DONE
   ```

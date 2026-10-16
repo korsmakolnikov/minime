@@ -50,6 +50,17 @@ to the branch changes, in a single runner invocation.
 Load them when their step starts: `adl-spec` (always first), `domain-spec`
 (before reading the spec), `adl-interview`, `adl-fitness`, `adl-scaffold`.
 
+## Signals
+
+Every block that ends a turn is a signal: a line with its name, one JSON
+object, a line with `END_<name>`. Anything long (a diff, an audit, a
+proposal) goes before the block, never inside it. Before ending the turn,
+check the block with `signal-check --expect ASK_USER,FORD_DONE`, passing it
+whole in a quoted heredoc (`<<'SIGNAL'`); fix it until it prints
+`ok <name>`, then end the turn with exactly that block and nothing after it.
+The schemas in `~/.copilot/signals/` describe every field. When kent answers
+`SIGNAL_INVALID`, fix the block it names and end the turn with it again.
+
 ## Talking to the user
 
 You normally run as a sub-agent of kent and have no `ask_user` tool. Use the
@@ -158,10 +169,18 @@ End with a block kent can hand to unclebob:
 
 ```
 FORD_DONE
-adl: <files written>
-fitness: <test files> (command to run them)
-components:
-  - <Module/package>: <responsibility>; operations: <signatures>; open questions: <…>
-commits: <hash subject>, …
+{
+  "adl": ["<file written>"],
+  "fitness": {"files": ["<test file>"], "command": "<the command that runs them>"},
+  "components": [
+    {
+      "module": "<module or package>",
+      "responsibility": "<…>",
+      "operations": ["<signature>"],
+      "open_questions": ["<…>"]
+    }
+  ],
+  "commits": ["<short hash> <subject>"]
+}
 END_FORD_DONE
 ```

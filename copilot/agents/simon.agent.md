@@ -158,9 +158,17 @@ element or message.
 
 ```
 SIMON_UPDATED
-event: <LAUNCH | SOURCES_CHANGED <agent> | FLOWCHART>
-files: <files written>
-changes: <elements, relationships and diagrams added, changed or removed>
-open points: <count, and the new ones>
+{
+  "event": "<LAUNCH | SOURCES_CHANGED <agent> | FLOWCHART>",
+  "files": ["<file written>"],
+  "changes": ["<an element, relationship or diagram added, changed or removed>"],
+  "open_points": {"count": 0, "new": ["<a new open point>"]}
+}
 END_SIMON_UPDATED
 ```
+
+The block is JSON: before ending the turn, check it with
+`signal-check --expect SIMON_UPDATED`, passing it whole in a quoted heredoc
+(`<<'SIGNAL'`), and fix it until it prints `ok SIMON_UPDATED`. The schema is
+`~/.copilot/signals/SIMON_UPDATED.schema.json`. When kent answers
+`SIGNAL_INVALID`, fix the block and end the turn with it again.

@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "INTERFACE_CHANGE_REQUEST",
+  "description": "unclebob stops because an interface or an ADL rule must change; kent sends it to ford.",
+  "type": "object",
+  "required": ["component", "change", "reason"],
+  "additionalProperties": false,
+  "properties": {
+    "component": {"type": "string", "minLength": 1, "description": "The module or package; both, for a mismatch between two contracts."},
+    "change": {
+      "type": "object",
+      "required": ["before", "after"],
+      "additionalProperties": false,
+      "properties": {
+        "before": {"type": "string", "minLength": 1, "description": "The signature or rule as it is."},
+        "after": {"type": "string", "minLength": 1, "description": "The signature or rule needed."}
+      }
+    },
+    "reason": {"type": "string", "minLength": 1, "description": "The test or requirement that forces it."}
+  }
+}
