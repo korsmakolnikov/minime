@@ -16,7 +16,10 @@ CLAUDE_BINS := $(wildcard $(CLAUDE_SRC_DIR)/bin/*)
 COMMON_SRC_DIR   := common
 BIN_DIR          ?= $(HOME)/.local/bin
 SIGNALS_DIR      ?= $(HOME)/.local/share/minime/signals
-COMMON_BINS      := $(wildcard $(COMMON_SRC_DIR)/bin/*)
+LIB_DIR          ?= $(HOME)/.local/share/minime/lib
+STRUCTURIZR_DIR  ?= $(HOME)/.local/share/structurizr-cli
+STRUCTURIZR_URL  ?= https://github.com/structurizr/cli/releases/latest/download/structurizr-cli.zip
+COMMON_BINS      := $(filter-out %/__pycache__,$(wildcard $(COMMON_SRC_DIR)/bin/*))
 COMMON_SKILLS    := $(wildcard $(COMMON_SRC_DIR)/skills/*)
 
 COPILOT_SRC_DIR  := copilot
@@ -43,12 +46,26 @@ SHELL_RC_FILES   := $(wildcard $(HOME)/.bashrc $(HOME)/.bash_aliases $(HOME)/.ba
 # user's autonomy settings, and copilot-install never overwrites it.
 INSTALLED := \
 	$(AGENTS_DEST_DIR)/unclebob.md \
+	$(AGENTS_DEST_DIR)/kent.md \
+	$(AGENTS_DEST_DIR)/hughes.md \
+	$(AGENTS_DEST_DIR)/ford.md \
+	$(AGENTS_DEST_DIR)/martin.md \
+	$(AGENTS_DEST_DIR)/simon.md \
+	$(AGENTS_DEST_DIR)/joshua.md \
+	$(AGENTS_DEST_DIR)/argyris.md \
+	$(AGENTS_DEST_DIR)/marvin.md \
+	$(AGENTS_DEST_DIR)/linus.md \
 	$(SKILLS_DEST_DIR)/adl-fitness \
 	$(SKILLS_DEST_DIR)/adl-interview \
 	$(SKILLS_DEST_DIR)/adl-reverse \
 	$(SKILLS_DEST_DIR)/adl-scaffold \
 	$(SKILLS_DEST_DIR)/adl-spec \
 	$(SKILLS_DEST_DIR)/domain-spec \
+	$(SKILLS_DEST_DIR)/domain-model \
+	$(SKILLS_DEST_DIR)/python-handbook \
+	$(SKILLS_DEST_DIR)/python-scaffold \
+	$(SKILLS_DEST_DIR)/c-scaffold \
+	$(SKILLS_DEST_DIR)/workflow-files \
 	$(SKILLS_DEST_DIR)/elixir-handbook \
 	$(SKILLS_DEST_DIR)/elixir-style \
 	$(SKILLS_DEST_DIR)/elixir-static-checks \
@@ -58,7 +75,18 @@ INSTALLED := \
 	$(BIN_DIR)/linus \
 	$(BIN_DIR)/spec-check \
 	$(BIN_DIR)/signal-check \
+	$(BIN_DIR)/flow-log \
+	$(BIN_DIR)/shopping-list \
+	$(BIN_DIR)/session-state \
+	$(BIN_DIR)/audit-log \
+	$(BIN_DIR)/events-query \
+	$(BIN_DIR)/git-read \
+	$(BIN_DIR)/minime-migrate \
+	$(BIN_DIR)/toolchain \
+	$(BIN_DIR)/adl-graph \
+	$(BIN_DIR)/scaffold \
 	$(SIGNALS_DIR) \
+	$(LIB_DIR) \
 	$(COPILOT_HOME)/agents/argyris.agent.md \
 	$(COPILOT_HOME)/agents/ford.agent.md \
 	$(COPILOT_HOME)/agents/hughes.agent.md \
@@ -78,6 +106,11 @@ INSTALLED := \
 	$(COPILOT_HOME)/skills/adl-scaffold \
 	$(COPILOT_HOME)/skills/adl-spec \
 	$(COPILOT_HOME)/skills/domain-spec \
+	$(COPILOT_HOME)/skills/domain-model \
+	$(COPILOT_HOME)/skills/python-handbook \
+	$(COPILOT_HOME)/skills/python-scaffold \
+	$(COPILOT_HOME)/skills/c-scaffold \
+	$(COPILOT_HOME)/skills/workflow-files \
 	$(COPILOT_HOME)/skills/elixir-handbook \
 	$(COPILOT_HOME)/skills/elixir-style \
 	$(COPILOT_HOME)/skills/elixir-static-checks \
@@ -91,7 +124,8 @@ INSTALLED := \
 	$(COPILOT_BIN_DIR)/gutexberg \
 	$(COPILOT_BIN_DIR)/mortimer
 
-.PHONY: install install-copilot uninstall reinstall list check common-install copilot-install update clean clean-check
+.PHONY: install install-copilot uninstall reinstall list check common-install copilot-install update clean clean-check \
+	test structurizr-install claude-cli copilot-cli
 
 install: check common-install
 	@mkdir -p $(AGENTS_DEST_DIR) $(SKILLS_DEST_DIR) $(HOOKS_DEST_DIR) $(BIN_DIR)
@@ -172,6 +206,11 @@ common-install:
 	@rm -f $(SIGNALS_DIR)/*.schema.json
 	@cp $(COMMON_SRC_DIR)/signals/*.schema.json $(SIGNALS_DIR)/
 	@echo "Installed signal schemas: $(SIGNALS_DIR)"
+	@rm -rf $(LIB_DIR)
+	@mkdir -p $(LIB_DIR)
+	@cp -r $(COMMON_SRC_DIR)/lib/minime $(LIB_DIR)/
+	@find $(LIB_DIR) -name __pycache__ -prune -exec rm -rf {} +
+	@echo "Installed the tools' library: $(LIB_DIR)"
 	@case ":$$PATH:" in *":$(BIN_DIR):"*) ;; \
 		*) echo "WARNING: $(BIN_DIR) is not in PATH; linus will not be found." ;; esac
 
@@ -243,21 +282,8 @@ update:
 		git config --global --rename-section gutexberg linus; \
 		echo "Renamed global git config gutexberg.* to linus.*"; \
 	fi
-	@for a in $$(find $(PROJECTS_DIR) -maxdepth 3 -type d -name .adl -prune 2>/dev/null); do \
-		if [ -e "$${a%/.adl}/.sources" ]; then \
-			echo "WARNING: $${a%/.adl} has both .adl/ and .sources/: merge them by hand."; \
-		else \
-			mv "$$a" "$${a%/.adl}/.sources"; echo "Moved $$a to .sources/"; \
-		fi; \
-	done
-	@ignore="$$(git config --global --path --get core.excludesFile || echo $${XDG_CONFIG_HOME:-$(HOME)/.config}/git/ignore)"; \
-	if [ -f "$$ignore" ]; then \
-		for e in .sources/ .documentation/; do \
-			grep -qxF "$$e" "$$ignore" || { echo "$$e" >> "$$ignore"; echo "Added $$e to the global git ignore file $$ignore"; }; \
-		done; \
-	else \
-		echo "WARNING: no global git ignore file ($$ignore): keep .sources/ and .documentation/ out of git by hand."; \
-	fi
+	@$(COMMON_SRC_DIR)/bin/minime-migrate --projects-dir $(PROJECTS_DIR) \
+		|| echo "WARNING: minime-migrate left files to merge by hand (CONFLICT lines above)."
 	@if [ -e /tmp/mortimer-partial-session-progress.md ] && [ ! -e /tmp/kent-partial-session-progress.md ]; then \
 		mv /tmp/mortimer-partial-session-progress.md /tmp/kent-partial-session-progress.md; \
 		echo "Moved the pending session progress to /tmp/kent-partial-session-progress.md"; \
@@ -267,3 +293,36 @@ update:
 			| sed 's/^/WARNING: old name, update by hand: /'; \
 	done; true
 	@$(MAKE) --no-print-directory copilot-install
+
+# The tests of the tools and the hooks.
+test:
+	@python3 -m unittest discover -s tests
+
+# structurizr-cli, which simon uses to validate its C4 workspace: Java from
+# the distribution (Arch Linux, Ubuntu), the CLI from its GitHub release.
+structurizr-install:
+	@command -v java >/dev/null 2>&1 || { . /etc/os-release; case "$$ID $$ID_LIKE" in \
+		*arch*) sudo pacman -S --needed --noconfirm jre-openjdk-headless unzip ;; \
+		*ubuntu*|*debian*) sudo apt-get update && sudo apt-get install -y default-jre-headless unzip ;; \
+		*) echo "Install Java 17+ and unzip by hand." >&2; exit 1 ;; esac; }
+	@rm -rf $(STRUCTURIZR_DIR) && mkdir -p $(STRUCTURIZR_DIR) $(BIN_DIR)
+	@curl -fsSL -o $(STRUCTURIZR_DIR)/cli.zip $(STRUCTURIZR_URL)
+	@cd $(STRUCTURIZR_DIR) && unzip -q cli.zip && rm cli.zip && chmod +x structurizr.sh
+	@ln -sf $(STRUCTURIZR_DIR)/structurizr.sh $(BIN_DIR)/structurizr-cli
+	@echo "Installed structurizr-cli: $(BIN_DIR)/structurizr-cli"
+
+# The two CLIs the workflow runs on, on Arch Linux and Ubuntu.
+claude-cli:
+	@command -v claude >/dev/null 2>&1 && echo "claude is installed: $$(claude --version)" \
+		|| { command -v curl >/dev/null 2>&1 || { . /etc/os-release; case "$$ID $$ID_LIKE" in \
+			*arch*) sudo pacman -S --needed --noconfirm curl ;; \
+			*ubuntu*|*debian*) sudo apt-get update && sudo apt-get install -y curl ;; esac; }; \
+		curl -fsSL https://claude.ai/install.sh | bash; }
+
+copilot-cli:
+	@command -v copilot >/dev/null 2>&1 && echo "copilot is installed: $$(copilot --version)" \
+		|| { command -v npm >/dev/null 2>&1 || { . /etc/os-release; case "$$ID $$ID_LIKE" in \
+			*arch*) sudo pacman -S --needed --noconfirm nodejs npm ;; \
+			*ubuntu*|*debian*) sudo apt-get update && sudo apt-get install -y nodejs npm ;; \
+			*) echo "Install Node.js 22+ and npm by hand." >&2; exit 1 ;; esac; }; \
+		npm install -g --prefix $(HOME)/.local @github/copilot; }

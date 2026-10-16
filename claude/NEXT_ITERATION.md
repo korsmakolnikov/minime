@@ -105,55 +105,42 @@ finirebbero a martin invece che a kent: per ora no.
   guard glielo permette (`name:AGENTS.md`, `linus stage`/`commit`) e lo
   vieta a ford e unclebob, che segnalano in `open_points`.
 
+- **Il workflow Claude completo** (16 ottobre, sera), secondo le decisioni
+  della sezione "Refactor":
+  - tool in `common/bin` su una libreria Python comune (`common/lib/minime`):
+    `toolchain` (driver Elixir e Python, `toolchain.yaml`), `git-read`,
+    `shopping-list`, `session-state`, `flow-log`, `audit-log`,
+    `events-query`, `minime-migrate`, `adl-graph`, `scaffold` (template
+    Python e C); `linus hunks` e `stage-hunks`; `spec-check` con la spec
+    versione 2, `realization` e `coverage`;
+  - guard: in Bash solo i tool dell'agente, niente sostituzioni di comando
+    né heredoc non quotate, letture limitate per hughes, approvazione senza
+    prompt dei tool di sola lettura (commit, scaffold, migrazioni e
+    `check --fix` chiedono ancora); hook `flow_hook.py` per il log;
+  - agenti: kent, hughes, ford, unclebob, martin, simon, joshua, argyris,
+    marvin, linus;
+  - skill: `domain-model` (spec v2 e mappa dei componenti), `python-handbook`,
+    `elixir-handbook` riscritta sui tool, `python-scaffold`, `c-scaffold`
+    (al posto di `claude/skills/scaffold`), `workflow-files`; `adl-reverse`
+    usa `adl-graph`;
+  - segnali nuovi: `DOMAIN_CHANGE_REQUEST`, `FORD_AS_IS`, `MARVIN_DONE`,
+    `AUDIT_OK`; `FORD_DONE` con campi facoltativi per la mappa;
+  - Makefile: libreria in `~/.local/share/minime/lib`, `make test`,
+    `structurizr-install`, `claude-cli`, `copilot-cli`; `make update` usa
+    `minime-migrate`;
+  - `tests/`: 21 test su guard e tool, tutti verdi.
+
 ## Da fare
 
-1. Gli altri agenti, dal contenuto Copilot, con hook nel frontmatter e
-   strumenti di Claude Code (`Agent`, `SendMessage`, `AskUserQuestion`,
-   `Edit`/`Write`, `Bash` con `run_in_background`):
-   - **kent** (thread principale): relay con `AskUserQuestion`, lancio in
-     background, `SendMessage`, `SIGNAL_INVALID` non serve più (lo fa
-     l'hook); niente eventi a joshua, che legge `/tmp/kent-events.jsonl`.
-   - **hughes**, **ford**, **martin**, **simon**: port quasi diretto; tolta
-     la parte "controlla il blocco con signal-check" (lo fa l'hook).
-   - **kent**: portare anche "The project's agent instructions".
-   - **martin**: rivede esplicitamente il materiale di test condiviso
-     (support, factory, harness) dell'unità, che unclebob non tocca nei
-     cicli; valutare se lancia lui i controlli statici
-     (`<linguaggio>-static-checks`) in review e li registra come modifiche.
-   - **joshua**: audit sui transcript e su `/tmp/kent-events.jsonl` e
-     `/tmp/kent-guard.jsonl`; checklist ridotta alle regole di giudizio.
-   - **argyris** (`claude --agent argyris`) e una skill `minime-sync` per
-     `~/.claude` → `claude/` e `common/`.
-   - **linus** (`claude --agent linus`) per i commit fuori dal workflow.
-2. Permessi: equivalente di `auto_approve.py` per non far rispondere
-   l'utente a ogni comando (regole `allow`/`deny` nel frontmatter non
-   esistono: `permissionMode` per agente, o un hook `PermissionRequest`).
-3. README: sezione del workflow Claude Code.
-4. **Scaffolding di un progetto nuovo.** kent oggi non sa crearne uno.
-   Esiste già `claude/skills/scaffold` (solo C: `scaffold.sh`, template
-   CMake + Make, `make deps` per Arch e Ubuntu, CI GitHub; si invoca a mano
-   con `/scaffold c`), da riusare. **Priorità: Python**, perché il primo
-   progetto su cui proveremo il workflow è la versione LangGraph. Una skill per linguaggio
-   (Elixir, Python, C), probabilmente parte della
-   `<linguaggio>-handbook` o accanto a lei: layout, build (C: CMake + Make),
-   test runner e libreria property-based, formatter, linter, type checker,
-   `AGENTS.md` iniziale, `.gitignore`. Da decidere chi lo esegue (ford,
-   dopo l'ADL?) e come si inserisce nel ramo greenfield di kent.
-5. **simon da rivedere.** Il workspace Structurizr DSL (`workspace.dsl`, C4)
-   è giusto; accanto però scrive un altro file, non ancora identificato, e
-   non scrive `architecture.md`, il markdown con i sequence diagram Mermaid
-   delle iterazioni esplorate, costruite o corrette e i class diagram, che
-   pure le sue istruzioni chiedono. Da approfondire su una
-   `.documentation/<branch>/` vera prima del porting.
-6. **Makefile: installazione delle CLI.** Un target per installare Claude
-   Code e uno per Copilot CLI, solo Arch Linux e Ubuntu, come il resto.
-7. **Versione LangGraph.** Un orchestratore in LangGraph, per imparare il
-   framework e per misurare se serve: le due versioni girano in parallelo
-   sugli stessi progetti e si confrontano i risultati (quanto è limitata
-   quella a soli agenti, quanto sbaglia quella in codice). Servono metriche
-   comuni da definire prima: violazioni di joshua, segnali invalidi,
-   rifiuti del guard, cicli e commit per unità, tempo, token, correzioni di
-   review.
+1. **La prima sessione vera**: `make install`, poi `claude --agent kent` sul
+   progetto LangGraph (scaffold Python). Il nome della cartella va aggiunto
+   a `projects` in `python-handbook` (oggi `minime-langgraph`, provvisorio).
+2. **C**: un driver C per `toolchain` (CMake + Make) e una `c-handbook`.
+3. **Le citazioni `spec:` nel codice di produzione**: chi le toglie prima
+   della PR (martin in review? un tool?).
+4. **Autonomia**: oggi i commit chiedono sempre conferma. Se serve, un
+   livello configurabile (come `AUTONOMY_LINUS` su Copilot).
+5. **Versione LangGraph**, con metriche comuni per il confronto.
 
 ## Refactor dell'architettura degli agenti (decisioni del 16 ottobre)
 
@@ -278,15 +265,23 @@ Da fare sul lato Claude; Copilot lo applica dal suo `NEXT_ITERATION.md`.
 
 ## Da verificare
 
-- Se gli hook nel frontmatter valgono anche per l'agente lanciato come
-  thread principale (`claude --agent kent`): la documentazione lo dice solo
-  per i subagent. Se no, kent ha bisogno dei suoi hook in un altro modo.
-- Se il frontmatter accetta `Stop` per un agente utente (in
-  `~/.claude/agents/`) senza la finestra di fiducia, che la documentazione
-  chiede solo per gli agenti di progetto.
-- Il limite di 8 blocchi consecutivi degli Stop hook
-  (`CLAUDE_CODE_STOP_HOOK_BLOCK_CAP`) vale anche per `SubagentStop`?
-- Un `SendMessage` a un subagent ancora al lavoro: messo in coda o
-  rifiutato?
-- unclebob interattivo: che il guard (attivo anche lì) e linus non
-  intralcino la procedura passo per passo.
+Niente di questo è ancora stato provato in una sessione Claude Code vera.
+
+- Se gli hook nel frontmatter valgono per l'agente lanciato come thread
+  principale (`claude --agent kent`, `argyris`, `linus`, `unclebob`
+  interattivo): la documentazione lo dice solo per i subagent. Se no, il
+  guard di kent va messo in un altro modo (settings del progetto?).
+- Se il frontmatter accetta `skills:` (precaricate) e `Stop` per un agente
+  utente senza la finestra di fiducia.
+- Il limite di 8 blocchi consecutivi degli Stop hook vale per
+  `SubagentStop`?
+- `SendMessage` a un subagent ancora al lavoro: in coda o rifiutato? E a uno
+  la cui sessione è finita da tempo (ford per un `INTERFACE_CHANGE_REQUEST`)?
+- I transcript dei subagent: il formato che `events-query transcript` legge
+  (righe con `message.content`) va confermato su un transcript vero.
+- `mix test` con percorsi dalla radice di un'umbrella (crash).
+- Il guard nel modo interattivo di unclebob: che i soli tool bastino.
+- simon su Copilot: il file "in un altro DSL" che l'utente non riconosce
+  potrebbe essere `workspace.json`, che Structurizr Lite genera accanto a
+  `workspace.dsl` quando lo si apre. Il nuovo simon scrive solo i suoi due
+  file e mette `architecture.md` per primo.

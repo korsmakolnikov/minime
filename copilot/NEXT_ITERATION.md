@@ -160,3 +160,16 @@ Dalle iterazioni precedenti, ancora aperte:
       completa, integrazione su input e output alle interfacce;
     - nuovo agente **marvin** per `AGENTS.md` (sempre) e `CLAUDE.md` (solo
       su Claude Code), al posto di kent.
+11. **Cosa c'è già in `common/` per il refactor** (fatto sul lato Claude,
+    16 ottobre): i tool `toolchain`, `git-read`, `shopping-list`,
+    `session-state`, `flow-log`, `audit-log`, `events-query`,
+    `minime-migrate`, `adl-graph`, `scaffold`, `linus hunks`/`stage-hunks`,
+    `spec-check` versione 2; le skill `domain-model`, `python-handbook`,
+    `python-scaffold`, `c-scaffold`, `workflow-files`, `elixir-handbook`
+    riscritta sui tool; i segnali `DOMAIN_CHANGE_REQUEST`, `FORD_AS_IS`,
+    `MARVIN_DONE`, `AUDIT_OK`. Gli agenti Copilot non li usano ancora:
+    `domain-spec` (spec versione 1) e i segnali di prima restano validi
+    finché il refactor non è fatto. `audit-log` scrive le righe `HANDLED`
+    nello stesso formato di argyris. Riferimento: `claude/agents/` e
+    `claude/hooks/guard.py` (la tabella dei tool per agente).
+

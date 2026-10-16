@@ -23,14 +23,20 @@ class GuardTest(unittest.TestCase):
     def tearDownClass(cls):
         cls.tmp.cleanup()
 
-    def run_guard(self, agent, tool, **tool_input):
+    def decision(self, agent, tool, **tool_input):
         payload = {"tool_name": tool, "tool_input": tool_input, "cwd": self.repo}
         run = subprocess.run([sys.executable, GUARD, agent], input=json.dumps(payload),
                              capture_output=True, text=True, env=self.env)
         self.assertEqual(run.returncode, 0, run.stderr)
         if not run.stdout.strip():
-            return None
-        return json.loads(run.stdout)["hookSpecificOutput"]["permissionDecisionReason"]
+            return None, None
+        out = json.loads(run.stdout)["hookSpecificOutput"]
+        return out["permissionDecision"], out["permissionDecisionReason"]
+
+    def run_guard(self, agent, tool, **tool_input):
+        """The deny reason, or None when the call is not refused."""
+        kind, reason = self.decision(agent, tool, **tool_input)
+        return reason if kind == "deny" else None
 
     def allowed(self, agent, command):
         self.assertIsNone(self.run_guard(agent, "Bash", command=command), command)
@@ -97,6 +103,28 @@ class GuardTest(unittest.TestCase):
         self.assertIsNotNone(edit("kent", "lib/a.ex"))
         self.assertIsNone(edit("simon", ".documentation/b/workspace.dsl"))
         self.assertIsNotNone(edit("martin", "lib/a.ex"))
+
+    def test_read_places(self):
+        def read(agent, tool, **args):
+            return self.run_guard(agent, tool, **args)
+        self.assertIsNone(read("hughes", "Read", file_path=os.path.join(self.repo, ".sources/spec.yaml")))
+        self.assertIsNotNone(read("hughes", "Read", file_path=os.path.join(self.repo, "lib/a.ex")))
+        self.assertIsNotNone(read("hughes", "Grep", pattern="defmodule"))
+        self.assertIsNone(read("hughes", "Glob", pattern="*.md", path=os.path.join(self.repo, ".sources/shopping_lists")))
+        self.assertIsNone(read("unclebob", "Read", file_path=os.path.join(self.repo, "lib/a.ex")))
+
+    def test_auto_allow(self):
+        def kind(agent, command):
+            return self.decision(agent, "Bash", command=command)[0]
+        self.assertEqual(kind("unclebob", "toolchain test --agent unclebob --commit"), "allow")
+        self.assertEqual(kind("unclebob", "git-read log; linus range"), "allow")
+        self.assertIsNone(kind("unclebob", "linus commit --phase red a <<'M'\nx\nM"))
+        self.assertIsNone(kind("unclebob", "toolchain check --fix"))
+        self.assertIsNone(kind("unclebob", "toolchain show > /tmp/x"))
+        self.assertEqual(kind("unclebob", "toolchain show 2>/dev/null"), "allow")
+        self.assertEqual(kind("kent", "shopping-list write <<'E'\nx\nE"), "allow")
+        self.assertIsNone(kind("kent", "scaffold python PROJECT_NAME=x"))
+        self.assertEqual(kind("unclebob", "rm -rf /"), "deny")
 
     def test_denials_are_logged(self):
         self.denied("joshua", "rm -rf /")

@@ -11,12 +11,18 @@ whose delimiter is not quoted (its body would be expanded), and a redirect
 or a file write outside the agent's own places. Edit, Write and NotebookEdit
 are held to the same places.
 
-Reading and searching go through the Read, Grep and Glob tools, which the
-hook does not limit. Every refusal is appended to kent-guard.jsonl under
+Reading and searching go through the Read, Grep and Glob tools, limited only
+for an agent with "read" places (hughes reads no code). Every refusal is appended to kent-guard.jsonl under
 MINIME_STATE_DIR (default /tmp).
 
-Output: a PreToolUse deny decision with the reason, or nothing (the normal
-permission check goes on).
+Approvals: a Bash call whose every command reads, or writes only the
+workflow's own files under /tmp and .sources/ (AUTO_ALLOW), is approved
+without a prompt. Commits, scaffolding, migrations, `make` and formatting
+(`toolchain check --fix`) still reach the user's permission prompt, and so
+do Edit and Write.
+
+Output: a PreToolUse deny decision with the reason, an allow decision, or
+nothing (the normal permission check goes on).
 """
 import datetime
 import json
@@ -56,6 +62,8 @@ AGENTS = {
         "tools": {"flow-log": None, **SHOW, "spec-check": None},
         "linus": set(),
         "edit": ["repo:.sources/spec.yaml"],
+        # the domain comes from the shopping list and the user, not the code
+        "read": ["repo:.sources/spec.yaml", "repo:.sources/shopping_lists/", "~/.claude/", "/tmp/"],
     },
     "ford": {
         "tools": {**COMMON, **SHOW, **TESTS, "spec-check": None, "adl-graph": None},
@@ -108,6 +116,19 @@ for _rules in AGENTS.values():
     _rules["tools"]["linus"] = None
 
 
+# Tool -> the subcommands approved without a prompt (None: any), once the
+# agent's own rules allow the call.
+AUTO_ALLOW = {
+    "flow-log": None, "git-read": None, "spec-check": None, "signal-check": None,
+    "events-query": None, "adl-graph": None,
+    "toolchain": {"show", "build", "test", "related", "check"},
+    "shopping-list": None, "session-state": None,
+    "audit-log": {"append", "pending", "show", "handled", "archive"},
+    "structurizr-cli": {"validate", "inspect"},
+    "linus": {"base", "range", "next", "check-message", "hunks", "--help", "-h", "help"},
+}
+
+
 class Deny(Exception):
     """A call the agent may not make; the message tells it why."""
 
@@ -144,6 +165,12 @@ def inside(path, spec_path):
 
 def readable(specs):
     return ", ".join(s.replace("repo:", "<repo>/").replace("name:", "any ") or "<repo>" for s in specs) or "none"
+
+
+def check_read(agent, rules, path, cwd, root):
+    path = os.path.normpath(os.path.join(cwd, os.path.expanduser(path)))
+    if not any(p is not None and inside(path, p) for p in (place(s, root) for s in rules["read"])):
+        raise Deny(f"{agent} may not read {path}: it reads only {readable(rules['read'])}.")
 
 
 def check_write(agent, rules, path, cwd, root):
@@ -220,7 +247,19 @@ def same_prefix(words, entry):
     return have == want
 
 
+def auto_allowed(words, targets):
+    name = os.path.basename(words[0])
+    if name not in AUTO_ALLOW or targets:
+        return False
+    sub = words[1] if len(words) > 1 else ""
+    if name == "toolchain" and sub == "check" and "--fix" in words:
+        return False
+    return AUTO_ALLOW[name] is None or sub in AUTO_ALLOW[name]
+
+
 def check_bash(agent, rules, command, cwd, root):
+    """Raises Deny, or returns whether every command may run without a prompt."""
+    quiet = True
     for words, targets in simple_commands(strip_heredocs(command)):
         words = strip_prefixes(words)
         if not words:
@@ -242,6 +281,8 @@ def check_bash(agent, rules, command, cwd, root):
                 raise Deny(f"{agent} may run {name} only as: {', '.join(sorted(tools[name]))}.")
         for path in targets:
             check_write(agent, rules, path, cwd, root)
+        quiet = quiet and auto_allowed(words, [t for t in targets if t != "/dev/null"])
+    return quiet
 
 
 def log_denial(payload, agent, reason):
@@ -275,13 +316,20 @@ def main():
     try:
         if tool == "Bash":
             try:
-                check_bash(agent, rules, args.get("command", ""), cwd, root)
+                if check_bash(agent, rules, args.get("command", ""), cwd, root):
+                    print(json.dumps({"hookSpecificOutput": {
+                        "hookEventName": "PreToolUse",
+                        "permissionDecision": "allow",
+                        "permissionDecisionReason": "[guard] a workflow tool that reads or writes only the workflow's files",
+                    }}))
             except ValueError:
                 raise Deny("the command could not be parsed (unbalanced quotes?): run one tool per command.")
         elif tool in ("Edit", "Write", "MultiEdit", "NotebookEdit"):
             path = args.get("file_path") or args.get("notebook_path")
             if path:
                 check_write(agent, rules, path, cwd, root)
+        elif tool in ("Read", "Grep", "Glob") and "read" in rules:
+            check_read(agent, rules, args.get("file_path") or args.get("path") or cwd, cwd, root)
     except Deny as denial:
         log_denial(payload, agent, str(denial))
         print(json.dumps({"hookSpecificOutput": {

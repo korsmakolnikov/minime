@@ -7,7 +7,8 @@ Usage:
   AUDIT
   audit-log pending            the ids still pending, oldest first
   audit-log show <id>...       print those entries whole
-  audit-log handled <id>...    argyris: mark them settled (HANDLED lines)
+  audit-log handled <id>... --reason "<applied: file | no change: why | duplicate of <id>>"
+                               argyris: mark them settled (HANDLED lines)
   audit-log archive            argyris: when nothing is pending, move the log
                                to /tmp/joshua.log.prev (the last one only)
 
@@ -28,7 +29,7 @@ ARCHIVE = state_path("joshua.log.prev")
 LEGACY = state_path("joshua-violations.md")
 ID = r"[VM]-\d{8}-\d{6}-\d+"
 HEADING = re.compile(rf"^## ({ID}) — (critical|major|minor) — \S+")
-HANDLED = re.compile(rf"^HANDLED ({ID})\s*$")
+HANDLED = re.compile(rf"^HANDLED ({ID})\b")
 
 
 def read(path=LOG):
@@ -98,13 +99,17 @@ def main():
             raise ToolError(f"no such entries: {', '.join(missing)}")
         sys.stdout.write("\n".join(found[i] for i in rest))
     elif command == "handled" and rest:
+        if "--reason" not in rest or rest.index("--reason") + 1 >= len(rest):
+            raise ToolError('handled needs --reason "<applied: file | no change: why | duplicate of <id>>"')
+        at = rest.index("--reason")
+        reason, ids = " ".join(rest[at + 1:]), rest[:at]
         known = entries(read())
-        missing = [i for i in rest if i not in known]
-        if missing:
-            raise ToolError(f"no such entries: {', '.join(missing)}")
+        missing = [i for i in ids if i not in known]
+        if not ids or missing:
+            raise ToolError(f"no such entries: {', '.join(missing) or 'none given'}")
         with open(LOG, "a") as log:
-            log.write("".join(f"HANDLED {i}\n" for i in rest))
-        print(f"handled {', '.join(rest)}")
+            log.write("".join(f"HANDLED {i} — {reason}\n" for i in ids))
+        print(f"handled {', '.join(ids)}")
     elif command == "archive" and not rest:
         left = pending(read())
         if left:

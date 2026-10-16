@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "DOMAIN_CHANGE_REQUEST",
+  "description": "An agent stops because the domain spec is wrong or incomplete for its work; kent sends it to hughes, who settles it with the user.",
+  "type": "object",
+  "required": [
+    "entry",
+    "change",
+    "reason"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "entry": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The spec id, or the entity, event or operation name; \"new\" for an entry the spec lacks."
+    },
+    "change": {
+      "type": "object",
+      "required": [
+        "before",
+        "after"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "before": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The entry as it is, or \"none\"."
+        },
+        "after": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The entry as the work needs it."
+        }
+      }
+    },
+    "reason": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The test, interface or fact that forces it."
+    }
+  }
+}
