@@ -130,8 +130,10 @@ finirebbero a martin invece che a kent: per ora no.
    esistono: `permissionMode` per agente, o un hook `PermissionRequest`).
 3. README: sezione del workflow Claude Code.
 4. **Scaffolding di un progetto nuovo.** kent oggi non sa crearne uno.
-   Esiste già `claude/skills/scaffold` (solo C: CMake + Make, template,
-   `make deps` per Arch e Ubuntu), da riusare. Una skill per linguaggio
+   Esiste già `claude/skills/scaffold` (solo C: `scaffold.sh`, template
+   CMake + Make, `make deps` per Arch e Ubuntu, CI GitHub; si invoca a mano
+   con `/scaffold c`), da riusare. **Priorità: Python**, perché il primo
+   progetto su cui proveremo il workflow è la versione LangGraph. Una skill per linguaggio
    (Elixir, Python, C), probabilmente parte della
    `<linguaggio>-handbook` o accanto a lei: layout, build (C: CMake + Make),
    test runner e libreria property-based, formatter, linter, type checker,
