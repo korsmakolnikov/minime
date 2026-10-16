@@ -132,6 +132,16 @@ finirebbero a martin invece che a kent: per ora no.
 
 ## Da fare
 
+0. **Per il 17 ottobre: il ruolo di argyris e come chiudere il loop
+   agentico.** Oggi argyris legge le violazioni di joshua, propone una
+   modifica per ciascuna, la applica in `~/code/minime` dopo l'approvazione,
+   lancia `make install` e committa. L'utente non vede il senso di
+   `make install` se argyris non ha autonomia (approva comunque ogni
+   modifica). Da capire: chi installa e quando, se argyris deve avere un
+   livello di autonomia, come una violazione diventa davvero una regola che
+   non si ripete (testo, guard, tool), e come si misura che il loop si è
+   chiuso.
+
 1. **La prima sessione vera**: `make install`, poi `claude --agent kent` sul
    progetto LangGraph (scaffold Python). Il nome della cartella va aggiunto
    a `projects` in `python-handbook` (oggi `minime-langgraph`, provvisorio).
@@ -263,16 +273,33 @@ Da fare sul lato Claude; Copilot lo applica dal suo `NEXT_ITERATION.md`.
   con la sola firma; restano leggibili messaggi e chiamate ai tool. Da
   verificare cosa salva Copilot in `~/.copilot/session-state/<id>/`.
 
+## Verificato (16 ottobre, Claude Code 2.1.301, `claude -p --agent kent` su un progetto di prova)
+
+- Gli hook nel frontmatter valgono anche per l'agente lanciato come thread
+  principale: il guard di kent ha rifiutato `git`, `cat`, `toolchain test`,
+  la sostituzione di comando, `linus commit` e una Write sul codice, e ha
+  lasciato passare i suoi tool.
+- **Ma gli hook del thread principale scattano anche sulle chiamate dei suoi
+  subagent** (nel log comparivano righe `[kent] [hughes] …`): il guard di
+  kent avrebbe bloccato i commit di unclebob. Corretto: guard e log
+  ignorano le chiamate di un altro agente (`agent_type` nel payload).
+  Riprovato: hughes scrive `.sources/spec.yaml` senza interferenze.
+- `Stop` nel frontmatter di un agente utente funziona come `SubagentStop`,
+  senza finestra di fiducia: hughes ha chiuso senza segnale, l'hook gli ha
+  rimandato il turno e ha richiuso con un `ASK_USER` valido
+  (`/tmp/kent-events.jsonl`: `ok: false`, poi `ok: true`).
+- Il guard di hughes blocca la lettura del codice (Read su `src/`) e `rg`.
+- **In questa versione non esistono i tool Grep e Glob**, nemmeno in una
+  sessione normale: la ricerca passa da `rg` (aggiunto ai tool comuni, senza
+  `--pre` e `--search-zip`).
+- In `claude -p` non c'è AskUserQuestion e le Write chiedono un permesso che
+  nessuno può dare (serve `--permission-mode acceptEdits`).
+
 ## Da verificare
 
-Niente di questo è ancora stato provato in una sessione Claude Code vera.
-
-- Se gli hook nel frontmatter valgono per l'agente lanciato come thread
-  principale (`claude --agent kent`, `argyris`, `linus`, `unclebob`
-  interattivo): la documentazione lo dice solo per i subagent. Se no, il
-  guard di kent va messo in un altro modo (settings del progetto?).
-- Se il frontmatter accetta `skills:` (precaricate) e `Stop` per un agente
-  utente senza la finestra di fiducia.
+- Una sessione interattiva vera: la relay con AskUserQuestion e
+  SendMessage, i prompt dei permessi sui commit.
+- Se `skills:` nel frontmatter precarica davvero le skill.
 - Il limite di 8 blocchi consecutivi degli Stop hook vale per
   `SubagentStop`?
 - `SendMessage` a un subagent ancora al lavoro: in coda o rifiutato? E a uno

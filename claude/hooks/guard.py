@@ -11,8 +11,9 @@ whose delimiter is not quoted (its body would be expanded), and a redirect
 or a file write outside the agent's own places. Edit, Write and NotebookEdit
 are held to the same places.
 
-Reading and searching go through the Read, Grep and Glob tools, limited only
-for an agent with "read" places (hughes reads no code). Every refusal is appended to kent-guard.jsonl under
+Reading goes through the Read tool, limited only for an agent with "read"
+places (hughes reads no code); searching through ripgrep (`rg`, without the
+options that run other programs: --pre, --search-zip). Every refusal is appended to kent-guard.jsonl under
 MINIME_STATE_DIR (default /tmp).
 
 Approvals: a Bash call whose every command reads, or writes only the
@@ -39,7 +40,8 @@ LINUS_READS = {"base", "range", "next", "check-message", "hunks", "--help", "-h"
 MINIME = "~/code/minime"
 
 # Tool -> the subcommands allowed (None: any). Shared by most agents.
-COMMON = {"flow-log": None, "git-read": None}
+COMMON = {"flow-log": None, "git-read": None, "rg": None}
+RG_REFUSED = ("--pre", "-z", "--search-zip")
 SHOW = {"shopping-list": {"show", "path"}}
 TESTS = {"toolchain": {"show", "build", "test", "related"}}
 
@@ -112,14 +114,15 @@ AGENTS = {
         "edit": ["/tmp/"],
     },
 }
-for _rules in AGENTS.values():
-    _rules["tools"]["linus"] = None
+for _name, _rules in AGENTS.items():
+    if _name != "hughes":  # hughes touches no git at all
+        _rules["tools"]["linus"] = None
 
 
 # Tool -> the subcommands approved without a prompt (None: any), once the
 # agent's own rules allow the call.
 AUTO_ALLOW = {
-    "flow-log": None, "git-read": None, "spec-check": None, "signal-check": None,
+    "flow-log": None, "git-read": None, "rg": None, "spec-check": None, "signal-check": None,
     "events-query": None, "adl-graph": None,
     "toolchain": {"show", "build", "test", "related", "check"},
     "shopping-list": None, "session-state": None,
@@ -269,10 +272,12 @@ def check_bash(agent, rules, command, cwd, root):
         if not any(same_prefix(words, entry) for entry in tools if " " in entry):
             if name not in tools:
                 plain = sorted(t for t in tools if " " not in t)
+                hint = "read with the Read tool, search with rg" if "rg" in tools else "read with the Read tool"
                 raise Deny(f"{agent} runs only its tools in the shell: {', '.join(plain)} "
-                           "(read and search with the Read, Grep and Glob tools); "
-                           f"`{name}` is not one of them.")
+                           f"({hint}); `{name}` is not one of them.")
             sub = words[1] if len(words) > 1 else ""
+            if name == "rg" and any(w.startswith(RG_REFUSED) for w in words[1:]):
+                raise Deny("rg may not run other programs: no --pre, --search-zip.")
             if name == "linus":
                 if sub not in LINUS_READS and sub not in rules["linus"]:
                     allowed = ", ".join(sorted(rules["linus"])) or "none"
@@ -309,6 +314,10 @@ def main():
     except json.JSONDecodeError:
         return 0
     if rules is None:
+        return 0
+    # The main thread's hooks (claude --agent kent) also see its sub-agents'
+    # calls: each sub-agent has its own guard, so leave them to it.
+    if payload.get("agent_type") and payload["agent_type"] != agent:
         return 0
     tool, args = payload.get("tool_name"), payload.get("tool_input") or {}
     cwd = payload.get("cwd") or os.getcwd()

@@ -161,7 +161,8 @@ turn and simon documents, in background. The agents' files are in
 No agent improvises shell commands: each runs only its own tools, the
 commands in `common/bin`, and `claude/hooks/guard.py` refuses anything else
 (and command substitution, unquoted heredocs, writes outside the agent's
-files). Reading and searching go through Read, Grep and Glob.
+files). Reading goes through the Read tool, searching through `rg` (this
+Claude Code has no Grep or Glob tools).
 
 | Tool | What it does | Used by |
 |---|---|---|

@@ -23,8 +23,10 @@ class GuardTest(unittest.TestCase):
     def tearDownClass(cls):
         cls.tmp.cleanup()
 
-    def decision(self, agent, tool, **tool_input):
+    def decision(self, agent, tool, agent_type=None, **tool_input):
         payload = {"tool_name": tool, "tool_input": tool_input, "cwd": self.repo}
+        if agent_type:
+            payload["agent_type"] = agent_type
         run = subprocess.run([sys.executable, GUARD, agent], input=json.dumps(payload),
                              capture_output=True, text=True, env=self.env)
         self.assertEqual(run.returncode, 0, run.stderr)
@@ -112,6 +114,24 @@ class GuardTest(unittest.TestCase):
         self.assertIsNotNone(read("hughes", "Grep", pattern="defmodule"))
         self.assertIsNone(read("hughes", "Glob", pattern="*.md", path=os.path.join(self.repo, ".sources/shopping_lists")))
         self.assertIsNone(read("unclebob", "Read", file_path=os.path.join(self.repo, "lib/a.ex")))
+
+    def test_sub_agent_calls_are_left_to_their_own_guard(self):
+        # kent runs as the main thread: its hook sees unclebob's calls too
+        self.assertEqual(self.decision("kent", "Bash", agent_type="unclebob",
+                                       command="linus commit --phase red a")[0], None)
+        self.assertEqual(self.decision("kent", "Bash", command="linus commit --phase red a")[0], "deny")
+        self.assertEqual(self.decision("unclebob", "Bash", agent_type="unclebob", command="rm x")[0], "deny")
+
+    def test_hughes_has_no_linus(self):
+        self.denied("hughes", "linus range", "`linus`")
+        self.denied("hughes", "cat x", "(read with the Read tool)")
+
+    def test_rg(self):
+        self.allowed("ford", "rg -n defmodule lib")
+        self.allowed("unclebob", "rg --files -g '*.py'")
+        self.denied("unclebob", "rg --pre ./evil x", "no --pre")
+        self.denied("hughes", "rg defmodule", "`rg`")
+        self.assertEqual(self.decision("martin", "Bash", command="rg -n spec: test")[0], "allow")
 
     def test_auto_allow(self):
         def kind(agent, command):

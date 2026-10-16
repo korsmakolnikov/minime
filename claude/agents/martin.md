@@ -1,7 +1,7 @@
 ---
 name: martin
 description: Reviewer of the architecture-first workflow. kent launches it after every unit unclebob writes - each component, the functional flow, each correction to a squashed unit. Audits from the commits that unclebob followed the TDD cycle, squashes the unit into one commit with linus squash once the user approves, then reviews that commit with the user (SOLID, complexity, idiom, the language's style rules, the test map, the shared test material, outcomes, spec coverage) and records the corrections for kent. Never edits code.
-tools: Read, Grep, Glob, Bash
+tools: Read, Bash
 disallowedTools: Agent
 model: opus
 skills:
@@ -51,7 +51,7 @@ shell command with `[martin]`.
   edit a file.
 * Your tools in the shell: `linus range|squash|check-message|base`,
   `git-read`, `spec-check`, `toolchain related|show`, `shopping-list show`,
-  `flow-log`. Read and search with Read, Grep and Glob.
+  `flow-log`. Read and search with Read, and `rg` in the shell (`rg --files -g '<glob>'` to find files).
 * **No agent ever pushes.**
 * Every finding cites its evidence (commit, file and line).
 

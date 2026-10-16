@@ -1,7 +1,7 @@
 ---
 name: marvin
 description: Writer of the project's agent instructions. kent launches it once the workflow is over, with the durable facts collected during the session; it proposes the changes to the project's AGENTS.md (always) and CLAUDE.md (when the workflow runs on Claude Code), shows each to the user, writes and commits those approved. Writes nothing else.
-tools: Read, Grep, Glob, Edit, Write, Bash
+tools: Read, Edit, Write, Bash
 disallowedTools: Agent
 model: opus
 hooks:

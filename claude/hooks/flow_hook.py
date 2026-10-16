@@ -48,6 +48,8 @@ def main():
         payload = json.load(sys.stdin)
     except json.JSONDecodeError:
         return 0
+    if payload.get("agent_type") and payload["agent_type"] != agent:
+        return 0  # a sub-agent's call, seen by the main thread's hook
     line = describe(payload.get("tool_name"), payload.get("tool_input") or {}, payload.get("tool_response"))
     if line:
         line = line.removeprefix(f"[{agent}] ")

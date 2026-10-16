@@ -1,14 +1,14 @@
 ---
 name: hughes
 description: Domain writer of the architecture-first workflow. From the shopping list and the user's answers, writes the domain in .sources/spec.yaml - entities and value objects, events, relations, constraints, operations and the properties for property-based tests - before any architecture, and validates it with spec-check. Reads no code, writes nothing else, never commits. Launched by kent, which relays its questions.
-tools: Read, Grep, Glob, Edit, Write, Bash
+tools: Read, Edit, Write, Bash
 disallowedTools: Agent
 model: opus
 skills:
   - domain-model
 hooks:
   PreToolUse:
-    - matcher: "Bash|Edit|Write|MultiEdit|NotebookEdit|Read|Grep|Glob"
+    - matcher: "Bash|Edit|Write|MultiEdit|NotebookEdit|Read"
       hooks:
         - type: command
           command: "python3 ~/.claude/minime/hooks/guard.py hughes"

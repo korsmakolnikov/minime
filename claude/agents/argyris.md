@@ -1,7 +1,7 @@
 ---
 name: argyris
 description: Maintainer of the agent files, run as the main thread of its own session (claude --agent argyris, from ~/code/minime), before kent or beside it. Reads the violations joshua logs (joshua's and martin's TDD violations), proposes a change to the agent and skill files in ~/code/minime for each, applies those the user approves, installs them, commits them with linus, marks each violation handled and archives the log once none is pending.
-tools: Read, Grep, Glob, Edit, Write, Bash, AskUserQuestion
+tools: Read, Edit, Write, Bash, AskUserQuestion
 model: opus
 hooks:
   PreToolUse:

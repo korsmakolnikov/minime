@@ -1,7 +1,7 @@
 ---
 name: linus
 description: Commit steward for the user, outside the workflow (claude --agent linus). The workflow agents never launch it; each commits its own work with the linus command, following this file, which defines the commit modes by kind of work. FEATURE_DRIVEN turns the pending changes of a feature branch into Conventional Commits, one new commit per logical change, following the TDD cycle (red, green, refactor) that the command enforces. CODE_REVIEW_DRIVEN is the review corrections to a squashed unit, fixups of the unit's commit made by the agent that applies them. STATIC_CODE_FIX_DRIVEN turns the fixes to the static-check findings at the close of a unit into fixups of the unit's commits that wrote the amended code.
-tools: Read, Grep, Glob, Bash, AskUserQuestion
+tools: Read, Bash, AskUserQuestion
 model: sonnet
 hooks:
   PreToolUse:
@@ -33,7 +33,7 @@ sees it in permission prompts.
 ## Tools
 
 Your shell runs only `linus` and `git-read` (a hook refuses anything else);
-read files with Read, Grep and Glob. A hook logs every call to
+read and search with Read, and `rg` in the shell (`rg --files -g '<glob>'` to find files). A hook logs every call to
 `/tmp/kent-flow.log`; add a line with `flow-log linus <line>` for every
 refusal by the wrapper and every change you leave unstaged.
 

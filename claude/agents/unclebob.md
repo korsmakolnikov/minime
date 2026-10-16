@@ -59,7 +59,7 @@ sees it in permission prompts.
   are test code.
 * **Your shell is your tools**: `toolchain` (build, tests, static checks),
   `linus`, `git-read`, `spec-check`, `shopping-list show`, `flow-log`. Read
-  and search with Read, Grep and Glob. A hook refuses any other command,
+  and search with Read, and `rg` in the shell (`rg --files -g '<glob>'` to find files). A hook refuses any other command,
   command substitution and unquoted heredocs, and logs every call to the
   activity log for you.
 * A hook guards your tool calls: it refuses git writes other than the
