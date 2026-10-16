@@ -51,26 +51,30 @@ INPLACE = {"sed", "perl"}
 
 # Per agent: the linus subcommands it may run besides the read-only ones,
 # and where it may write. A place is a path under the repository root
-# ("repo:<relative>"), an absolute path, or "repo:" for the whole work tree.
-# A trailing "/" makes it a folder; otherwise it is one file. Places in
+# ("repo:<relative>"), an absolute path, "repo:" for the whole work tree, or
+# "name:<file name>" for a file of that name anywhere in the repository. A
+# trailing "/" makes it a folder; otherwise it is one file. Places in
 # "except" are refused even inside an allowed one.
 AGENTS = {
     "kent": {
-        "linus": set(),
-        "edit": ["/tmp/", "repo:.sources/shopping_lists/"],
+        # the project's agent instructions, kent's own files
+        "linus": {"stage", "commit"},
+        "edit": ["/tmp/", "repo:.sources/shopping_lists/", "name:AGENTS.md", "name:CLAUDE.md"],
         # the move of the legacy .adl/ and .shopping_lists/ into .sources/
-        "shell": ["/tmp/", "repo:.sources/", "repo:.adl/", "repo:.shopping_lists/"],
+        "shell": ["/tmp/", "repo:.sources/", "repo:.adl/", "repo:.shopping_lists/",
+                  "name:AGENTS.md", "name:CLAUDE.md"],
     },
     "hughes": {"linus": set(), "edit": ["/tmp/", "repo:.sources/spec.yaml"]},
     "ford": {
         "linus": {"stage", "stage-patch", "unstage", "commit", "fixup"},
         "edit": ["/tmp/", "repo:"],
-        "except": ["repo:.sources/spec.yaml", "repo:.sources/shopping_lists/", "repo:.documentation/"],
+        "except": ["repo:.sources/spec.yaml", "repo:.sources/shopping_lists/", "repo:.documentation/",
+                   "name:AGENTS.md", "name:CLAUDE.md"],
     },
     "unclebob": {
         "linus": {"stage", "stage-patch", "unstage", "commit", "amend", "fixup"},
         "edit": ["/tmp/", "repo:"],
-        "except": ["repo:.sources/", "repo:.documentation/"],
+        "except": ["repo:.sources/", "repo:.documentation/", "name:AGENTS.md", "name:CLAUDE.md"],
     },
     "martin": {"linus": {"squash"}, "edit": ["/tmp/"]},
     "simon": {"linus": set(), "edit": ["/tmp/", "repo:.documentation/"]},
@@ -97,6 +101,8 @@ def repo_root(cwd):
 
 def place(spec, root):
     """The absolute path of a place spec, or None when it needs a repository."""
+    if spec.startswith("name:"):
+        return None if root is None else (root + "/", spec[len("name:"):])
     if spec.startswith("repo:"):
         if root is None:
             return None
@@ -106,6 +112,9 @@ def place(spec, root):
 
 
 def inside(path, spec_path):
+    if isinstance(spec_path, tuple):
+        folder, name = spec_path
+        return path.startswith(folder) and os.path.basename(path) == name
     if spec_path.endswith("/"):
         return path == spec_path.rstrip("/") or path.startswith(spec_path)
     return path == spec_path

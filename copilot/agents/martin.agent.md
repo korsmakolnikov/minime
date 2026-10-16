@@ -258,7 +258,7 @@ fixups listed). For its production code:
 * **idiom**: whether it is idiomatic for its language and ecosystem (standard
   library, conventions, the project's style), and the more idiomatic or more
   efficient alternative when there is one. On Elixir code, also the user's
-  rules in the `elixir-style` skill: a rule the unit's code breaks is a
+  style rules in the `elixir-handbook` skill: a rule the unit's code breaks is a
   finding that cites the rule id; code the unit did not write is out of
   scope.
 

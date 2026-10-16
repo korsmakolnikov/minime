@@ -112,7 +112,7 @@ Dalle iterazioni precedenti, ancora aperte:
      branch.
    - Formatter, linter e type checker (dialyzer) solo ai punti di chiusura,
      mai nel ciclo né prima di red e green, tramite la skill del linguaggio
-     `common/skills/elixir-static-checks` (campi `projects` e `tools`).
+     `common/skills/elixir-handbook` (campi `projects` e `tools`).
      Nella sessione di correzione, dopo l'ultima modifica di review.
    - Il refactor del ciclo copre i due moduli del ciclo per intero, helper
      privati del modulo di test compresi; il materiale di test condiviso
@@ -121,3 +121,19 @@ Dalle iterazioni precedenti, ancora aperte:
    - joshua: aggiornare le regole sui controlli a ogni ciclo e sulla suite.
    - Da decidere con l'utente: se i controlli statici li lancia martin in
      review invece di unclebob.
+5. **`elixir-handbook` al posto di `elixir-style`** (fatto nei riferimenti di
+   unclebob e martin). Toglierla dalla copia viva prima del prossimo
+   `minime-sync`, che altrimenti la riporterebbe in `copilot/skills/`:
+   `rm -rf ~/.copilot/skills/elixir-style && make copilot-install`. Il resto
+   degli agenti può usare la handbook per test e controlli invece dei
+   comandi scritti a mano.
+6. **kent mantiene `AGENTS.md` e `CLAUDE.md`** (fatto, "The project's agent
+   instructions"): li raccoglie nella shopping list, li propone a fine
+   workflow, li committa con `linus commit --phase other`. Da verificare in
+   una sessione vera; gli altri agenti segnalano invece di modificarli (da
+   scrivere in ford, unclebob, martin).
+7. **Scaffolding di un progetto nuovo**: kent non sa crearne uno. Skill per
+   Elixir, Python e C (CMake + Make); dettagli in `claude/NEXT_ITERATION.md`.
+8. **simon da rivedere**: C4 in Structurizr DSL forse mai concordato, e
+   mancano i markdown con i sequence diagram Mermaid delle iterazioni e i
+   class diagram.

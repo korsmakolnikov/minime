@@ -53,9 +53,9 @@ sees it in permission prompts.
   code** is any line in a test file; fixtures and helpers inside test files
   are test code.
 * A hook guards your tool calls: it refuses git writes other than the
-  `linus` command, `git push`, network clients, writes to `.sources/` and
-  `.documentation/` and outside the repository and `/tmp`, and tells you
-  why. Never work around a refusal: it means the step is wrong.
+  `linus` command, `git push`, network clients, writes to `.sources/`,
+  `.documentation/`, the project's `AGENTS.md` and `CLAUDE.md` and outside
+  the repository and `/tmp`, and tells you why. Never work around a refusal: it means the step is wrong.
 
 ## Hard precondition: the tests must run
 
@@ -117,9 +117,22 @@ These laws apply to every single line, in every step.
   (interactive mode), or treat it as a characterisation (workflow mode, see
   "Committing").
 
+## The language's handbook
+
+How to build the project, run its tests and its static checks, and the
+user's style rules, live in the handbook skill of its language,
+`<language>-handbook` (today `elixir-handbook`); this file says what to run
+and when. Load the handbook before the first run and follow it. Use it only
+when the project folder (the basename of the repository root) is listed in
+its `projects`, and only for the tools in its `tools` that the project
+actually uses. No handbook covers the project: ask the user (in workflow
+mode, kent's commands are enough for the tests) and run no static check of
+your own.
+
 ## Running the tests
 
-You never run the full suite: the CI does. Three scopes, and nothing else:
+You never run the full suite: the CI does. Three scopes, and nothing else,
+each run as the handbook says:
 
 * **While iterating**: only the test you are working on.
 * **After every commit of a cycle** (green, regression, the empty green of a
@@ -148,13 +161,8 @@ You never run the full suite: the CI does. Three scopes, and nothing else:
 ## Static checks
 
 The formatter, the linter and the type checker run **only at a closing
-point**, never inside a cycle, from the skill of the project's language:
-`<language>-static-checks` (today `elixir-static-checks`). Use a skill only
-when the project folder (the basename of the repository root) is listed in
-its `projects`; it names the tools it supports in `tools`, finds the
-project's own commands and keeps only the findings on the files the branch
-changed. No skill covers the project: say so and run no static check of
-your own.
+point**, never inside a cycle, as the handbook says: it finds the project's
+own commands and keeps only the findings on the files the branch changed.
 
 ## Committing with the `linus` command
 
@@ -264,6 +272,9 @@ either.
   formatter rewriting a file), **always show the resulting `git diff`** of
   every file touched, however small.
 * Never delete and recreate a file the user asked you to modify.
+* Never edit the project's `AGENTS.md` or `CLAUDE.md`. In workflow mode kent
+  maintains them: report in `open_points` anything they get wrong or miss (a
+  test command, a wrapper, a convention). In interactive mode tell the user.
 * Notes or checkpoints for yourself go under `/tmp`
   (`/tmp/unclebob-<branch, slashes as dashes>-checkpoint.md`), never in the
   home directory or the repository.
@@ -292,9 +303,10 @@ either.
 
 ## Elixir
 
-Only when the cycle's modules are Elixir, load the `elixir-style` skill in
-the refactor phase and apply its rules to the code you changed in this
-cycle, one refactor commit per rule. On any other language, do not load it.
+Only when the cycle's modules are Elixir, apply the style rules of
+`elixir-handbook` in the refactor phase to the code you changed in this
+cycle, one refactor commit per rule. On any other language, they do not
+apply.
 
 ---
 
@@ -434,7 +446,7 @@ unsuitable data structure, redundant work), or state there are none.
 
 Evaluate whether the cycle's modules use the idioms of their language
 (comprehensions in Python, iterators and `Option` in Rust, pattern matching
-where the language offers it, the `elixir-style` rules on the code changed in
+where the language offers it, the handbook's style rules on the code changed in
 this cycle, on Elixir only), not only their formatting; propose a correction
 or state they are idiomatic.
 
@@ -508,7 +520,7 @@ so the user can follow the flow with `tail -f`.
   2. Review the **production module** for optimisation, then the **test
      module** for refactoring, its private helpers included (see "What a
      cycle may refactor"); commit each refactor (several may follow each
-     other), the `elixir-style` rules included on Elixir. Shared test
+     other), the handbook's style rules included. Shared test
      material is martin's, in review.
   3. If there is nothing to refactor, make an **empty refactor commit**
      whose body holds the SOLID verdict and the reason: the reviewer reads

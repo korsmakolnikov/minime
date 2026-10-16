@@ -85,9 +85,17 @@ finirebbero a martin invece che a kent: per ora no.
 - `claude/agents/unclebob.md` a due modi, comando `unclebob`.
 - `make install` installa agenti, skill (Claude e comuni), hook e comandi.
 
-- unclebob: test e controlli statici fuori dai cicli, skill comune
-  `elixir-static-checks` (campi `projects` e `tools`), confine del refactor
+- unclebob: test e controlli statici fuori dai cicli, confine del refactor
   sui due moduli del ciclo; tolta la tabella "Large systems".
+- Skill comune `elixir-handbook` (campi `projects` e `tools`): toolchain,
+  build, test (uno, quelli che includono un file, quelli del branch),
+  controlli statici e regole di stile; sostituisce `elixir-style`. Una
+  `<linguaggio>-handbook` per linguaggio: le peculiarità di un ecosistema
+  stanno lì, gli agenti dicono solo cosa lanciare e quando.
+- kent mantiene `AGENTS.md` e `CLAUDE.md` del progetto (scritto in
+  `copilot/agents/kent.agent.md`, "The project's agent instructions"): il
+  guard glielo permette (`name:AGENTS.md`, `linus stage`/`commit`) e lo
+  vieta a ford e unclebob, che segnalano in `open_points`.
 
 ## Da fare
 
@@ -99,6 +107,7 @@ finirebbero a martin invece che a kent: per ora no.
      l'hook); niente eventi a joshua, che legge `/tmp/kent-events.jsonl`.
    - **hughes**, **ford**, **martin**, **simon**: port quasi diretto; tolta
      la parte "controlla il blocco con signal-check" (lo fa l'hook).
+   - **kent**: portare anche "The project's agent instructions".
    - **martin**: rivede esplicitamente il materiale di test condiviso
      (support, factory, harness) dell'unità, che unclebob non tocca nei
      cicli; valutare se lancia lui i controlli statici
@@ -112,6 +121,25 @@ finirebbero a martin invece che a kent: per ora no.
    l'utente a ogni comando (regole `allow`/`deny` nel frontmatter non
    esistono: `permissionMode` per agente, o un hook `PermissionRequest`).
 3. README: sezione del workflow Claude Code.
+4. **Scaffolding di un progetto nuovo.** kent oggi non sa crearne uno. Una
+   skill per linguaggio (Elixir, Python, C), probabilmente parte della
+   `<linguaggio>-handbook` o accanto a lei: layout, build (C: CMake + Make),
+   test runner e libreria property-based, formatter, linter, type checker,
+   `AGENTS.md` iniziale, `.gitignore`. Da decidere chi lo esegue (ford,
+   dopo l'ADL?) e come si inserisce nel ramo greenfield di kent.
+5. **simon da rivedere.** Produce il C4 in Structurizr DSL (forse mai
+   concordato) e non scrive i markdown con i diagrammi Mermaid che servono:
+   i sequence diagram delle iterazioni esplorate, costruite o corrette, e i
+   class diagram. Da approfondire prima del porting.
+6. **Makefile: installazione delle CLI.** Un target per installare Claude
+   Code e uno per Copilot CLI, solo Arch Linux e Ubuntu, come il resto.
+7. **Versione LangGraph.** Un orchestratore in LangGraph, per imparare il
+   framework e per misurare se serve: le due versioni girano in parallelo
+   sugli stessi progetti e si confrontano i risultati (quanto è limitata
+   quella a soli agenti, quanto sbaglia quella in codice). Servono metriche
+   comuni da definire prima: violazioni di joshua, segnali invalidi,
+   rifiuti del guard, cicli e commit per unità, tempo, token, correzioni di
+   review.
 
 ## Da verificare
 

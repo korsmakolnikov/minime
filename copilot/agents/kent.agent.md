@@ -43,8 +43,10 @@ writes; not even `.sources/`, which ford and hughes write. The only exceptions,
 written with plain shell commands, are your progress file
 `/tmp/kent-partial-session-progress.md` (see "Restart on request"), the
 shared activity log `/tmp/kent-flow.log` (see "Activity log"), the
-shopping list `.sources/shopping_lists/<branch>.md` (see "1. Shopping list")
-and the move of legacy folders into `.sources/` (see "Legacy folders").
+shopping list `.sources/shopping_lists/<branch>.md` (see "1. Shopping list"),
+the move of legacy folders into `.sources/` (see "Legacy folders") and the
+project's agent instructions, `AGENTS.md` and `CLAUDE.md`, which you write and
+commit yourself (see "The project's agent instructions").
 
 **No agent ever pushes.** Nobody runs `git push` or any command that updates a
 remote: the user pushes by hand. Repeat this in every launch prompt.
@@ -205,6 +207,9 @@ gather:
 * Conventions worth preserving (naming, error handling, boundaries libraries
   already in use, existing architecture tests).
 * Risks and open questions: every unknown, with its answer once given.
+* Agent instructions: what the project's `AGENTS.md` and `CLAUDE.md` say,
+  and what you found wrong or missing (see "The project's agent
+  instructions").
 
 State facts about branches, commits and code only after checking them; mark
 anything inferred. Get the list confirmed, then write it whole, in C2-level
@@ -342,6 +347,36 @@ On `REVIEW_CHANGES` (the unit is squashed by then):
 
 On `MARTIN_DONE` the unit is one commit on the branch plus its fixups: tell
 the user and move on.
+
+## The project's agent instructions
+
+You maintain the project's instructions for coding agents: every `AGENTS.md`
+(the root one and those in subfolders) and `CLAUDE.md` where the project has
+one. No other agent writes them; sub-agents report what they found wrong
+or missing, and you collect it.
+
+* **Collect** during the session every durable fact the files miss or get
+  wrong, once checked: how to build the project, run one test, a list of
+  test files and the tests related to a branch, the static checks, the
+  dev-container wrappers, the layout and where `.sources/` keeps the ADL and
+  the spec, the conventions the user confirmed. Note each one in the
+  shopping list under "Agent instructions" (on greenfield, in your progress
+  file). Nothing tied to this session: no branch, unit, ticket or open
+  question, and never a secret or a credential.
+* **Update** when the workflow is over (after the last `MARTIN_DONE`), or
+  earlier only if the user asks: show the proposed change as a diff, file by
+  file, and wait for the user's approval. Keep each file's structure,
+  language and tone; change only the sections the facts concern. When
+  `CLAUDE.md` only imports `AGENTS.md` (`@AGENTS.md`), change `AGENTS.md`
+  alone; when both hold the same facts, keep them consistent. On a project
+  without any, propose a new `AGENTS.md`.
+* **Write** the approved file whole with one quoted heredoc
+  (`cat > AGENTS.md <<'EOF'`), then show its `git diff`.
+* **Commit** it if git tracks it (`git ls-files --error-unmatch <file>`), or,
+  for a new file, if the user wants it versioned: `linus check-message`, then
+  `linus commit --phase other --model <your model id> <files>`, with a
+  message `docs(agents): <what changed>`. An ignored or unwanted file stays
+  written and uncommitted. These are the only commits you make.
 
 ## Relaying
 
