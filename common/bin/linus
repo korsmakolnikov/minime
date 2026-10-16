@@ -39,6 +39,8 @@ Read-only:
 
 Write:
   stage <path>...               git add the given paths.
+  hunks <path>                  List the unstaged hunks of <path>, numbered (read only).
+  stage-hunks <path> <n>...     Stage only hunks <n>... of <path>, as `linus hunks` numbers them.
   stage-patch <patch-file>      Stage only the hunks in <patch-file> (git apply --cached).
   unstage [<path>...]           Unstage paths (all if none given).
   commit --phase <phase> [--empty] [<path>...] <<'MSG'
@@ -364,7 +366,7 @@ PHASE_LOG="$COMMON_DIR/linus/phases"
 # Write commands share the index: serialise them, so that parallel calls cannot
 # mix their files into one commit.
 case "$CMD" in
-stage | stage-patch | unstage | commit | amend | squash | fixup)
+stage | stage-hunks | stage-patch | unstage | commit | amend | squash | fixup)
   exec 9>"$COMMON_DIR/linus.lock"
   flock 9
   ;;
@@ -387,6 +389,24 @@ check-message) check_message "$@" ;;
 stage)
   [ $# -ge 1 ] || die "Usage: linus stage <path>..."
   git add -- "$@"
+  ;;
+hunks | stage-hunks)
+  [ $# -ge 1 ] || die "Usage: linus $CMD <path> [<n>...]"
+  [ "$CMD" = hunks ] && [ $# -ne 1 ] && die "Usage: linus hunks <path>"
+  [ "$CMD" = stage-hunks ] && [ $# -lt 2 ] && die "Usage: linus stage-hunks <path> <n>..."
+  diff=$(git diff -U0 --no-color -- "$1")
+  [ -n "$diff" ] || die "No unstaged changes in $1 (a new file is staged whole: linus stage)."
+  if [ "$CMD" = hunks ]; then
+    awk '/^@@/ { n++; print ""; print "hunk " n ": " $0; next } n { print "  " $0 }' <<<"$diff"
+  else
+    file=$1; shift
+    for n in "$@"; do [[ "$n" =~ ^[1-9][0-9]*$ ]] || die "Not a hunk number: $n"; done
+    total=$(grep -c '^@@' <<<"$diff")
+    for n in "$@"; do [ "$n" -le "$total" ] || die "$file has $total hunks, not $n (linus hunks $file)."; done
+    awk -v want=" $* " '/^@@/ { n++ } !n || index(want, " " n " ") { print }' <<<"$diff" \
+      | git apply --cached --unidiff-zero --whitespace=nowarn -
+    echo "Staged hunks $* of $file."
+  fi
   ;;
 stage-patch)
   [ $# -eq 1 ] || die "Usage: linus stage-patch <patch-file>"

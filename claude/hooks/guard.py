@@ -3,21 +3,20 @@
 
 Usage, in an agent's frontmatter: guard.py <agent>
 
-For every Bash, Edit, Write and NotebookEdit call of the agent it denies:
+Bash runs only the agent's tools: the commands in common/bin (and the few
+others listed below), each with the subcommands the agent may use. Anything
+else is refused: no agent improvises a shell command. Also refused, for
+every agent: command substitution (`$(…)`, backticks, `<(…)`), a heredoc
+whose delimiter is not quoted (its body would be expanded), and a redirect
+or a file write outside the agent's own places. Edit, Write and NotebookEdit
+are held to the same places.
 
-* `git push`, network clients and cluster commands, for every agent;
-* any git write: the `linus` command is the only write path to git;
-* the `linus` subcommands the agent may not run (martin only squashes,
-  unclebob and ford commit their own work, the others only read);
-* file writes outside the agent's own places, through Edit/Write or through
-  the shell (redirects, tee, sed -i, cp, mv, rm, mkdir, touch).
+Reading and searching go through the Read, Grep and Glob tools, which the
+hook does not limit. Every refusal is appended to kent-guard.jsonl under
+MINIME_STATE_DIR (default /tmp).
 
-It is a backstop, not a sandbox: it denies only what it recognises, and a
-command it cannot parse goes on to the normal permission check; joshua
-audits the rest. Every denial is appended to /tmp/kent-guard.jsonl.
-
-Output: a PreToolUse deny decision with the reason, or nothing (allow the
-normal flow to continue).
+Output: a PreToolUse deny decision with the reason, or nothing (the normal
+permission check goes on).
 """
 import datetime
 import json
@@ -27,64 +26,86 @@ import shlex
 import subprocess
 import sys
 
-GUARD_LOG = "/tmp/kent-guard.jsonl"
-NETWORK = {"curl", "wget", "ssh", "scp", "sftp", "rsync", "nc", "ncat", "netcat", "telnet", "ftp", "socat"}
-CLUSTER = {"kubectl", "helm", "k9s", "kubectx", "kubens", "minikube", "kind"}
-GIT_READS = {
-    "log", "show", "diff", "status", "blame", "rev-parse", "merge-base", "ls-files",
-    "ls-tree", "cat-file", "rev-list", "describe", "shortlog", "grep", "name-rev",
-    "symbolic-ref", "for-each-ref", "show-ref", "reflog", "help", "version", "--version",
-}
-# git subcommands that only read with some options; any other use writes.
-GIT_READ_WITH = {
-    "branch": {"--show-current", "--list", "-l", "-a", "-r", "--contains", "--merged", "--no-merged", "-v", "-vv"},
-    "config": {"--get", "--get-all", "--get-regexp", "--list", "-l"},
-    "stash": {"list", "show"},
-    "remote": {"-v", "show", "get-url"},
-    "worktree": {"list"},
-}
-LINUS_READS = {"base", "range", "next", "check-message", "--help", "-h", "help"}
+STATE_DIR = os.environ.get("MINIME_STATE_DIR", "/tmp")
+GUARD_LOG = os.path.join(STATE_DIR, "kent-guard.jsonl")
 SEPARATORS = {";", "&&", "||", "|", "&", "(", ")", "|&"}
-WRITE_ALL_ARGS = {"rm", "rmdir", "mkdir", "touch", "truncate", "mv", "chmod"}
-WRITE_LAST_ARG = {"cp", "install", "ln"}
-INPLACE = {"sed", "perl"}
+LINUS_READS = {"base", "range", "next", "check-message", "hunks", "--help", "-h", "help"}
+MINIME = "~/code/minime"
 
-# Per agent: the linus subcommands it may run besides the read-only ones,
-# and where it may write. A place is a path under the repository root
-# ("repo:<relative>"), an absolute path, "repo:" for the whole work tree, or
+# Tool -> the subcommands allowed (None: any). Shared by most agents.
+COMMON = {"flow-log": None, "git-read": None}
+SHOW = {"shopping-list": {"show", "path"}}
+TESTS = {"toolchain": {"show", "build", "test", "related"}}
+
+# Per agent: its tools (with the subcommands allowed), the linus subcommands
+# it may write with (the read-only ones are always allowed), and where it may
+# write. A place is a path under the repository root ("repo:<relative>"),
+# "repo:" for the whole work tree, an absolute or ~ path, or
 # "name:<file name>" for a file of that name anywhere in the repository. A
 # trailing "/" makes it a folder; otherwise it is one file. Places in
-# "except" are refused even inside an allowed one.
+# "except" are refused even inside an allowed one. A tool entry with spaces
+# is an exact command prefix ("make -C ~/code/minime install").
 AGENTS = {
     "kent": {
-        # the project's agent instructions, kent's own files
-        "linus": {"stage", "commit"},
-        "edit": ["/tmp/", "repo:.sources/shopping_lists/", "name:AGENTS.md", "name:CLAUDE.md"],
-        # the move of the legacy .adl/ and .shopping_lists/ into .sources/
-        "shell": ["/tmp/", "repo:.sources/", "repo:.adl/", "repo:.shopping_lists/",
-                  "name:AGENTS.md", "name:CLAUDE.md"],
+        "tools": {**COMMON, "shopping-list": None, "session-state": None, "scaffold": None,
+                  "minime-migrate": None, "toolchain": {"show", "related"}, "spec-check": None},
+        "linus": set(),
+        "edit": ["repo:toolchain.yaml"],
     },
-    "hughes": {"linus": set(), "edit": ["/tmp/", "repo:.sources/spec.yaml"]},
+    "hughes": {
+        "tools": {"flow-log": None, **SHOW, "spec-check": None},
+        "linus": set(),
+        "edit": ["repo:.sources/spec.yaml"],
+    },
     "ford": {
-        "linus": {"stage", "stage-patch", "unstage", "commit", "fixup"},
-        "edit": ["/tmp/", "repo:"],
+        "tools": {**COMMON, **SHOW, **TESTS, "spec-check": None, "adl-graph": None},
+        "linus": {"stage", "stage-hunks", "unstage", "commit", "fixup"},
+        "edit": ["repo:"],
         "except": ["repo:.sources/spec.yaml", "repo:.sources/shopping_lists/", "repo:.documentation/",
-                   "name:AGENTS.md", "name:CLAUDE.md"],
+                   "repo:toolchain.yaml", "name:AGENTS.md", "name:CLAUDE.md"],
     },
     "unclebob": {
-        "linus": {"stage", "stage-patch", "unstage", "commit", "amend", "fixup"},
+        "tools": {**COMMON, **SHOW, "toolchain": None, "spec-check": None},
+        "linus": {"stage", "stage-hunks", "unstage", "commit", "amend", "fixup"},
         "edit": ["/tmp/", "repo:"],
-        "except": ["repo:.sources/", "repo:.documentation/", "name:AGENTS.md", "name:CLAUDE.md"],
+        "except": ["repo:.sources/", "repo:.documentation/", "repo:toolchain.yaml",
+                   "name:AGENTS.md", "name:CLAUDE.md"],
     },
-    "martin": {"linus": {"squash"}, "edit": ["/tmp/"]},
-    "simon": {"linus": set(), "edit": ["/tmp/", "repo:.documentation/"]},
-    "joshua": {"linus": set(), "edit": ["/tmp/"]},
-    "linus": {"linus": {"stage", "stage-patch", "unstage", "commit", "amend", "fixup", "squash"}, "edit": ["/tmp/"]},
+    "martin": {
+        "tools": {**COMMON, **SHOW, "toolchain": None, "spec-check": None},
+        "linus": {"squash"},
+        "edit": [],
+    },
+    "simon": {
+        "tools": {**COMMON, **SHOW, "spec-check": None, "structurizr-cli": {"validate", "inspect"}},
+        "linus": set(),
+        "edit": ["repo:.documentation/"],
+    },
+    "joshua": {
+        "tools": {**COMMON, **SHOW, "events-query": None, "audit-log": {"append", "pending", "show"},
+                  "spec-check": None, "signal-check": None},
+        "linus": set(),
+        "edit": [],
+    },
     "argyris": {
-        "linus": {"stage", "stage-patch", "unstage", "commit"},
-        "edit": ["/tmp/", "~/.claude/agents/", "~/.claude/skills/", "~/code/minime/"],
+        "tools": {**COMMON, "events-query": None, "audit-log": {"pending", "show", "handled", "archive"},
+                  f"make -C {MINIME} install": None, f"make -C {MINIME} clean-check": None},
+        "linus": {"stage", "stage-hunks", "unstage", "commit"},
+        "edit": [f"{MINIME}/"],
+    },
+    "marvin": {
+        "tools": {**COMMON, **SHOW, "toolchain": {"show"}},
+        "linus": {"stage", "commit"},
+        "edit": ["name:AGENTS.md", "name:CLAUDE.md"],
+    },
+    "linus": {
+        "tools": dict(COMMON),
+        "linus": {"stage", "stage-hunks", "stage-patch", "unstage", "commit", "amend", "fixup", "squash"},
+        "edit": ["/tmp/"],
     },
 }
+for _rules in AGENTS.values():
+    _rules["tools"]["linus"] = None
 
 
 class Deny(Exception):
@@ -93,7 +114,8 @@ class Deny(Exception):
 
 def repo_root(cwd):
     try:
-        run = subprocess.run(["git", "-C", cwd, "rev-parse", "--show-toplevel"], capture_output=True, text=True, timeout=5)
+        run = subprocess.run(["git", "-C", cwd, "rev-parse", "--show-toplevel"],
+                             capture_output=True, text=True, timeout=5)
     except (OSError, subprocess.TimeoutExpired):
         return None
     return run.stdout.strip() if run.returncode == 0 else None
@@ -120,39 +142,45 @@ def inside(path, spec_path):
     return path == spec_path
 
 
-def check_write(agent, rules, places_key, path, cwd, root):
+def readable(specs):
+    return ", ".join(s.replace("repo:", "<repo>/").replace("name:", "any ") or "<repo>" for s in specs) or "none"
+
+
+def check_write(agent, rules, path, cwd, root):
     path = os.path.normpath(os.path.join(cwd, os.path.expanduser(path)))
     if path == "/dev/null":
         return
-    specs = rules.get(places_key) or rules["edit"]
+    specs = rules["edit"]
     allowed = any(p is not None and inside(path, p) for p in (place(s, root) for s in specs))
     refused = any(p is not None and inside(path, p) for p in (place(s, root) for s in rules.get("except", [])))
     if not allowed or refused:
-        where = ", ".join(s.replace("repo:", "<repo>/") or "<repo>" for s in specs)
-        raise Deny(f"{agent} may not write {path}: its files are {where}"
-                   + (f", except {', '.join(s.replace('repo:', '<repo>/') for s in rules['except'])}" if rules.get("except") else "")
-                   + ".")
+        raise Deny(f"{agent} may not write {path}: its files are {readable(specs)}"
+                   + (f", except {readable(rules['except'])}" if rules.get("except") else "") + ".")
 
 
 def strip_heredocs(command):
-    """Drops heredoc bodies (they are data) and joins continued lines."""
+    """Drops heredoc bodies (data for a tool's stdin), refusing unquoted ones."""
     lines, out, marker = command.replace("\\\n", " ").split("\n"), [], None
     for line in lines:
         if marker is not None:
             if line.strip() == marker:
                 marker = None
             continue
-        match = re.search(r"<<-?\s*['\"]?([A-Za-z_][A-Za-z0-9_]*)['\"]?", line)
+        match = re.search(r"<<-?\s*(['\"]?)([A-Za-z_][A-Za-z0-9_]*)\1", line)
         if match:
-            marker = match.group(1)
+            if not match.group(1):
+                raise Deny(f"quote the heredoc delimiter (<<'{match.group(2)}'), so its body is not expanded.")
+            marker = match.group(2)
             line = line[:match.start()] + line[match.end():]
         out.append(line)
     return out
 
 
-def simple_commands(command):
+def simple_commands(lines):
     """Yields (words, redirect targets) of each simple command."""
-    for line in strip_heredocs(command):
+    for line in lines:
+        if re.search(r"\$\(|`|<\(|>\(", line):
+            raise Deny("no command substitution ($(…), backticks, <(…)): run each tool as its own command.")
         lexer = shlex.shlex(line, posix=True, punctuation_chars=";&|()<>")
         lexer.whitespace_split = True
         tokens = list(lexer)
@@ -181,53 +209,39 @@ def simple_commands(command):
 
 
 def strip_prefixes(words):
-    while words and (re.match(r"^[A-Za-z_][A-Za-z0-9_]*=", words[0]) or words[0] in ("command", "time", "nice", "env")):
+    while words and re.match(r"^[A-Za-z_][A-Za-z0-9_]*=", words[0]):
         words = words[1:]
     return words
 
 
-def check_git(words):
-    args, i = words[1:], 0
-    while i < len(args) and args[i].startswith("-"):
-        i += 2 if args[i] in ("-C", "-c", "--git-dir", "--work-tree") else 1
-    sub = args[i] if i < len(args) else ""
-    rest = args[i + 1:]
-    if sub == "push":
-        raise Deny("No agent ever pushes: the user pushes by hand.")
-    if sub in GIT_READS or sub == "":
-        return
-    if sub in GIT_READ_WITH and (rest and rest[0] in GIT_READ_WITH[sub] or not rest and sub in ("branch", "stash", "remote", "worktree")):
-        return
-    raise Deny(f"git {sub} writes to the repository: the linus command is the only git write path (linus --help).")
+def same_prefix(words, entry):
+    want = [os.path.expanduser(w) for w in entry.split()]
+    have = [os.path.expanduser(w) for w in words[:len(want)]]
+    return have == want
 
 
 def check_bash(agent, rules, command, cwd, root):
-    for words, targets in simple_commands(command):
+    for words, targets in simple_commands(strip_heredocs(command)):
         words = strip_prefixes(words)
         if not words:
             continue
         name = os.path.basename(words[0])
-        if name in NETWORK or name in CLUSTER:
-            raise Deny(f"{name} reaches other machines: the user runs it.")
-        if name == "git":
-            check_git(words)
-        if name == "linus":
+        tools = rules["tools"]
+        if not any(same_prefix(words, entry) for entry in tools if " " in entry):
+            if name not in tools:
+                plain = sorted(t for t in tools if " " not in t)
+                raise Deny(f"{agent} runs only its tools in the shell: {', '.join(plain)} "
+                           "(read and search with the Read, Grep and Glob tools); "
+                           f"`{name}` is not one of them.")
             sub = words[1] if len(words) > 1 else ""
-            if sub not in LINUS_READS and sub not in rules["linus"]:
-                allowed = ", ".join(sorted(rules["linus"])) or "none"
-                raise Deny(f"{agent} may not run linus {sub}: its linus writes are {allowed}.")
-        paths = list(targets)
-        args = [w for w in words[1:] if not w.startswith("-")]
-        if name == "tee":
-            paths += args
-        elif name in WRITE_ALL_ARGS:
-            paths += args
-        elif name in WRITE_LAST_ARG and args:
-            paths.append(args[-1])
-        elif name in INPLACE and any(w.startswith("-i") or w == "--in-place" for w in words[1:]):
-            paths += [a for a in args[1:]]
-        for path in paths:
-            check_write(agent, rules, "shell", path, cwd, root)
+            if name == "linus":
+                if sub not in LINUS_READS and sub not in rules["linus"]:
+                    allowed = ", ".join(sorted(rules["linus"])) or "none"
+                    raise Deny(f"{agent} may not run linus {sub}: its linus writes are {allowed}.")
+            elif tools[name] is not None and sub not in tools[name] and sub not in ("-h", "--help"):
+                raise Deny(f"{agent} may run {name} only as: {', '.join(sorted(tools[name]))}.")
+        for path in targets:
+            check_write(agent, rules, path, cwd, root)
 
 
 def log_denial(payload, agent, reason):
@@ -263,11 +277,11 @@ def main():
             try:
                 check_bash(agent, rules, args.get("command", ""), cwd, root)
             except ValueError:
-                return 0  # unparsable: the normal permission check decides
+                raise Deny("the command could not be parsed (unbalanced quotes?): run one tool per command.")
         elif tool in ("Edit", "Write", "MultiEdit", "NotebookEdit"):
             path = args.get("file_path") or args.get("notebook_path")
             if path:
-                check_write(agent, rules, "edit", path, cwd, root)
+                check_write(agent, rules, path, cwd, root)
     except Deny as denial:
         log_denial(payload, agent, str(denial))
         print(json.dumps({"hookSpecificOutput": {

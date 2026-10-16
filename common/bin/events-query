@@ -1,0 +1,134 @@
+#!/usr/bin/env python3
+"""Reads the workflow's event logs, for joshua's audit (Claude Code).
+
+Usage:
+  events-query [filters]            the sub-agent stops, /tmp/kent-events.jsonl
+  events-query --guard [filters]    the guard's refusals, /tmp/kent-guard.jsonl
+  events-query --new [filters]      only the stops not acknowledged yet
+  events-query ack                  acknowledge every stop the last --new printed
+  events-query transcript <agent id | path> [--full]
+                                    a sub-agent's transcript, condensed: its
+                                    texts, tool calls and results, in order
+
+Filters: --agent <name>, --id <agent id>, --since <ISO time>,
+--signal <NAME>, --failed (a signal-check failure). One JSON object per line.
+"""
+import argparse
+import json
+import os
+import sys
+
+sys.path[:0] = [os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "lib"),
+                os.path.expanduser("~/.local/share/minime/lib")]
+from minime import ToolError, state_path, main_guard  # noqa: E402
+
+EVENTS = state_path("kent-events.jsonl")
+GUARD = state_path("kent-guard.jsonl")
+OFFSET = state_path("joshua-events.offset")
+LIMIT = 400
+
+
+def load(path):
+    if not os.path.exists(path):
+        return []
+    rows = []
+    with open(path) as log:
+        for line in log:
+            try:
+                rows.append(json.loads(line))
+            except json.JSONDecodeError:
+                rows.append({"unreadable": line.strip()})
+    return rows
+
+
+def offsets():
+    try:
+        with open(OFFSET) as f:
+            acked, seen = (int(x) for x in f.read().split())
+            return acked, seen
+    except (OSError, ValueError):
+        return 0, 0
+
+
+def matches(row, args):
+    return ((not args.agent or row.get("agent") == args.agent)
+            and (not args.id or row.get("agent_id") == args.id)
+            and (not args.since or str(row.get("time", "")) >= args.since)
+            and (not args.signal or row.get("signal") == args.signal)
+            and (not args.failed or row.get("ok") is False))
+
+
+def short(value, full):
+    text = value if isinstance(value, str) else json.dumps(value, ensure_ascii=False)
+    return text if full or len(text) <= LIMIT else text[:LIMIT] + f"… [{len(text)} chars]"
+
+
+def transcript(target, full):
+    path = target
+    if not os.path.exists(path):
+        found = [r.get("transcript") for r in load(EVENTS) if r.get("agent_id") == target and r.get("transcript")]
+        if not found:
+            raise ToolError(f"no transcript for {target} in {EVENTS}")
+        path = found[-1]
+    with open(path) as log:
+        for line in log:
+            try:
+                row = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            message = row.get("message") or {}
+            content = message.get("content")
+            role = message.get("role") or row.get("type")
+            if isinstance(content, str):
+                print(f"[{role}] {short(content, full)}")
+                continue
+            for part in content or []:
+                kind = part.get("type")
+                if kind == "text" and part.get("text", "").strip():
+                    print(f"[{role}] {short(part['text'], full)}")
+                elif kind == "tool_use":
+                    print(f"[call {part.get('id', '')}] {part.get('name')}: {short(part.get('input'), full)}")
+                elif kind == "tool_result":
+                    body = part.get("content")
+                    if isinstance(body, list):
+                        body = "\n".join(p.get("text", "") for p in body if isinstance(p, dict))
+                    flag = " ERROR" if part.get("is_error") else ""
+                    print(f"[result {part.get('tool_use_id', '')}{flag}] {short(body, full)}")
+
+
+def main():
+    argv = sys.argv[1:]
+    if argv[:1] in (["-h"], ["--help"]):
+        print(__doc__.strip())
+        return 0
+    if argv[:1] == ["ack"]:
+        _, seen = offsets()
+        with open(OFFSET, "w") as f:
+            f.write(f"{seen} {seen}\n")
+        print(f"acknowledged {seen} events")
+        return 0
+    if argv[:1] == ["transcript"]:
+        if len(argv) < 2:
+            raise ToolError("usage: events-query transcript <agent id | path> [--full]")
+        transcript(argv[1], "--full" in argv[2:])
+        return 0
+    parser = argparse.ArgumentParser(add_help=False)
+    for flag in ("--agent", "--id", "--since", "--signal"):
+        parser.add_argument(flag)
+    for flag in ("--failed", "--guard", "--new"):
+        parser.add_argument(flag, action="store_true")
+    args = parser.parse_args(argv)
+    rows = load(GUARD if args.guard else EVENTS)
+    start = 0
+    if args.new:
+        acked, _ = offsets()
+        start = acked
+        with open(OFFSET, "w") as f:
+            f.write(f"{acked} {len(rows)}\n")
+    for row in rows[start:]:
+        if matches(row, args):
+            print(json.dumps(row, ensure_ascii=False))
+    return 0
+
+
+main_guard(main)

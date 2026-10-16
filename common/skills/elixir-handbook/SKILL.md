@@ -1,6 +1,6 @@
 ---
 name: elixir-handbook
-description: How to work on an Elixir project - find its toolchain, build it, run one test, the tests that include a file and the tests related to a branch, run the static checks (formatter, Credo, dialyzer), and the user's personal style rules. Load it whenever you build, test, check, write or review Elixir code in a project listed in `projects`; unclebob, martin, kent and the other agents share it.
+description: How to work on an Elixir project in this workflow - toolchain.yaml and the toolchain command (build, the tests to run, the static checks), the testing libraries (ExUnit, StreamData, Mox and Hammox for contract tests), the test layout, and the user's personal style rules. Load it whenever you build, test, check, write or review Elixir code in a project listed in `projects`.
 projects:
   - crash
 tools:
@@ -13,103 +13,88 @@ tools:
 
 # elixir-handbook
 
-What every agent needs to know about an Elixir codebase, in one place: the
-agents say **what** to run and **when** (a cycle, a closing point, a
-review); this skill says **how**, for Elixir. Another language has its own
-`<language>-handbook`.
+What an agent needs to know about an Elixir codebase, in one place. The
+agents say **what** to run and **when** (a cycle, a closing point, a review);
+the `toolchain` command does it, and this skill says how to read the results
+and write the code.
 
 ## When it applies
 
 * **Projects**: only a project whose folder name (the basename of the
-  repository root, `git rev-parse --show-toplevel`) is listed in `projects`.
-  Anywhere else, do not load it: say that no handbook covers the project and
-  ask how to build and test it.
-* **Tools**: only the tools in `tools`, and only those the project actually
-  uses. A project built with another toolchain (rebar3, erlang.mk, a Nix or
-  Bazel build) is reported, never forced into `mix`. A check in `tools` the
-  project does not configure (no `credo` or `dialyxir` dependency, for
-  example) is skipped and logged, never added: no new dependency, no new
-  `.credo.exs`, no new alias.
+  repository root) is listed in `projects`. Anywhere else, say that no
+  handbook covers the project and ask how to build and test it.
+* **Tools**: only those in `tools`, and only those the project uses. A
+  project built with another toolchain (rebar3, erlang.mk, Nix) is reported,
+  never forced into `mix`. A check the project does not configure (no
+  `credo` or `dialyxir` dependency) is skipped by `toolchain check`, never
+  added: no new dependency, no new `.credo.exs`, no new alias.
 
-## Finding the toolchain
+## toolchain.yaml and the toolchain command
 
-Read, in this order, and use the first that answers:
+`toolchain.yaml`, at the project root and never committed, tells `toolchain`
+how this project runs its commands: the container wrapper (`exec`, for
+example `[edgar, exec, crash]`), extra environment, and any command the
+project replaces. `toolchain show` prints what will run. When the file is
+missing, `toolchain` uses plain `mix` on the host; kent writes the file from
+the shopping list, never another agent.
 
-1. `AGENTS.md` (or `CLAUDE.md`, `CONTRIBUTING.md`): the documented commands
-   or wrappers.
-2. `Makefile`, `justfile`, scripts under `bin/` or `scripts/`: targets named
-   after test, build, format, lint, credo, dialyzer, check.
-3. `mix.exs` aliases (`test`, `check`, `lint`, `format`), and the deps that
-   tell what is configured: `credo`, `dialyxir`. An umbrella (`apps_path`)
-   runs the checks from the root.
-4. Config files: `.formatter.exs`, `.credo.exs`, the `dialyzer:` key in
-   `mix.exs`.
+| Need | Command |
+|---|---|
+| compile, warnings as errors | `toolchain build` |
+| one test | `toolchain test test/foo/bar_test.exs:42` |
+| a list of test files | `toolchain test <file> <file>` |
+| the tests that include the files of a commit | `toolchain test --commit` (HEAD) |
+| the tests that include some files | `toolchain test --related <file>…` |
+| the tests related to the branch, architecture tests included | `toolchain test --branch` |
+| the static checks on the branch's files | `toolchain check` (`--fix` formats first) |
 
-When the project runs in a container, use the project's own wrapper (the
-Make target, `docker compose exec <service> …`) and run it directly, never
-through `bash -c` or `sh -c`: the hooks and the user must be able to read the
-command.
+Pass `--agent <your name>` so the output reaches the activity log. A test
+file includes a module when it is its mirrored test (`lib/a/b.ex` →
+`test/a/b_test.exs`; in an umbrella, `apps/<app>/lib/…` →
+`apps/<app>/test/…`) or names the module. There is no command for the full
+suite: the CI runs it.
 
-* **Never interrupt** a `mix` run (no Ctrl-C, no kill of its shell): an
-  interrupted BEAM can hang on its BREAK menu inside the container and block
-  everything. Run long ones in the background and wait for them.
-* Never fetch dependencies or install anything (`mix deps.get`, `mix
-  archive.install`, a PLT download) without the user's approval.
+* **Never interrupt** a run: an interrupted BEAM can hang on its BREAK menu
+  inside the container and block everything. Long runs (`toolchain test
+  --branch`, `toolchain check` with dialyzer) go in the background; wait for
+  them.
+* Never fetch dependencies or install anything (`mix deps.get`, a PLT
+  download) without the user's approval.
 
-## Building
+## Reading the static checks
 
-* The project's documented build command, or `mix compile` in the
-  environment the tests use (`MIX_ENV=test`, set by `mix test` itself).
-* An umbrella (`apps_path` in the root `mix.exs`) builds from the root.
+`toolchain check` runs, on the `.ex` and `.exs` files the branch changed:
+`mix format --check-formatted`, `mix credo --strict`, then `mix dialyzer` on
+the whole program (minutes the first time, while it builds the PLT). Keep
+only dialyzer's warnings on lines the branch changed (`git-read diff -U0
+{base}...HEAD -- <file>`); leave the others. A finding fixed without
+changing behaviour (formatting, a Credo rule, a typespec) is a fix of the
+closing point, committed as the agent's own instructions say; a fix that
+would change behaviour is a new TDD cycle, starting with a red.
 
-## Running tests
+## Testing
 
-Never run `mix test` without paths: that is the full suite, and the CI runs
-it.
-
-* **One test**: `mix test <test file>:<line>`.
-* **A list of files**: `mix test <file> <file> …`, one invocation.
-* **The tests that include a file**:
-  * a test file: the file itself;
-  * a production module `lib/<path>.ex` (in an umbrella,
-    `apps/<app>/lib/<path>.ex`): its mirrored test
-    `test/<path>_test.exs` (`apps/<app>/test/<path>_test.exs`), if it
-    exists, and every test file that names the module, found with
-    `git grep -lw '<Module.Name>' -- '*_test.exs'` (the name from its
-    `defmodule`).
-* **The tests related to a branch**: the same rule applied to every `.ex`
-  and `.exs` file changed in `$(linus base)..HEAD` and in the working tree,
-  plus the architecture tests when the project has them, in one invocation.
-  Never a whole OTP app instead.
-* In an umbrella, run the paths from the app that owns them
-  (`(cd apps/<app> && mix test test/…)`), one invocation per app, unless the
-  project documents a way from the root.
-
-## Static checks
-
-Only at a closing point (the close of a unit, the end of a correction
-session, the close of an interactive session, a review): never inside a red,
-green or refactor.
-
-* **The changed files**: `git diff --name-only $(linus base)...HEAD` plus the
-  working tree (`git status --porcelain`), only `.ex` and `.exs`, only files
-  that still exist. The checks judge these files; findings elsewhere are left
-  alone.
-* In order:
-  1. **Formatter**: `mix format --check-formatted <changed files>`. On a
-     failure, `mix format <changed files>` and show the resulting `git diff`.
-  2. **Linter**: `mix credo --strict <changed files>`, unless the project's
-     own command passes other flags.
-  3. **Type checker**: `mix dialyzer`, on the whole program. It can take
-     minutes (more the first time, while it builds the PLT): run it in the
-     background, wait for it, never interrupt it. Keep only the warnings on
-     lines the branch changed (`git diff -U0 $(linus base)...HEAD -- <file>`).
-* **The result**: for each check, the command, whether it passed, and each
-  finding kept as `tool file:line message`. A finding fixed without changing
-  behaviour (formatting, a lint rule, a spec) is a fix of the closing point:
-  the agent commits it as its own instructions say (a fixup of the unit, or a
-  refactor in an interactive session). A fix that would change behaviour is a
-  new TDD cycle, starting with a red; run the check again after it.
+* **ExUnit**: `async: true` unless the test touches shared state (the
+  database without a sandbox, a named process, the application env).
+  Helpers shared by several test modules live in `test/support/` (compiled
+  in the test env through `elixirc_paths`), never in a test file.
+* **Property-based tests**: StreamData, `use ExUnitProperties`, `property
+  "…" do check all x <- generator do … end end`. Generators shared by several
+  tests live in one generator module under `test/support/`, as the project's
+  single DSL for building domain values; the scenario's parameters stay
+  explicit at the call site. Adding `stream_data` to `mix.exs` is the user's
+  decision.
+* **Doubles**: only of a component whose boundary is an interface, which in
+  Elixir is a behaviour. Prefer **Hammox** to Mox when the project has it:
+  it checks every call and return value against the callback's typespecs,
+  which is the contract test between the double and the real
+  implementation. With plain Mox, write the contract test yourself: an
+  `ExUnit.CaseTemplate` (or a shared `describe` macro) holding the
+  behaviour's tests, run once against the real module and once against the
+  double's expectations. Inject the implementation through the application
+  env or a function argument, never by redefining modules.
+* **Architecture tests** (ford's fitness functions) live in
+  `test/architecture/`; `toolchain test --branch` always includes them.
 
 ## Style rules
 

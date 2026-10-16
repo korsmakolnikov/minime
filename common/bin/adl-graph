@@ -1,0 +1,64 @@
+#!/usr/bin/env python3
+"""The namespace dependency graph of an existing codebase, for the as-is ADL.
+
+Usage:
+  adl-graph [--depth N] <otp app>                   Elixir
+  adl-graph [--depth N] <source root> <package>     Python
+
+The language and the container come from toolchain.yaml (see toolchain).
+Prints the namespace groups with their module counts and the edges between
+groups with the number of imports or remote calls behind each. Elixir
+compiles the project without starting it (`mix run --no-start`). In a
+container, the script is first copied into the container's /tmp, through
+`exec_stdin` from toolchain.yaml when set (a wrapper that keeps stdin open,
+such as `docker exec -i <container>`), else through `exec`.
+"""
+import argparse
+import os
+import shlex
+import subprocess
+import sys
+
+HERE = os.path.dirname(os.path.realpath(__file__))
+sys.path[:0] = [os.path.join(HERE, "..", "lib"), os.path.expanduser("~/.local/share/minime/lib")]
+import minime  # noqa: E402
+from minime import ToolError, main_guard, repo_root  # noqa: E402
+from minime.toolchain import Project  # noqa: E402
+
+SCRIPTS = os.path.join(os.path.dirname(minime.__file__), "adl")
+
+
+def main():
+    parser = argparse.ArgumentParser(prog="adl-graph", description=__doc__,
+                                     formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("--depth", type=int, default=2)
+    parser.add_argument("target", nargs="+")
+    args = parser.parse_args()
+    project = Project(repo_root())
+    language = project.driver.name
+    if language == "elixir":
+        if len(args.target) != 1:
+            raise ToolError("Elixir: adl-graph [--depth N] <otp app>")
+        script, command = "deps_graph.exs", ["mix", "run", "--no-start", None, args.target[0], str(args.depth)]
+    else:
+        if len(args.target) != 2:
+            raise ToolError("Python: adl-graph [--depth N] <source root> <package>")
+        script, command = "deps_graph.py", ["python3", None, *args.target, "--depth", str(args.depth)]
+    source = os.path.join(SCRIPTS, script)
+    prefix = [str(p) for p in project.config.get("exec") or []]
+    if prefix:
+        inside = f"/tmp/minime_{script}"
+        copier = [str(p) for p in project.config.get("exec_stdin") or prefix]
+        copy = subprocess.run(copier + ["sh", "-c", f"cat > {shlex.quote(inside)}"],
+                              stdin=open(source), capture_output=True, text=True)
+        if copy.returncode != 0:
+            raise ToolError(f"could not copy the script into the container: {copy.stderr.strip()}")
+        command[command.index(None)] = inside
+        command = prefix + command
+    else:
+        command[command.index(None)] = source
+    print("$ " + " ".join(shlex.quote(c) for c in command), flush=True)
+    return subprocess.run(command, cwd=project.root).returncode
+
+
+main_guard(main)

@@ -11,23 +11,20 @@ handed to whoever writes `.sources/`; it never writes into the project.
 ## 1. Extract the dependency graph
 
 From the project root, at depth 2, then one level deeper for the areas being
-changed:
+changed, with the `adl-graph` command:
 
-* Python: `python3 <skill dir>/deps_graph.py <source root> <root package> --depth N`
-* Elixir: `mix run --no-start <skill dir>/deps_graph.exs <otp app> N`
-  (compiles the project without starting the application).
+* Elixir: `adl-graph --depth N <otp app>` (compiles the project without
+  starting the application);
+* Python: `adl-graph --depth N <source root> <root package>`.
 
-**Containerised projects.** When `AGENTS.md` documents a wrapper for running
-commands in a container (e.g. `edgar exec crash <cmd>`), the skill directory
-is not mounted there: stream the script into the container's `/tmp` (never
-into the project tree) and run it through the wrapper, directly, not via
-`sh -c` (the wrapper's environment, e.g. `APP_PORT`, may not survive a nested
-shell). The same goes for `deps_graph.py` with `python3 /tmp/deps_graph.py`.
-
-```bash
-docker exec -i <container> sh -c 'cat > /tmp/deps_graph.exs' < <skill dir>/deps_graph.exs
-<wrapper> mix run --no-start /tmp/deps_graph.exs <otp app> N
-```
+It reads the language and the container wrapper from `toolchain.yaml` and,
+in a container, copies its script into the container's `/tmp` itself (the
+skill folder is not mounted there). In the Copilot workflow, which has no
+`adl-graph` yet, the scripts are in `~/.local/share/minime/lib/minime/adl/`:
+`python3 …/deps_graph.py <source root> <root package> --depth N` and
+`mix run --no-start …/deps_graph.exs <otp app> N` (in a container, stream
+the script into its `/tmp` first and run it through the wrapper, never via
+`sh -c`).
 
 The output lists namespace groups with their module counts, and the edges
 between groups with the number of imports or remote calls behind each.

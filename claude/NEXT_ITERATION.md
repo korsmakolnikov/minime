@@ -246,8 +246,23 @@ Da fare sul lato Claude; Copilot lo applica dal suo `NEXT_ITERATION.md`.
    Mind* (la mente come società di agenti) e le K-line (la memoria che
    riattiva uno stato mentale: lo stato di partenza di un agente).
 
+9. **`toolchain.yaml`** nella radice del progetto: linguaggio, prefisso del
+   container, comandi personalizzati; lo leggono i tool `toolchain`. Non
+   versionato (gitignore globale, come `.sources/` e `.documentation/`):
+   marvin non lo cita mai in `AGENTS.md`. Documentato nel README.
+10. **Skill sui file di supporto del flusso** (`.sources/`,
+    `.documentation/`, `toolchain.yaml`, i log in `/tmp`): chi scrive cosa,
+    perché non sono versionati (su Copilot è obbligato: il flusso è un
+    esperimento personale su codice aziendale; avrebbe senso versionarli
+    solo se altri adottassero lo strumento).
+
 ## Ricerche
 
+- **Il DSL del modello di dominio.** Provvisorio: la spec versione 2
+  (`domain-model`: entità e value object, eventi, relazioni, operazioni,
+  proprietà, con id condivisi). Da confrontare con DSL esistenti: CML di
+  Context Mapper (DDD: bounded context, aggregate, entity, value object,
+  domain event), LinkML (schema in YAML).
 - **Un DSL nostro per gli agenti**, che unisca modello di dominio, ADL e
   spec con un unico sistema di id; esistono DSL pensati per interagire con
   gli agenti, da studiare.

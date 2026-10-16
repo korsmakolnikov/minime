@@ -1,0 +1,115 @@
+#!/usr/bin/env python3
+"""Brings a project's workflow files from older layouts to the current one.
+
+Usage:
+  minime-migrate [--dry-run] [--no-global] [<project>...]
+  minime-migrate [--dry-run] [--no-global] --projects-dir <dir>
+
+Without a project, the repository of the current directory. With
+--projects-dir, every git repository up to three levels below <dir>.
+
+Project migrations, in order (add every future change of layout here):
+  .adl/            -> .sources/
+  .shopping_lists/ -> .sources/shopping_lists/
+
+A file moves when the destination lacks it, and the old copy goes when the
+destination holds the same content; a file that differs stays where it is
+and is reported, for the user to merge by hand. Emptied old folders go.
+
+Global migration (unless --no-global): the workflow files are never
+versioned, so the global git ignore file lists them (WORKFLOW_IGNORES).
+"""
+import argparse
+import filecmp
+import os
+import shutil
+import subprocess
+import sys
+
+sys.path[:0] = [os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "lib"),
+                os.path.expanduser("~/.local/share/minime/lib")]
+from minime import ToolError, main_guard, repo_root  # noqa: E402
+
+MOVES = [(".adl", ".sources"), (".shopping_lists", ".sources/shopping_lists")]
+WORKFLOW_IGNORES = [".sources/", ".documentation/", "toolchain.yaml"]
+
+
+def say(dry, text):
+    print(("would: " if dry else "") + text)
+
+
+def merge(root, old, new, dry):
+    src, dst = os.path.join(root, old), os.path.join(root, new)
+    if not os.path.isdir(src):
+        return 0
+    conflicts = 0
+    for folder, _, files in os.walk(src):
+        for name in files:
+            here = os.path.join(folder, name)
+            there = os.path.join(dst, os.path.relpath(here, src))
+            if not os.path.exists(there):
+                say(dry, f"move {here} -> {there}")
+                if not dry:
+                    os.makedirs(os.path.dirname(there), exist_ok=True)
+                    shutil.move(here, there)
+            elif filecmp.cmp(here, there, shallow=False):
+                say(dry, f"remove {here} (same as {there})")
+                if not dry:
+                    os.remove(here)
+            else:
+                print(f"CONFLICT {here} differs from {there}: merge by hand")
+                conflicts += 1
+    if not dry:
+        for folder, _, _ in sorted(os.walk(src), key=lambda w: -len(w[0])):
+            if not os.listdir(folder):
+                os.rmdir(folder)
+        if not os.path.exists(src):
+            print(f"removed {src}")
+    return conflicts
+
+
+def global_ignore(dry):
+    run = subprocess.run(["git", "config", "--global", "--path", "--get", "core.excludesFile"],
+                         capture_output=True, text=True)
+    path = run.stdout.strip() or os.path.join(
+        os.environ.get("XDG_CONFIG_HOME") or os.path.expanduser("~/.config"), "git", "ignore")
+    lines = open(path).read().splitlines() if os.path.exists(path) else []
+    for entry in WORKFLOW_IGNORES:
+        if entry not in lines:
+            say(dry, f"add {entry} to the global git ignore file {path}")
+            if not dry:
+                os.makedirs(os.path.dirname(path), exist_ok=True)
+                with open(path, "a") as out:
+                    out.write(entry + "\n")
+
+
+def projects(directory):
+    found = []
+    for folder, dirs, _ in os.walk(directory):
+        depth = os.path.relpath(folder, directory).count(os.sep)
+        if ".git" in dirs:
+            found.append(folder)
+        dirs[:] = [d for d in dirs if not d.startswith(".") and depth < 2]
+    return sorted(found)
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("projects", nargs="*")
+    parser.add_argument("--projects-dir")
+    parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--no-global", action="store_true")
+    args = parser.parse_args()
+    roots = args.projects or (projects(os.path.expanduser(args.projects_dir)) if args.projects_dir else [repo_root()])
+    conflicts = 0
+    for root in roots:
+        if not os.path.isdir(os.path.join(root, ".git")):
+            raise ToolError(f"not a git repository: {root}")
+        for old, new in MOVES:
+            conflicts += merge(root, old, new, args.dry_run)
+    if not args.no_global:
+        global_ignore(args.dry_run)
+    return 1 if conflicts else 0
+
+
+main_guard(main)

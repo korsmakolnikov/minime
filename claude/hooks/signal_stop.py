@@ -10,7 +10,8 @@ receives the problems as its next instruction and ends its turn again. Run
 as the main thread (`claude --agent <name>`, hook event Stop) the agent talks
 to the user directly and nothing is checked.
 
-Every subagent stop is appended to /tmp/kent-events.jsonl, one JSON object
+Every subagent stop is appended to kent-events.jsonl under MINIME_STATE_DIR
+(default /tmp), one JSON object
 per line: time, agent type and id, transcript path, signal and whether it
 passed. joshua reads it as the list of events to audit.
 """
@@ -22,7 +23,7 @@ import shutil
 import subprocess
 import sys
 
-EVENTS_LOG = "/tmp/kent-events.jsonl"
+EVENTS_LOG = os.path.join(os.environ.get("MINIME_STATE_DIR", "/tmp"), "kent-events.jsonl")
 
 
 def signal_check(text, expect):

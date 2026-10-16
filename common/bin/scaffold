@@ -1,0 +1,173 @@
+#!/usr/bin/env python3
+"""Lays down a new project: layout, toolchain, task runner, CI, git.
+
+Usage:
+  scaffold languages                          the supported languages and their keys
+  scaffold <language> KEY=VALUE... [--dry-run]
+  scaffold verify                             run the new project's own checks
+
+In the current directory, which must be the (empty) project directory. The
+templates of <language> are rendered with {{KEY}} replaced in paths and
+contents; the tool refuses to overwrite a file or to leave a placeholder.
+Then: `git init` and an empty "start." commit (skipped inside an existing
+repository), and toolchain.yaml (never committed). The scaffolded files are
+not committed: the next commit is the user's or the workflow's.
+
+`verify` runs the project's task runner: install the dependencies (network),
+then the tests and the static checks, and reports each step.
+"""
+import os
+import re
+import shutil
+import subprocess
+import sys
+
+HERE = os.path.dirname(os.path.realpath(__file__))
+sys.path[:0] = [os.path.join(HERE, "..", "lib"), os.path.expanduser("~/.local/share/minime/lib")]
+import minime  # noqa: E402
+from minime import ToolError, main_guard  # noqa: E402
+
+TEMPLATES = os.path.join(os.path.dirname(minime.__file__), "scaffold")
+PLACEHOLDER = re.compile(r"\{\{([A-Z_]+)\}\}")
+
+
+def ident(name):
+    out = re.sub(r"[^A-Za-z0-9_]", "_", name)
+    return "_" + out if out[:1].isdigit() else out
+
+
+def c_vars(v):
+    v["PROJECT_IDENT"] = ident(v["PROJECT_NAME"])
+    v["PROJECT_IDENT_UPPER"] = v["PROJECT_IDENT"].upper()
+
+
+def python_vars(v):
+    v.setdefault("PACKAGE", ident(v["PROJECT_NAME"]).lower())
+    if not re.fullmatch(r"[a-z_][a-z0-9_]*", v["PACKAGE"]):
+        raise ToolError(f"PACKAGE must be a lowercase Python identifier, not {v['PACKAGE']!r}")
+    v.setdefault("PYTHON", "3.12")
+    if not re.fullmatch(r"3\.\d+", v["PYTHON"]):
+        raise ToolError(f"PYTHON must look like 3.12, not {v['PYTHON']!r}")
+    v["PYTHON_TAG"] = "py" + v["PYTHON"].replace(".", "")
+    repo = v.get("GITHUB_REPO", "")
+    v["CI_BADGE"] = (f"[![CI](https://github.com/{repo}/actions/workflows/ci.yml/badge.svg)]"
+                     f"(https://github.com/{repo}/actions/workflows/ci.yml)\n\n") if repo else ""
+
+
+# language: (required keys, optional keys with defaults, derivation, toolchain.yaml)
+LANGUAGES = {
+    "c": (["PROJECT_NAME", "C_STANDARD", "TARGET_ARCH", "GITHUB_REPO"], {}, c_vars, None),
+    "python": (["PROJECT_NAME"], {"PACKAGE": "<from the name>", "PYTHON": "3.12", "GITHUB_REPO": ""},
+               python_vars, "toolchain: 1\nlanguage: python\n"),
+}
+
+
+def parse(pairs):
+    values = {}
+    for pair in pairs:
+        key, sep, value = pair.partition("=")
+        if not sep or not re.fullmatch(r"[A-Z_]+", key):
+            raise ToolError(f"expected KEY=VALUE, got {pair!r}")
+        values[key] = value
+    return values
+
+
+def render(text, values):
+    return PLACEHOLDER.sub(lambda m: values.get(m.group(1), m.group(0)), text)
+
+
+def plan(language, values):
+    root = os.path.join(TEMPLATES, language)
+    out = []
+    for folder, _, files in os.walk(root):
+        for name in sorted(files):
+            source = os.path.join(folder, name)
+            dest = render(os.path.relpath(source, root), values)
+            text = render(open(source).read(), values)
+            left = PLACEHOLDER.findall(dest + text)
+            if left:
+                raise ToolError(f"{dest}: unresolved placeholders {sorted(set(left))}")
+            out.append((dest, text, os.stat(source).st_mode))
+    return sorted(out)
+
+
+def inside_repo():
+    run = subprocess.run(["git", "rev-parse", "--is-inside-work-tree"], capture_output=True, text=True)
+    return run.returncode == 0
+
+
+def step(name, command):
+    print(f"$ {' '.join(command)}", flush=True)
+    status = subprocess.run(command).returncode
+    print(f"{name}: {'ok' if status == 0 else f'failed ({status})'}", flush=True)
+    return status
+
+
+def verify():
+    if not os.path.exists("Makefile"):
+        raise ToolError("no Makefile here: run verify in a scaffolded project")
+    targets = open("Makefile").read()
+    failed = 0
+    for target in ("install", "build", "check", "test"):
+        if re.search(rf"^{target}:", targets, flags=re.M):
+            failed |= step(target, ["make", target]) != 0
+    return 1 if failed else 0
+
+
+def main():
+    args = sys.argv[1:]
+    if args[:1] in ([], ["-h"], ["--help"]):
+        print(__doc__.strip())
+        return 0 if args else 2
+    if args == ["languages"]:
+        for name, (required, optional, _, _) in LANGUAGES.items():
+            extra = " ".join(f"[{k}={d}]" for k, d in optional.items())
+            print(f"{name}: " + " ".join(f"{k}=…" for k in required) + (f" {extra}" if extra else ""))
+        return 0
+    if args == ["verify"]:
+        return verify()
+    language, rest = args[0].lower(), args[1:]
+    if language not in LANGUAGES:
+        raise ToolError(f"unsupported language {language!r}: {', '.join(LANGUAGES)}")
+    dry = "--dry-run" in rest
+    values = parse([a for a in rest if a != "--dry-run"])
+    required, optional, derive, toolchain = LANGUAGES[language]
+    missing = [k for k in required if not values.get(k)]
+    if missing:
+        raise ToolError(f"missing {', '.join(missing)} (scaffold languages)")
+    derive(values)
+    files = plan(language, values)
+    clash = [d for d, _, _ in files if os.path.exists(d)]
+    if toolchain and os.path.exists("toolchain.yaml"):
+        clash.append("toolchain.yaml")
+    if clash:
+        raise ToolError(f"already present, refusing to overwrite: {', '.join(clash)}")
+    for dest, text, mode in files:
+        print(("would create " if dry else "created ") + dest)
+        if not dry:
+            os.makedirs(os.path.dirname(dest) or ".", exist_ok=True)
+            with open(dest, "w") as out:
+                out.write(text)
+            os.chmod(dest, mode & 0o777)
+    if toolchain:
+        print(("would create " if dry else "created ") + "toolchain.yaml (never committed)")
+        if not dry:
+            open("toolchain.yaml", "w").write(toolchain)
+    if dry:
+        return 0
+    if inside_repo():
+        print("git: inside an existing repository, no git init and no start commit")
+    else:
+        if not shutil.which("git"):
+            raise ToolError("git is not installed")
+        subprocess.run(["git", "init", "-q"], check=True)
+        subprocess.run(["git", "commit", "-q", "--allow-empty", "-m", "start."], check=True)
+        print("git: initialised, empty commit \"start.\"")
+    ignored = subprocess.run(["git", "check-ignore", "-q", "toolchain.yaml"]).returncode == 0
+    if toolchain and not ignored:
+        print("WARNING: toolchain.yaml is not git-ignored: run minime-migrate (global ignore)")
+    print("next: scaffold verify (installs the dependencies, then builds, checks and tests)")
+    return 0
+
+
+main_guard(main)
