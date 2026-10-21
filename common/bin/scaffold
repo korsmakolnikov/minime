@@ -2,6 +2,7 @@
 """Lays down a new project: layout, toolchain, task runner, CI, git.
 
 Usage:
+  scaffold init                               git init and an empty "start." commit
   scaffold languages                          the supported languages and their keys
   scaffold <language> KEY=VALUE... [--dry-run] [--dir <folder>]
   scaffold verify [--dir <folder>]            run the new project's own checks
@@ -14,8 +15,13 @@ existing repository or beside the current directory. The
 templates of <language> are rendered with {{KEY}} replaced in paths and
 contents; the tool refuses to overwrite a file or to leave a placeholder.
 Then: `git init` and an empty "start." commit (skipped inside an existing
-repository), and toolchain.yaml. The scaffolded files are not committed
-until `commit`.
+repository), and toolchain.yaml. For a project in a folder of a repository,
+a toolchain.yaml at the repository's root names the folder (`project:`), so
+that the tools find it from there; an existing one naming another project is
+reported, not changed. The scaffolded files are not committed until `commit`.
+
+`init` makes the current directory a repository with an empty "start."
+commit, so that a session can take a feature branch before the scaffold.
 
 `verify` runs the project's task runner: install the dependencies (network),
 then the tests and the static checks, and reports each step.
@@ -193,6 +199,29 @@ def take_option(args, name):
     return value
 
 
+def init_repo():
+    if not shutil.which("git"):
+        raise ToolError("git is not installed")
+    subprocess.run(["git", "init", "-q"], check=True)
+    subprocess.run(["git", "commit", "-q", "--allow-empty", "-m", "start."], check=True)
+    print("git: initialised, empty commit \"start.\"")
+
+
+def name_the_project(top, prefix, dry):
+    """Points the toolchain.yaml at the repository's root to the project's folder."""
+    path = os.path.join(top, "toolchain.yaml")
+    shown = os.path.relpath(path)
+    if not os.path.exists(path):
+        print(("would create " if dry else "created ") + f"{shown} (project: {prefix})")
+        if not dry:
+            open(path, "w").write(f"toolchain: 1\nproject: {prefix}\n")
+        return
+    named = re.search(r"(?m)^project:\s*(\S+)", open(path).read())
+    if not named or named.group(1).rstrip("/") != prefix:
+        print(f"note: {shown} does not name this project: set `project: {prefix}` in it"
+              " to build and test it with the toolchain tools")
+
+
 def enter(folder, create):
     """Makes <folder> the current directory, creating it when asked."""
     if create:
@@ -211,6 +240,11 @@ def main():
         return 0 if args else 2
     folder = take_option(args, "--dir")
     model = take_option(args, "--model")
+    if args == ["init"]:
+        if inside_repo():
+            raise ToolError("already inside a repository: nothing to initialise")
+        init_repo()
+        return 0
     if args in (["verify"], ["commit"]):
         if folder:
             enter(folder, create=False)
@@ -233,8 +267,10 @@ def main():
         raise ToolError(f"missing {', '.join(missing)} (scaffold languages)")
     derive(values)
     files = plan(language, values)
-    if folder and inside_repo():
+    top = repo_root() if folder and inside_repo() else None
+    if top:
         files = ci_at_root(files, folder)
+        prefix = os.path.relpath(os.path.abspath(folder), top)
     # A dry run never creates the folder: a missing one holds nothing to clash with.
     fresh = bool(folder) and dry and not os.path.isdir(folder)
     if fresh:
@@ -258,16 +294,14 @@ def main():
         print(("would create " if dry else "created ") + "toolchain.yaml")
         if not dry:
             open("toolchain.yaml", "w").write(toolchain)
+        if top:
+            name_the_project(top, prefix, dry)
     if dry:
         return 0
     if inside_repo():
         print("git: inside an existing repository, no git init and no start commit")
     else:
-        if not shutil.which("git"):
-            raise ToolError("git is not installed")
-        subprocess.run(["git", "init", "-q"], check=True)
-        subprocess.run(["git", "commit", "-q", "--allow-empty", "-m", "start."], check=True)
-        print("git: initialised, empty commit \"start.\"")
+        init_repo()
     verify_command = f"scaffold verify --dir {folder}" if folder else "scaffold verify"
     print(f"next: {verify_command} (installs the dependencies, then builds, checks and tests),"
           f" then {verify_command.replace('verify', 'commit')}")

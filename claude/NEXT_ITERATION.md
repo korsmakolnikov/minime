@@ -184,6 +184,12 @@ source, si versionano:
      `last_assistant_message`. Da verificare anche in una sessione vera:
      dopo un handback forzato l'hook registra due eventi per lo stesso
      turno, e joshua non deve contarli come due violazioni.
+   - **Fatto il 21 ottobre** (sessione di prova in `/tmp/minime-py`): `make
+     test` verde; `scaffold commit`; CI di un progetto in cartella alla
+     radice con filtro `paths`; ogni scaffold passa a ford
+     (`container-scaffold` per Dockerfile e compose); kent chiede solo il
+     perimetro; `toolchain.yaml` alla radice con `project: <cartella>`
+     (la Q9 sotto, risolta così).
    - **`toolchain` non vede un progetto in una sottocartella**: trova la
      radice con `git rev-parse --show-toplevel`, quindi `deterministic-kent/`
      resta invisibile e la precondizione di ford (`toolchain build`)

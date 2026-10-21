@@ -65,6 +65,7 @@ INSTALLED := \
 	$(SKILLS_DEST_DIR)/python-handbook \
 	$(SKILLS_DEST_DIR)/python-scaffold \
 	$(SKILLS_DEST_DIR)/c-scaffold \
+	$(SKILLS_DEST_DIR)/container-scaffold \
 	$(SKILLS_DEST_DIR)/workflow-files \
 	$(SKILLS_DEST_DIR)/elixir-handbook \
 	$(SKILLS_DEST_DIR)/elixir-style \
@@ -111,6 +112,7 @@ INSTALLED := \
 	$(COPILOT_HOME)/skills/python-handbook \
 	$(COPILOT_HOME)/skills/python-scaffold \
 	$(COPILOT_HOME)/skills/c-scaffold \
+	$(COPILOT_HOME)/skills/container-scaffold \
 	$(COPILOT_HOME)/skills/workflow-files \
 	$(COPILOT_HOME)/skills/elixir-handbook \
 	$(COPILOT_HOME)/skills/elixir-style \

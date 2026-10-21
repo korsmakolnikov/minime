@@ -23,7 +23,7 @@ HERE = os.path.dirname(os.path.realpath(__file__))
 sys.path[:0] = [os.path.join(HERE, "..", "lib"), os.path.expanduser("~/.local/share/minime/lib")]
 import minime  # noqa: E402
 from minime import ToolError, main_guard, repo_root  # noqa: E402
-from minime.toolchain import Project  # noqa: E402
+from minime.toolchain import find  # noqa: E402
 
 SCRIPTS = os.path.join(os.path.dirname(minime.__file__), "adl")
 
@@ -34,7 +34,7 @@ def main():
     parser.add_argument("--depth", type=int, default=2)
     parser.add_argument("target", nargs="+")
     args = parser.parse_args()
-    project = Project(repo_root())
+    project = find(repo_root())
     language = project.driver.name
     if language == "elixir":
         if len(args.target) != 1:

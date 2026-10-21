@@ -40,7 +40,8 @@ LINUS_READS = {"base", "range", "next", "check-message", "hunks", "--help", "-h"
 MINIME = "~/code/minime"
 
 # The workflow's own files, versioned on Claude Code (see workflow-files).
-WORKFLOW_FILES = ["repo:.sources/", "repo:.documentation/", "repo:toolchain.yaml"]
+# toolchain.yaml: the project's, and the root's that names a project in a folder
+WORKFLOW_FILES = ["repo:.sources/", "repo:.documentation/", "name:toolchain.yaml"]
 LINUS_VALUE_FLAGS = {"--phase", "--model", "-F", "--scope", "--from", "--target"}
 
 # Tool -> the subcommands allowed (None: any). Shared by most agents.
@@ -60,14 +61,15 @@ TESTS = {"toolchain": {"show", "build", "test", "related"}}
 AGENTS = {
     "kent": {
         # ls and cat: kent reaches for them even when told to use Read and rg
-        "tools": {**COMMON, "shopping-list": None, "session-state": None, "scaffold": None,
+        # kent only makes an empty directory a repository; ford scaffolds the project
+        "tools": {**COMMON, "shopping-list": None, "session-state": None, "scaffold": {"init"},
                   "minime-migrate": None, "toolchain": {"show", "related"}, "spec-check": None,
                   "ls": None, "cat": None},
         # kent commits the workflow's files between units, and nothing else;
         # it also puts the session on its feature branch
         "linus": {"stage", "commit", "branch"},
         "linus_paths": WORKFLOW_FILES,
-        "edit": ["repo:toolchain.yaml"],
+        "edit": ["name:toolchain.yaml"],
     },
     "hughes": {
         "tools": {"flow-log": None, **SHOW, "spec-check": None},
@@ -77,17 +79,17 @@ AGENTS = {
         "read": ["repo:.sources/spec.yaml", "repo:.sources/shopping_lists/", "~/.claude/", "/tmp/"],
     },
     "ford": {
-        "tools": {**COMMON, **SHOW, **TESTS, "spec-check": None, "adl-graph": None},
+        "tools": {**COMMON, **SHOW, **TESTS, "spec-check": None, "adl-graph": None, "scaffold": None},
         "linus": {"stage", "stage-hunks", "unstage", "commit", "fixup"},
         "edit": ["repo:"],
         "except": ["repo:.sources/spec.yaml", "repo:.sources/shopping_lists/", "repo:.documentation/",
-                   "repo:toolchain.yaml", "name:AGENTS.md", "name:CLAUDE.md"],
+                   "name:toolchain.yaml", "name:AGENTS.md", "name:CLAUDE.md"],
     },
     "unclebob": {
         "tools": {**COMMON, **SHOW, "toolchain": None, "spec-check": None},
         "linus": {"stage", "stage-hunks", "unstage", "commit", "amend", "fixup"},
         "edit": ["/tmp/", "repo:"],
-        "except": ["repo:.sources/", "repo:.documentation/", "repo:toolchain.yaml",
+        "except": ["repo:.sources/", "repo:.documentation/", "name:toolchain.yaml",
                    "name:AGENTS.md", "name:CLAUDE.md"],
     },
     "martin": {

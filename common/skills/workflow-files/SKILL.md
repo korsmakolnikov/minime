@@ -27,7 +27,8 @@ output there, and nothing else.
 
 | File | Written by | Read by | Holds |
 |---|---|---|---|
-| `toolchain.yaml` | kent (from the shopping list), the scaffold tool | the `toolchain` and `adl-graph` commands | language, container wrapper, replaced commands |
+| `toolchain.yaml` | the scaffold tool (a new project, run by ford), kent (an existing one) | the `toolchain` and `adl-graph` commands | language, container wrapper, replaced commands |
+| `toolchain.yaml` at the root, for a project in a folder | the scaffold tool | the same commands | only `project: <folder>`: where the project is |
 | `.sources/shopping_lists/<branch>.md` | kent, through `shopping-list` | every agent kent launches, as context | the iteration's goal, unknowns and answers |
 | `.sources/spec.yaml` | hughes | ford, unclebob, martin, simon | the domain: entities, value objects, events, relations, constraints, operations, properties (`domain-model` skill) |
 | `.sources/*.adl`, `.sources/as-is/*.adl` | ford | unclebob, martin, simon | the target and the as-is architecture (`adl-spec` skill) |

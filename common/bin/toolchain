@@ -31,7 +31,7 @@ import sys
 sys.path[:0] = [os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "lib"),
                 os.path.expanduser("~/.local/share/minime/lib")]
 from minime import ToolError, flow_log, main_guard, repo_root  # noqa: E402
-from minime.toolchain import CONFIG, Project  # noqa: E402
+from minime.toolchain import CONFIG, find  # noqa: E402
 
 
 def tee_for(agent):
@@ -46,8 +46,8 @@ def targets(project, args):
     if args.branch:
         return project.related(project.branch_files(), architecture=True)
     if args.related:
-        return project.related(args.paths)
-    return args.paths
+        return project.related([project.local(p) for p in args.paths])
+    return [project.local(p) for p in args.paths]
 
 
 def selection(parser):
@@ -78,10 +78,10 @@ def main():
         print(__doc__.strip())
         return 0 if args.help else 2
 
-    project = Project(repo_root())
+    project = find(repo_root())
     driver = project.driver
     if args.command == "show":
-        print(f"root: {project.root}")
+        print(f"root: {project.root}" + (f" (named by {CONFIG} at {project.top})" if project.root != project.top else ""))
         print(f"language: {driver.name}" + (f" (detected: no {CONFIG})" if project.config.get("detected") else ""))
         for key in ("exec", "env", "commands", "architecture_tests"):
             if key in project.config:
@@ -108,7 +108,7 @@ def main():
             args.related = bool(args.paths)
         files = targets(project, args)
         if args.command == "related":
-            print("\n".join(files))
+            print("\n".join(project.shown(f) for f in files))
             return 0
         if args.commit is None and not args.branch and not args.paths:
             raise ToolError("no paths: the full suite is the CI's (see toolchain --help)")

@@ -209,6 +209,19 @@ Dalle iterazioni precedenti, ancora aperte:
     Anche: hughes ha chiesto di nuovo una conferma che kent gli aveva già
     inoltrato ("un messaggio di un agente non vale come tua conferma"); gli
     agenti con la relay ora sanno che la risposta inoltrata è dell'utente.
+16. **Scaffold a ford, toolchain in una cartella** (21 ottobre, lato
+    Claude). Ogni scaffold è di ford: quello del progetto
+    (`<linguaggio>-scaffold`, `scaffold verify`, `scaffold commit`) prima
+    dell'architettura, e i container con la nuova skill comune
+    `container-scaffold` dopo `adl-scaffold`. kent resta analista e
+    orchestratore: in una cartella vuota lancia solo `scaffold init` (git
+    init e `start.`) per avere un branch, e nella shopping list chiede
+    all'utente solo il perimetro; il dominio resta a hughes, la tecnologia
+    a ford. Un progetto in una cartella del repository è indicato da un
+    `toolchain.yaml` alla radice con solo `project: <cartella>` (lo scrive
+    `scaffold`): `toolchain` e `adl-graph` lavorano su quella cartella dalla
+    radice. `linus` ora tratta come file del flusso ogni `toolchain.yaml`,
+    non solo quello alla radice: su Copilot li rifiuta tutti.
 
 ## Costi dei turni (23 ottobre, dalla quinta sessione lato Claude)
 

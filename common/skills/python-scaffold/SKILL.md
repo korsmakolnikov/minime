@@ -1,6 +1,6 @@
 ---
 name: python-scaffold
-description: Creates a new Python project with the scaffold tool - src layout, uv, pytest with Hypothesis, ruff, mypy --strict, a Makefile task runner, GitHub Actions CI, git init with an empty "start." commit and toolchain.yaml. kent loads it on a greenfield Python project, before hughes and ford; the user can also run it on their own.
+description: Creates a new Python project with the scaffold tool - src layout, uv, pytest with Hypothesis, ruff, mypy --strict, a Makefile task runner, GitHub Actions CI, git init with an empty "start." commit and toolchain.yaml. ford loads it on a greenfield Python project, before the architecture; the user can also run it on their own.
 ---
 
 # python-scaffold
@@ -14,7 +14,8 @@ inside a project that already builds and runs its tests.
   `--dir <folder>` creates (a project inside an existing repository); it
   holds nothing the templates write (`scaffold python PROJECT_NAME=x
   --dry-run` lists them).
-* Ask the user, in one question each, with the default first:
+* Ask the user (in the workflow, through kent's relay), in one question
+  each, with the default first:
   1. **Project name**: the directory's basename. The distribution name.
   2. **Package**: the name as a lowercase identifier (`agent-bench` →
      `agent_bench`). The import name, under `src/`.
@@ -47,6 +48,9 @@ With `--dir` inside a repository, the CI goes to the repository's root
 (`.github/workflows/<folder>.yml`, every step run in the folder, triggered
 only by changes to the folder and to that workflow): GitHub
 reads workflows only from there.
+A `toolchain.yaml` at the root names the folder (`project: <folder>`), so
+that the toolchain tools find the project from there; kent commits it with
+the workflow's files.
 
 ## Verify
 

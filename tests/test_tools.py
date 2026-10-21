@@ -109,6 +109,11 @@ class ToolTest(unittest.TestCase):
         done = subprocess.run(args, cwd=self.repo, env=claude, input=msg, capture_output=True, text=True)
         self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
         self.assertIn("spec.yaml", self.sh("git", "show", "--stat", "HEAD").stdout)
+        # a project in a folder has its own toolchain.yaml: a workflow file too
+        self.write("lab/toolchain.yaml", "language: python\n")
+        nested = ["linus", "commit", "--phase", "other", "lab/toolchain.yaml"]
+        refused = subprocess.run(nested, cwd=self.repo, env=copilot, input=msg, capture_output=True, text=True)
+        self.assertIn("never committed on Copilot", refused.stdout + refused.stderr)
 
     def test_git_read(self):
         self.assertIn("base", self.sh("git-read", "log", "--oneline").stdout)
@@ -168,6 +173,39 @@ class ToolTest(unittest.TestCase):
         out = self.sh("toolchain", "test", "--agent", "unclebob", "--commit").stdout
         self.assertIn("IN runtests tests/cart/test_pricing.py tests/test_checkout.py -v", out)
         self.assertNotIn("toolchain.yaml", self.sh("toolchain", "check", "--only", "format").stdout.splitlines()[0])
+
+    def test_toolchain_finds_a_project_in_a_folder(self):
+        self.write("README.md", "the lab\n")
+        self.sh("git", "add", "-A")
+        self.sh("git", "commit", "-qm", "lab")
+        self.sh("git", "switch", "-qc", "feat/p")
+        self.write("lab/pyproject.toml", '[project]\nname = "shop"\n[tool.ruff]\n')
+        self.write("lab/src/shop/cart/pricing.py", "def total(): return 0\n")
+        self.write("lab/tests/cart/test_pricing.py", "from shop.cart.pricing import total\n")
+        self.sh("git", "add", "-A")
+        self.sh("git", "commit", "-qm", "project")
+        missing = self.sh("toolchain", "show", ok=False)
+        self.assertIn("the folders lab hold one", missing.stdout + missing.stderr)
+        self.write("toolchain.yaml", "toolchain: 1\nproject: lab\n")
+        self.assertIn("named by toolchain.yaml", self.sh("toolchain", "show").stdout)
+        self.assertEqual(self.sh("toolchain", "related", "--commit").stdout.split(),
+                         ["lab/tests/cart/test_pricing.py"])
+        self.assertEqual(self.sh("toolchain", "related", "lab/src/shop/cart/pricing.py").stdout.split(),
+                         ["lab/tests/cart/test_pricing.py"])
+        self.write("lab/toolchain.yaml", "language: python\nexec: [echo, IN]\n")
+        out = self.sh("toolchain", "test", "lab/tests/cart/test_pricing.py::test_total").stdout
+        self.assertIn("IN pytest tests/cart/test_pricing.py::test_total", out)
+        outside = self.sh("toolchain", "test", "README.md", ok=False)
+        self.assertIn("outside the project", outside.stdout + outside.stderr)
+
+    def test_scaffold_init(self):
+        fresh = os.path.join(self.tmp.name, "fresh")
+        os.makedirs(fresh)
+        run = subprocess.run(["scaffold", "init"], cwd=fresh, env=self.env, capture_output=True, text=True)
+        self.assertEqual(run.returncode, 0, run.stderr)
+        log = subprocess.run(["git", "log", "--format=%s"], cwd=fresh, capture_output=True, text=True)
+        self.assertEqual(log.stdout.strip(), "start.")
+        self.assertIn("already inside", self.sh("scaffold", "init", ok=False).stderr)
 
     def test_toolchain_elixir(self):
         self.write("mix.exs", 'defp deps, do: [{:credo, "~> 1.7"}]\n')
@@ -248,6 +286,8 @@ class ToolTest(unittest.TestCase):
             workflow = ci.read()
         self.assertIn("working-directory: sub-kent", workflow)
         self.assertEqual(workflow.count('paths: ["sub-kent/**", ".github/workflows/sub-kent.yml"]'), 2)
+        with open(os.path.join(self.repo, "toolchain.yaml")) as root:
+            self.assertIn("project: sub-kent", root.read())
         again = self.sh("scaffold", "python", "PROJECT_NAME=sub-kent", "--dir", "sub-kent", ok=False)
         self.assertIn("not empty", again.stdout + again.stderr)
         self.assertNotEqual(self.sh("scaffold", "verify", "--dir", "missing", ok=False).returncode, 0)

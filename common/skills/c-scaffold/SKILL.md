@@ -1,6 +1,6 @@
 ---
 name: c-scaffold
-description: Creates a new C project with the scaffold tool - CMake behind a Make wrapper, Unity tests, GitHub Actions CI, git init with an empty "start." commit. kent loads it on a greenfield C project; the user can also run it on their own.
+description: Creates a new C project with the scaffold tool - CMake behind a Make wrapper, Unity tests, GitHub Actions CI, git init with an empty "start." commit. ford loads it on a greenfield C project, before the architecture; the user can also run it on their own.
 ---
 
 # c-scaffold
@@ -12,7 +12,8 @@ The project's environment, not its architecture.
 * The project directory is the current directory, or a new folder that
   `--dir <folder>` creates (a project inside an existing repository); it
   holds nothing the templates write (`scaffold c … --dry-run` lists them).
-* Ask the user, in one question each, with the default first:
+* Ask the user (in the workflow, through kent's relay), in one question
+  each, with the default first:
   1. **Project name**: the directory's basename. Used for the executable,
      the header and the README title; the tool derives a C identifier.
   2. **C standard**: `23`, then `17`, `11` (CMake's `C_STANDARD`).
@@ -46,6 +47,9 @@ With `--dir` inside a repository, the CI goes to the repository's root
 (`.github/workflows/<folder>.yml`, every step run in the folder, triggered
 only by changes to the folder and to that workflow): GitHub
 reads workflows only from there.
+A `toolchain.yaml` at the root names the folder (`project: <folder>`), so
+that the toolchain tools find the project from there; kent commits it with
+the workflow's files.
 
 ## Verify
 

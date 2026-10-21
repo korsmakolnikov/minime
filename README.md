@@ -29,7 +29,7 @@ What the repository holds and where `make` installs it:
    signals/  *.schema.json ──────────────────────────────────────► ~/.local/share/minime/signals/
    skills/   adl-*, domain-spec, domain-model, elixir-handbook,   install ──────► ~/.claude/skills/
              python-handbook, python-scaffold, c-scaffold,        copilot-install ► ~/.copilot/skills/
-             workflow-files
+             container-scaffold, workflow-files
  claude/   Claude Code                            install
    agents/   kent, hughes, ford, unclebob, martin, simon,
              joshua, argyris, marvin, linus ─────────────────────► ~/.claude/agents/
@@ -54,18 +54,18 @@ ford and no marvin):
                           questions, approvals │ ▲ ASK_USER, relayed verbatim
                                                ▼ │
  ┌──────────────────────── kent: orchestrator, main thread (claude --agent kent) ──────────────────────┐
- │ frames the work, scaffolds a new project, writes the shopping list and toolchain.yaml, launches    │
+ │ frames the work, writes the shopping list (and an existing project's toolchain.yaml), launches     │
  │ every agent with what it needs, relays its questions; never writes code                           │
  └──┬──────────────┬───────────────┬───────────────┬──────────────┬────────────┬────────────┬─────────┘
     │ 2            │ 1b, 3         │ 4, 5          │ 6, per unit  │ 7          │ background │ background
     ▼              ▼               ▼               ▼              ▼            ▼            ▼
  hughes          ford            unclebob        martin         marvin       simon        joshua
- the domain:     as-is ADL,      TDD per         TDD audit,     AGENTS.md,   C4 and       audits every
- entities,       target ADL,     component       squash,        CLAUDE.md    Mermaid      sub-agent turn
- events, ops,    boundaries,     from the        review with                 class and    from transcripts
- properties      interfaces,     inside out,     the user                    sequence     and hook logs
- (reads no       components      then the        (test map,                  diagrams         │
- code)           map, fitness    whole flow      shared test                     │            ▼
+ the domain:     new project's   TDD per         TDD audit,     AGENTS.md,   C4 and       audits every
+ entities,       scaffold and    component       squash,        CLAUDE.md    Mermaid      sub-agent turn
+ events, ops,    containers,     from the        review with                 class and    from transcripts
+ properties      as-is and       inside out,     the user                    sequence     and hook logs
+ (reads no       target ADL,     then the        (test map,                  diagrams         │
+ code)           interfaces,     whole flow      shared test                     │            ▼
     │              │               │  ▲          material)                       ▼      audit-log
     ▼              ▼               │  └─────────────┘ REVIEW_CHANGES → kent   .documentation/   │
  .sources/       .sources/*.adl,   ▼    → correction session (fixups)         <branch>/        ▼
@@ -73,8 +73,8 @@ ford and no marvin):
     ▲              │                                                                     session: fixes
     └──────────────┴── DOMAIN_CHANGE_REQUEST / INTERFACE_CHANGE_REQUEST, through kent    the agent files
                                                                                          in minime
- Numbers: kent's steps (1a scaffold, 1b shopping list and as-is ADL, 2 domain, 3 architecture,
- 4 components, 5 flow, 6 review, 7 agent instructions).
+ Numbers: kent's steps (1a shopping list, 1b shopping list and as-is ADL, 2 domain,
+ 3 scaffold and architecture, 4 components, 5 flow, 6 review, 7 agent instructions).
  Every agent: its shell runs only its tools (guard.py); every call is logged (flow_hook.py);
  every sub-agent turn ends with a JSON signal block checked before kent sees it (signal_stop.py);
  build, tests and checks through `toolchain`, as the language's handbook explains; git writes only
@@ -147,10 +147,10 @@ claude --agent linus      # commits for you, outside the workflow
 tail -f /tmp/kent-flow.log   # follow every agent's calls
 ```
 
-kent frames the work and, on a new project, scaffolds it (`python-scaffold`,
-`c-scaffold`); on an existing one it writes the shopping list and has ford
-draft the as-is ADL. hughes writes the domain from the shopping list (it
-reads no code); ford the architecture, the interfaces and the components
+kent frames the work and writes the shopping list; on an existing project it
+has ford draft the as-is ADL. hughes writes the domain from the shopping
+list (it reads no code); ford lays down a new project (`python-scaffold`,
+`c-scaffold`, `container-scaffold`), then writes the architecture, the interfaces and the components
 map; unclebob each component test-first, from the inside out, then the whole
 flow; martin audits, squashes and reviews each unit with you; marvin writes
 the project's `AGENTS.md` (and `CLAUDE.md`) at the end. joshua audits every
@@ -172,7 +172,7 @@ Claude Code has no Grep or Glob tools).
 | `git-read` | read-only git (`{base}` stands for the branch's base) | everyone but hughes |
 | `spec-check` | the spec (`domain`), ford's components map (`realization`), the spec ids the tests cite (`coverage`) | hughes, ford, unclebob, martin, joshua |
 | `shopping-list` | the branch's shopping list (kent writes, the others read) | kent, all |
-| `scaffold` | a new project from the language's templates, `git init`, `toolchain.yaml` | kent |
+| `scaffold` | a new project from the language's templates, `git init`, `toolchain.yaml` (and the root's `project:` for a project in a folder), `verify`, `commit` | ford (kent: `init` in an empty directory) |
 | `adl-graph` | the dependency graph for the as-is ADL, in the container if any | ford |
 | `minime-migrate` | brings a project's workflow files to the current layout | kent, `make update` |
 | `session-state` | kent's progress, to resume a session | kent |
@@ -196,7 +196,10 @@ Declared in each agent's frontmatter, active only while that agent runs:
 ## toolchain.yaml
 
 How the project builds, tests and checks, at the project's root.
-`scaffold` writes it for a new project, kent for an existing one;
+`scaffold` writes it for a new project, kent for an existing one. A
+project in a folder of a repository is named by a `toolchain.yaml` at the
+repository's root holding only `project: <folder>`, which `scaffold`
+writes; the tools then work on the folder from the root.
 `toolchain show` prints what will run. Like the other workflow files it is
 versioned on Claude Code and never on Copilot (below).
 

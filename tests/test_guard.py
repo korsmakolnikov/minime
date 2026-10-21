@@ -126,12 +126,18 @@ class GuardTest(unittest.TestCase):
     def test_kent_commits_only_the_workflow_files(self):
         self.allowed("kent", "linus commit --phase other --model m \\\n  .sources/spec.yaml \\\n  toolchain.yaml \\\n  <<'MSG'\ndocs(workflow): x\nMSG")
         self.denied("kent", "linus commit --phase other --model m src/a.py <<'MSG'\nx\nMSG", "not src/a.py")
+        self.allowed("kent", "linus commit --phase other --model m lab/toolchain.yaml <<'MSG'\ndocs(workflow): x\nMSG")
         self.denied("kent", "linus commit --phase other <<'MSG'\nx\nMSG", "only named paths")
         self.denied("kent", "linus squash --scope x --from a", "may not run linus squash")
 
     def test_kent_switches_branch(self):
         self.allowed("kent", "linus branch deterministic-workflow")
         self.denied("unclebob", "linus branch x", "may not run linus branch")
+
+    def test_ford_scaffolds_the_project(self):
+        self.allowed("ford", "scaffold python PROJECT_NAME=x --dir x")
+        self.allowed("kent", "scaffold init")
+        self.denied("kent", "scaffold python PROJECT_NAME=x", "may run scaffold only as: init")
 
     def test_kent_lists_and_reads_files(self):
         self.allowed("kent", "ls -la; cat README.md")
@@ -159,7 +165,7 @@ class GuardTest(unittest.TestCase):
         self.assertIsNone(kind("unclebob", "toolchain show > /tmp/x"))
         self.assertEqual(kind("unclebob", "toolchain show 2>/dev/null"), "allow")
         self.assertEqual(kind("kent", "shopping-list write <<'E'\nx\nE"), "allow")
-        self.assertIsNone(kind("kent", "scaffold python PROJECT_NAME=x"))
+        self.assertIsNone(kind("ford", "scaffold python PROJECT_NAME=x"))
         self.assertEqual(kind("unclebob", "rm -rf /"), "deny")
 
     def test_denials_are_logged(self):

@@ -310,8 +310,8 @@ trailer() {
 }
 
 # The workflow's own files: versioned on Claude Code, never on Copilot.
-WORKFLOW_FILES_RE='(^|/)\.(sources|documentation)/|^toolchain\.yaml$'
-WORKFLOW_PATHSPEC=(. ':!.sources' ':!.documentation' ':!toolchain.yaml')
+WORKFLOW_FILES_RE='(^|/)\.(sources|documentation)/|(^|/)toolchain\.yaml$'
+WORKFLOW_PATHSPEC=(. ':!.sources' ':!.documentation' ':(exclude,glob)**/toolchain.yaml')
 
 require_staged() {
   git diff --cached --quiet && die "Nothing is staged."
