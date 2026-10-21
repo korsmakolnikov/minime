@@ -168,6 +168,37 @@ source, si versionano:
 4. **Autonomia**: oggi i commit chiedono sempre conferma. Se serve, un
    livello configurabile (come `AUTONOMY_LINUS` su Copilot).
 5. **Versione LangGraph**, con metriche comuni per il confronto.
+6. **Dopo la prima sessione vera (21 ottobre, commit `456140e`)**: argyris ha
+   corretto kent (lingua, `linus branch` a inizio sessione, `scaffold --dir`
+   per un progetto in una sottocartella, mai passare all'utente un passo che
+   un tool o un agente può fare) e l'hook dei segnali (legge il messaggio di
+   `SubagentHandback`). Restano da fare:
+   - **`make test`**: argyris non può lanciarlo. Non ha mai visto girare i
+     test nuovi (`test_linus_branch`,
+     `test_scaffold_into_a_new_folder_of_the_repository`,
+     `test_kent_switches_branch`). Lanciarlo prima di continuare e
+     correggere quello che fallisce.
+   - **Un test per `signal_stop.py`**: oggi non ce n'è nessuno. Due casi:
+     un transcript che finisce con una chiamata `SubagentHandback` con il
+     blocco nel `message`, e uno senza handback, che usa
+     `last_assistant_message`. Da verificare anche in una sessione vera:
+     dopo un handback forzato l'hook registra due eventi per lo stesso
+     turno, e joshua non deve contarli come due violazioni.
+   - **`toolchain` non vede un progetto in una sottocartella**: trova la
+     radice con `git rev-parse --show-toplevel`, quindi `deterministic-kent/`
+     resta invisibile e la precondizione di ford (`toolchain build`)
+     fallisce. È la Q9 della shopping list `deterministic-workflow`: una
+     chiave `project: <cartella>` nel `toolchain.yaml` alla radice, che
+     l'utente fa con unclebob interattivo prima che kent lanci hughes. Va
+     aggiunto anche `minime` (o la cartella) a `projects` di
+     `python-handbook`.
+   - **PATH**: `make install` avverte che `~/.local/bin` non è nel PATH della
+     shell di `make`. Controllare sull'altro PC.
+   - **Riprendere la sessione di kent**: `claude --agent kent` sul branch
+     `deterministic-workflow`. Lo stato è in `session-state` (sotto `/tmp`,
+     quindi non arriva sull'altro PC: lì basta la shopping list
+     `.sources/shopping_lists/deterministic-workflow.md`, che kent non ha
+     ancora committato e che va copiata a mano o committata prima).
 
 ## Refactor dell'architettura degli agenti (decisioni del 16 ottobre)
 
