@@ -670,7 +670,8 @@ before the block, never inside it. A hook checks the block with
 `signal-check` against its schema in `~/.local/share/minime/signals/` when
 you end your turn; if it fails, you receive the problems as your next
 instruction: fix the block and end the turn again with the whole message.
-Your signals:
+When you hand your report back with SubagentHandback, its `message` is
+that final message, whole, with the block last. Your signals:
 
 ```
 ASK_USER

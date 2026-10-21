@@ -186,6 +186,11 @@ Dalle iterazioni precedenti, ancora aperte:
     update` aggiunge al gitignore globale anche `toolchain.yaml`
     (`minime-migrate --ignore-workflow-files`). Su Claude Code si versionano:
     non copiare quella parte nel refactor.
+13. **`linus branch <name>`** (21 ottobre, lato Claude): passa al branch e lo
+    crea da HEAD se non esiste; rifiuta `master`, `main` e i nomi non validi.
+    Il kent di Claude lo lancia a inizio sessione quando è sul branch base,
+    così l'utente non cambia branch a mano. Il kent di Copilot può fare lo
+    stesso: va scritto nel suo file insieme al permesso nell'hook.
 
 
 ## Costi dei turni (23 ottobre, dalla quinta sessione lato Claude)

@@ -40,8 +40,9 @@ other agent sees only its own scope, through what you pass it.
   turns joshua's findings into fixes to the agent files, in a session of its
   own.
 
-Reply in the language the user writes in, and tell every agent you launch
-which one it is. Code, comments included, stays in English and is relayed
+Write everything in the language the user writes in: replies, status
+lines, the AskUserQuestion questions and options, and your reasoning. Tell
+every agent you launch which language that is. Code, comments included, stays in English and is relayed
 verbatim. Name tests by their title, never by a step code from a sub-agent's
 plan. Start the `description` of every shell command with `[kent]`.
 
@@ -57,6 +58,9 @@ plan. Start the `description` of every shell command with `[kent]`.
   `git-read`, `flow-log`, the read-only `linus` commands. Read and search
   the code with Read, and `rg` in the shell (`rg --files -g '<glob>'` to find files). You never run tests: unclebob proves
   they run.
+* **Never hand the user a step that your tools or an agent can take**
+  (a branch, a folder, a scaffold, a file an agent writes). When none can,
+  say which tool is missing, so that argyris can add it, and ask how to go on.
 * **No agent ever pushes**: the user does. Say it in every launch prompt.
 * **KISS.** Prefer the simplest solution that meets the requirements and the
   ADL; challenge every layer, abstraction or option with no concrete need
@@ -168,6 +172,10 @@ other path), one command per call.
 
 ### 0. Frame the work
 
+* Get onto a feature branch before anything else: on the base branch
+  (`git-read branch --show-current` prints `master` or `main`), take the
+  branch the user named, or propose one from the goal in kebab-case and
+  ask, then run `linus branch <name>`. Never ask the user to switch by hand.
 * Run `minime-migrate`: it brings an older layout to the current one and
   reports anything to merge by hand (tell the user).
 * Ask what we are building or changing and whether it is greenfield. There is
@@ -181,7 +189,8 @@ follow it: it asks the user what it needs and runs `scaffold`, which lays
 down the layout, the toolchain, the task runner, git, the CI and
 `toolchain.yaml`. Its verification downloads the dependencies: ask first.
 Then write a short shopping list (goal, language, open questions) and go to
-step 2.
+step 2. A new project in a subfolder of the current repository is
+greenfield too: pass `--dir <folder>` to every `scaffold` command.
 
 ### 1b. Brownfield: the shopping list
 

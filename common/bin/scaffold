@@ -3,10 +3,12 @@
 
 Usage:
   scaffold languages                          the supported languages and their keys
-  scaffold <language> KEY=VALUE... [--dry-run]
-  scaffold verify                             run the new project's own checks
+  scaffold <language> KEY=VALUE... [--dry-run] [--dir <folder>]
+  scaffold verify [--dir <folder>]            run the new project's own checks
 
-In the current directory, which must be the (empty) project directory. The
+In the project directory: the current one, or <folder> with --dir, which
+the tool creates (it may exist only if empty), for a project inside an
+existing repository or beside the current directory. The
 templates of <language> are rendered with {{KEY}} replaced in paths and
 contents; the tool refuses to overwrite a file or to leave a placeholder.
 Then: `git init` and an empty "start." commit (skipped inside an existing
@@ -114,18 +116,46 @@ def verify():
     return 1 if failed else 0
 
 
+def take_dir(args):
+    """Removes `--dir <folder>` from args; returns the folder, or None."""
+    if "--dir" not in args:
+        return None
+    at = args.index("--dir")
+    if at + 1 >= len(args) or args[at + 1].startswith("-"):
+        raise ToolError("--dir needs a folder")
+    folder = args[at + 1]
+    del args[at:at + 2]
+    return folder
+
+
+def enter(folder, create):
+    """Makes <folder> the current directory, creating it when asked."""
+    if create:
+        if os.path.isdir(folder) and os.listdir(folder):
+            raise ToolError(f"{folder} exists and is not empty: refusing to scaffold into it")
+        os.makedirs(folder, exist_ok=True)
+    elif not os.path.isdir(folder):
+        raise ToolError(f"no folder {folder}")
+    os.chdir(folder)
+
+
 def main():
     args = sys.argv[1:]
     if args[:1] in ([], ["-h"], ["--help"]):
         print(__doc__.strip())
         return 0 if args else 2
+    folder = take_dir(args)
+    if args == ["verify"]:
+        if folder:
+            enter(folder, create=False)
+        return verify()
     if args == ["languages"]:
         for name, (required, optional, _, _) in LANGUAGES.items():
             extra = " ".join(f"[{k}={d}]" for k, d in optional.items())
             print(f"{name}: " + " ".join(f"{k}=…" for k in required) + (f" {extra}" if extra else ""))
         return 0
-    if args == ["verify"]:
-        return verify()
+    if not args:
+        raise ToolError("missing the language (scaffold languages)")
     language, rest = args[0].lower(), args[1:]
     if language not in LANGUAGES:
         raise ToolError(f"unsupported language {language!r}: {', '.join(LANGUAGES)}")
@@ -137,8 +167,14 @@ def main():
         raise ToolError(f"missing {', '.join(missing)} (scaffold languages)")
     derive(values)
     files = plan(language, values)
-    clash = [d for d, _, _ in files if os.path.exists(d)]
-    if toolchain and os.path.exists("toolchain.yaml"):
+    # A dry run never creates the folder: a missing one holds nothing to clash with.
+    fresh = bool(folder) and dry and not os.path.isdir(folder)
+    if fresh:
+        print(f"would create {folder}/")
+    elif folder:
+        enter(folder, create=not dry)
+    clash = [] if fresh else [d for d, _, _ in files if os.path.exists(d)]
+    if toolchain and not fresh and os.path.exists("toolchain.yaml"):
         clash.append("toolchain.yaml")
     if clash:
         raise ToolError(f"already present, refusing to overwrite: {', '.join(clash)}")
@@ -163,7 +199,8 @@ def main():
         subprocess.run(["git", "init", "-q"], check=True)
         subprocess.run(["git", "commit", "-q", "--allow-empty", "-m", "start."], check=True)
         print("git: initialised, empty commit \"start.\"")
-    print("next: scaffold verify (installs the dependencies, then builds, checks and tests)")
+    verify_command = f"scaffold verify --dir {folder}" if folder else "scaffold verify"
+    print(f"next: {verify_command} (installs the dependencies, then builds, checks and tests)")
     return 0
 
 

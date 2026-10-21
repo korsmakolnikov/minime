@@ -116,6 +116,15 @@ class ToolTest(unittest.TestCase):
         self.assertNotEqual(self.sh("git-read", "diff", "--output=/tmp/x", ok=False).returncode, 0)
         self.assertNotEqual(self.sh("git-read", "branch", "new", ok=False).returncode, 0)
 
+    def test_linus_branch(self):
+        self.assertIn("On branch feat/b", self.sh("linus", "branch", "feat/b").stdout)
+        self.assertEqual(self.sh("git", "branch", "--show-current").stdout.strip(), "feat/b")
+        self.sh("git", "switch", "-q", "master")
+        self.sh("linus", "branch", "feat/b")
+        self.assertEqual(self.sh("git", "branch", "--show-current").stdout.strip(), "feat/b")
+        self.assertNotEqual(self.sh("linus", "branch", "master", ok=False).returncode, 0)
+        self.assertNotEqual(self.sh("linus", "branch", "bad..name", ok=False).returncode, 0)
+
     def test_linus_hunks(self):
         self.write("f.txt", "\n".join(str(i) for i in range(1, 31)) + "\n")
         self.sh("git", "add", "f.txt")
@@ -222,6 +231,20 @@ class ToolTest(unittest.TestCase):
         again = subprocess.run(["scaffold", "python", "PROJECT_NAME=agent-bench"], cwd=project,
                                env=self.env, capture_output=True, text=True)
         self.assertNotEqual(again.returncode, 0)
+
+    def test_scaffold_into_a_new_folder_of_the_repository(self):
+        self.write("Makefile", "x:\n")
+        dry = self.sh("scaffold", "python", "PROJECT_NAME=sub-kent", "--dry-run", "--dir", "sub-kent")
+        self.assertIn("would create sub-kent/", dry.stdout)
+        self.assertFalse(os.path.exists(os.path.join(self.repo, "sub-kent")))
+        run = self.sh("scaffold", "python", "PROJECT_NAME=sub-kent", "--dir", "sub-kent")
+        self.assertIn("no git init", run.stdout)
+        self.assertIn("scaffold verify --dir sub-kent", run.stdout)
+        for path in ("pyproject.toml", "Makefile", "src/sub_kent/__init__.py", "toolchain.yaml"):
+            self.assertTrue(os.path.exists(os.path.join(self.repo, "sub-kent", path)), path)
+        again = self.sh("scaffold", "python", "PROJECT_NAME=sub-kent", "--dir", "sub-kent", ok=False)
+        self.assertIn("not empty", again.stdout + again.stderr)
+        self.assertNotEqual(self.sh("scaffold", "verify", "--dir", "missing", ok=False).returncode, 0)
 
 
 if __name__ == "__main__":

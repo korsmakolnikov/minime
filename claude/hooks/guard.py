@@ -61,8 +61,9 @@ AGENTS = {
     "kent": {
         "tools": {**COMMON, "shopping-list": None, "session-state": None, "scaffold": None,
                   "minime-migrate": None, "toolchain": {"show", "related"}, "spec-check": None},
-        # kent commits the workflow's files between units, and nothing else
-        "linus": {"stage", "commit"},
+        # kent commits the workflow's files between units, and nothing else;
+        # it also puts the session on its feature branch
+        "linus": {"stage", "commit", "branch"},
         "linus_paths": WORKFLOW_FILES,
         "edit": ["repo:toolchain.yaml"],
     },
@@ -306,7 +307,7 @@ def check_bash(agent, rules, command, cwd, root):
                 if sub not in LINUS_READS and sub not in rules["linus"]:
                     allowed = ", ".join(sorted(rules["linus"])) or "none"
                     raise Deny(f"{agent} may not run linus {sub}: its linus writes are {allowed}.")
-                if sub not in LINUS_READS and "linus_paths" in rules:
+                if sub in ("stage", "commit") and "linus_paths" in rules:
                     check_linus_paths(agent, rules, words[2:], cwd, root)
             elif tools[name] is not None and sub not in tools[name] and sub not in ("-h", "--help"):
                 raise Deny(f"{agent} may run {name} only as: {', '.join(sorted(tools[name]))}.")

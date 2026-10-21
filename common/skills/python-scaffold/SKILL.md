@@ -10,7 +10,8 @@ inside a project that already builds and runs its tests.
 
 ## Before
 
-* The current directory is the project directory, created by the user, and
+* The project directory is the current directory, or a new folder that
+  `--dir <folder>` creates (a project inside an existing repository); it
   holds nothing the templates write (`scaffold python PROJECT_NAME=x
   --dry-run` lists them).
 * Ask the user, in one question each, with the default first:
@@ -23,7 +24,7 @@ inside a project that already builds and runs its tests.
 ## Run
 
 ```sh
-scaffold python PROJECT_NAME=<name> PACKAGE=<package> PYTHON=<version> GITHUB_REPO=<owner/name>
+scaffold python PROJECT_NAME=<name> PACKAGE=<package> PYTHON=<version> GITHUB_REPO=<owner/name> [--dir <folder>]
 ```
 
 It creates:
@@ -45,7 +46,7 @@ a repository already. It refuses to overwrite a file.
 
 ## Verify
 
-`scaffold verify` runs `make install` (it downloads the dependencies: ask the
+`scaffold verify [--dir <folder>]` runs `make install` (it downloads the dependencies: ask the
 user first), `make build`, `make check` and `make test`, and reports each.
 A missing `uv` or Python: the user runs `make deps` (it uses `sudo`; never
 run it yourself). Report failures with their output.

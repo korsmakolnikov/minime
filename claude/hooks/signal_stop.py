@@ -5,7 +5,8 @@ Usage, in an agent's frontmatter: signal_stop.py --expect NAME[,NAME…]
 
 When the agent runs as a subagent of kent, its final message must end with a
 valid signal block: the hook runs `signal-check --expect …` on
-`last_assistant_message` and, on any problem, blocks the stop, so the agent
+`last_assistant_message` (or on the message of the SubagentHandback call
+that ended the turn) and, on any problem, blocks the stop, so the agent
 receives the problems as its next instruction and ends its turn again. Run
 as the main thread (`claude --agent <name>`, hook event Stop) the agent talks
 to the user directly and nothing is checked.
@@ -34,6 +35,38 @@ def signal_check(text, expect):
         return None, f"signal-check could not run: {error}"
     output = (run.stdout + run.stderr).strip()
     return run.returncode, output
+
+
+def handback_message(path):
+    """The message of the SubagentHandback call that ended the turn, if any.
+
+    The CLI may deliver a subagent's report through that tool call instead of
+    a final text message; `last_assistant_message` is then empty.
+    """
+    if not path:
+        return None
+    try:
+        with open(path) as transcript:
+            lines = transcript.read().splitlines()
+    except OSError:
+        return None
+    for line in reversed(lines):
+        try:
+            entry = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if not isinstance(entry, dict) or entry.get("type") != "assistant":
+            continue
+        message = entry.get("message")
+        if not isinstance(message, dict):
+            continue
+        content = message.get("content")
+        for block in content if isinstance(content, list) else []:
+            if isinstance(block, dict) and block.get("type") == "tool_use" and block.get("name") == "SubagentHandback":
+                text = (block.get("input") or {}).get("message")
+                return text if isinstance(text, str) else None
+        return None
+    return None
 
 
 def log_event(payload, signal, ok, problems):
@@ -65,7 +98,10 @@ def main():
     if payload.get("hook_event_name") != "SubagentStop":
         return 0
 
-    status, output = signal_check(payload.get("last_assistant_message") or "", args.expect)
+    text = handback_message(payload.get("agent_transcript_path"))
+    if text is None:
+        text = payload.get("last_assistant_message") or ""
+    status, output = signal_check(text, args.expect)
     if status is None:
         # A broken checker must not trap the agent: log it and let it stop.
         log_event(payload, None, False, output)
@@ -82,7 +118,9 @@ def main():
             "a line with END_<name>, and nothing after it. signal-check reported:\n"
             f"{output}\n"
             "Fix the block and end your turn again with the whole message: whatever "
-            "came before the block, then the corrected block."
+            "came before the block, then the corrected block. If you hand your "
+            "report back with SubagentHandback, its message is that whole message, "
+            "the block last."
         ),
     }))
     return 0

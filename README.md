@@ -168,7 +168,7 @@ Claude Code has no Grep or Glob tools).
 | Tool | What it does | Used by |
 |---|---|---|
 | `toolchain` | build, the tests to run (one, a commit's files, the branch's: never the full suite), the static checks | unclebob, ford, martin |
-| `linus` | every git write: the TDD phases, fixups, squash, partial staging (`hunks`, `stage-hunks`) | unclebob, ford, martin, marvin, argyris, linus |
+| `linus` | every git write: the TDD phases, fixups, squash, partial staging (`hunks`, `stage-hunks`), the session's feature branch (`branch`) | kent, unclebob, ford, martin, marvin, argyris, linus |
 | `git-read` | read-only git (`{base}` stands for the branch's base) | everyone but hughes |
 | `spec-check` | the spec (`domain`), ford's components map (`realization`), the spec ids the tests cite (`coverage`) | hughes, ford, unclebob, martin, joshua |
 | `shopping-list` | the branch's shopping list (kent writes, the others read) | kent, all |

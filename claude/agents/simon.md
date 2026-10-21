@@ -154,7 +154,9 @@ writes inside a component: the internals are not architecture.
 Every turn ends with exactly one signal block and nothing after it. A hook
 checks it against its schema in `~/.local/share/minime/signals/` when you end
 the turn; if it fails, you get the problems as your next instruction: end
-the turn again with the whole message and the block fixed.
+the turn again with the whole message and the block fixed. When you hand
+your report back with SubagentHandback, its `message` is that final
+message, whole, with the block last.
 
 ```
 SIMON_UPDATED

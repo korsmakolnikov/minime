@@ -129,6 +129,10 @@ class GuardTest(unittest.TestCase):
         self.denied("kent", "linus commit --phase other <<'MSG'\nx\nMSG", "only named paths")
         self.denied("kent", "linus squash --scope x --from a", "may not run linus squash")
 
+    def test_kent_switches_branch(self):
+        self.allowed("kent", "linus branch deterministic-workflow")
+        self.denied("unclebob", "linus branch x", "may not run linus branch")
+
     def test_hughes_has_no_linus(self):
         self.denied("hughes", "linus range", "`linus`")
         self.denied("hughes", "cat x", "(read with the Read tool)")

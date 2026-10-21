@@ -38,6 +38,8 @@ Read-only:
                                 Prints "ok (<n>/72)" or every problem found.
 
 Write:
+  branch <name>                 Switch to branch <name>, creating it from HEAD if it
+                                does not exist. Refuses master, main and an invalid name.
   stage <path>...               git add the given paths.
   hunks <path>                  List the unstaged hunks of <path>, numbered (read only).
   stage-hunks <path> <n>...     Stage only hunks <n>... of <path>, as `linus hunks` numbers them.
@@ -371,7 +373,7 @@ PHASE_LOG="$COMMON_DIR/linus/phases"
 # Write commands share the index: serialise them, so that parallel calls cannot
 # mix their files into one commit.
 case "$CMD" in
-stage | stage-hunks | stage-patch | unstage | commit | amend | squash | fixup)
+branch | stage | stage-hunks | stage-patch | unstage | commit | amend | squash | fixup)
   exec 9>"$COMMON_DIR/linus.lock"
   flock 9
   ;;
@@ -391,6 +393,19 @@ next)
   echo "last cycle commit: $last; allowed: $(allowed_after "$last")"
   ;;
 check-message) check_message "$@" ;;
+branch)
+  [ $# -eq 1 ] || die "Usage: linus branch <name>"
+  git check-ref-format --branch "$1" >/dev/null 2>&1 || die "Not a valid branch name: $1"
+  case "$1" in
+  master | main) die "Refusing to switch to '$1'. Work on a feature branch." ;;
+  esac
+  if git rev-parse --verify -q "refs/heads/$1" >/dev/null; then
+    git switch -q "$1"
+  else
+    git switch -q -c "$1"
+  fi
+  echo "On branch $1."
+  ;;
 stage)
   [ $# -ge 1 ] || die "Usage: linus stage <path>..."
   git add -- "$@"
