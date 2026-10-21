@@ -133,6 +133,11 @@ class GuardTest(unittest.TestCase):
         self.allowed("kent", "linus branch deterministic-workflow")
         self.denied("unclebob", "linus branch x", "may not run linus branch")
 
+    def test_kent_lists_and_reads_files(self):
+        self.allowed("kent", "ls -la; cat README.md")
+        self.denied("kent", "cat README.md > src/a.py", "src/a.py")
+        self.denied("unclebob", "ls", "`ls` is not one of them")
+
     def test_hughes_has_no_linus(self):
         self.denied("hughes", "linus range", "`linus`")
         self.denied("hughes", "cat x", "(read with the Read tool)")

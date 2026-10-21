@@ -59,8 +59,10 @@ TESTS = {"toolchain": {"show", "build", "test", "related"}}
 # is an exact command prefix ("make -C ~/code/minime install").
 AGENTS = {
     "kent": {
+        # ls and cat: kent reaches for them even when told to use Read and rg
         "tools": {**COMMON, "shopping-list": None, "session-state": None, "scaffold": None,
-                  "minime-migrate": None, "toolchain": {"show", "related"}, "spec-check": None},
+                  "minime-migrate": None, "toolchain": {"show", "related"}, "spec-check": None,
+                  "ls": None, "cat": None},
         # kent commits the workflow's files between units, and nothing else;
         # it also puts the session on its feature branch
         "linus": {"stage", "commit", "branch"},
@@ -130,7 +132,7 @@ for _name, _rules in AGENTS.items():
 # agent's own rules allow the call.
 AUTO_ALLOW = {
     "flow-log": None, "git-read": None, "rg": None, "spec-check": None, "signal-check": None,
-    "events-query": None, "adl-graph": None, "minime-config": None,
+    "events-query": None, "adl-graph": None, "minime-config": None, "ls": None, "cat": None,
     "toolchain": {"show", "build", "test", "related", "check"},
     "shopping-list": None, "session-state": None,
     "audit-log": {"append", "pending", "show", "handled", "archive"},
