@@ -145,9 +145,12 @@ def ci_at_root(files, folder):
     moved = []
     for dest, text, mode in files:
         if dest == CI:
-            name, _, rest = text.partition("\n")
-            text = (f"{name} {prefix}\n\ndefaults:\n  run:\n    working-directory: {prefix}\n{rest}")
             dest = root_ci(root, prefix)
+            name, _, rest = text.partition("\n")
+            # only the changes to the folder and to this workflow trigger it
+            paths = f'    paths: ["{prefix}/**", "{os.path.relpath(dest, root)}"]'
+            rest = re.sub(r"(?m)^(  (push|pull_request):)$", lambda m: f"{m.group(1)}\n{paths}", rest)
+            text = (f"{name} {prefix}\n\ndefaults:\n  run:\n    working-directory: {prefix}\n{rest}")
         moved.append((dest, text, mode))
     return moved
 

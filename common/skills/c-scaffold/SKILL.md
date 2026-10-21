@@ -43,7 +43,8 @@ README.md                 with the CI badge
 then `git init` and an empty `start.` commit, unless the directory is inside
 a repository already. It refuses to overwrite a file.
 With `--dir` inside a repository, the CI goes to the repository's root
-(`.github/workflows/<folder>.yml`, every step run in the folder): GitHub
+(`.github/workflows/<folder>.yml`, every step run in the folder, triggered
+only by changes to the folder and to that workflow): GitHub
 reads workflows only from there.
 
 ## Verify

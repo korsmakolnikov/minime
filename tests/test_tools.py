@@ -245,7 +245,9 @@ class ToolTest(unittest.TestCase):
         # GitHub reads only the root's workflows: the CI moves there and runs in the folder
         self.assertFalse(os.path.exists(os.path.join(self.repo, "sub-kent", ".github")))
         with open(os.path.join(self.repo, ".github", "workflows", "sub-kent.yml")) as ci:
-            self.assertIn("working-directory: sub-kent", ci.read())
+            workflow = ci.read()
+        self.assertIn("working-directory: sub-kent", workflow)
+        self.assertEqual(workflow.count('paths: ["sub-kent/**", ".github/workflows/sub-kent.yml"]'), 2)
         again = self.sh("scaffold", "python", "PROJECT_NAME=sub-kent", "--dir", "sub-kent", ok=False)
         self.assertIn("not empty", again.stdout + again.stderr)
         self.assertNotEqual(self.sh("scaffold", "verify", "--dir", "missing", ok=False).returncode, 0)
