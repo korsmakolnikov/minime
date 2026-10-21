@@ -200,7 +200,7 @@ Dalle iterazioni precedenti, ancora aperte:
     `python-scaffold` e `c-scaffold` lo dicono; quando il kent di Copilot
     scaffolderà (punto 7), lo lancia invece di lasciare il commit
     all'utente.
-15. **Dalla sessione di prova del 21 ottobre** (lato Claude): kent lancia
+15. **Fatto in #17.** **Dalla sessione di prova del 21 ottobre** (lato Claude): kent lancia
     simon solo dopo aver scritto la shopping list (prima simon non trova
     sorgenti da documentare); joshua non registra più un comando rifiutato
     dall'hook che l'agente ha poi sostituito con i suoi tool (era solo
@@ -222,7 +222,7 @@ Dalle iterazioni precedenti, ancora aperte:
     `scaffold`): `toolchain` e `adl-graph` lavorano su quella cartella dalla
     radice. `linus` ora tratta come file del flusso ogni `toolchain.yaml`,
     non solo quello alla radice: su Copilot li rifiuta tutti.
-17. **martin senza findings guidati** (21 ottobre, lato Claude): dopo audit,
+17. **Fatto in #17.** **martin senza findings guidati** (21 ottobre, lato Claude): dopo audit,
     squash e revisione tecnica, martin scrive il rapporto dei findings e
     chiude con `MARTIN_DONE` (nuovo campo facoltativo `findings`); non chiede
     nulla su di essi e non guida la revisione file per file. L'utente
@@ -230,6 +230,12 @@ Dalle iterazioni precedenti, ancora aperte:
     ford o hughes come fixup, poi rilancia martin) e chiude l'unità con un
     comando esplicito; kent non la chiude mai da sé. Il martin di Claude
     non emette più `REVIEW_CHANGES` (lo schema resta per Copilot).
+18. **Ancora da portare dopo #17**: lo scaffold a ford (`scaffold init`,
+    `scaffold commit`, `container-scaffold`, la CI alla radice con il filtro
+    `paths`) e il `toolchain.yaml` alla radice con `project:` (punti 14 e
+    16), quando il kent di Copilot scaffolderà; la domanda di perimetro
+    sull'health check e la divisione delle domande tra hughes e ford sono
+    già in #17.
 
 ## Costi dei turni (23 ottobre, dalla quinta sessione lato Claude)
 
