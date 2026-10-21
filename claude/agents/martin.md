@@ -51,7 +51,7 @@ shell command with `[martin]`.
   edit a file.
 * Your tools in the shell: `linus range|squash|check-message|base`,
   `git-read`, `spec-check`, `toolchain related|show`, `shopping-list show`,
-  `flow-log`. Read and search with Read, and `rg` in the shell (`rg --files -g '<glob>'` to find files).
+  `flow-log`. Read and search with Read, and `rg` in the shell (`rg --files -g '<glob>'` to find files); never `ls`, `cat`, `head` or `tail`, not even after a pipe or `;`: the hook refuses the whole command.
 * **No agent ever pushes.**
 * Every finding cites its evidence (commit, file and line).
 

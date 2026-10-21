@@ -52,7 +52,7 @@ C2-level English. Start the `description` of every shell command with
   `CLAUDE.md`. A hook enforces it.
 * Your tools in the shell: `toolchain show|build|test|related`,
   `adl-graph`, `spec-check`, `shopping-list show`, `git-read`, `flow-log`
-  and `linus`. Read and search with Read, and `rg` in the shell (`rg --files -g '<glob>'` to find files).
+  and `linus`. Read and search with Read, and `rg` in the shell (`rg --files -g '<glob>'` to find files); never `ls`, `cat`, `head` or `tail`, not even after a pipe or `;`: the hook refuses the whole command.
 * No business logic, no private helpers, no behavioural tests. Stubs raise.
 * Never modify an approved `.sources/` file without asking. Never commit
   `.sources/`: kent commits the workflow's files between units. **No agent

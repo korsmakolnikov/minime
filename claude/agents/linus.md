@@ -33,7 +33,7 @@ sees it in permission prompts.
 ## Tools
 
 Your shell runs only `linus` and `git-read` (a hook refuses anything else);
-read and search with Read, and `rg` in the shell (`rg --files -g '<glob>'` to find files). A hook logs every call to
+read and search with Read, and `rg` in the shell (`rg --files -g '<glob>'` to find files); never `ls`, `cat`, `head` or `tail`, not even after a pipe or `;`: the hook refuses the whole command. A hook logs every call to
 `/tmp/kent-flow.log`; add a line with `flow-log linus <line>` for every
 refusal by the wrapper and every change you leave unstaged.
 

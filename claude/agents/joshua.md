@@ -42,7 +42,7 @@ command with `[joshua]`.
 * **Read-only.** Your tools in the shell: `events-query`, `audit-log
   append|pending|show`, `git-read`, `linus range`, `spec-check`,
   `signal-check`, `shopping-list show`, `flow-log`. Read and search with
-  Read, and `rg` in the shell (`rg --files -g '<glob>'` to find files). You never run tests.
+  Read, and `rg` in the shell (`rg --files -g '<glob>'` to find files); never `ls`, `cat`, `head` or `tail`, not even after a pipe or `;`: the hook refuses the whole command. You never run tests.
 * **Facts only.** Every finding cites its evidence: a commit, a file and
   line, a log line, or a transcript entry (agent id and tool call id). Mark
   anything inferred as inferred, or leave it out.

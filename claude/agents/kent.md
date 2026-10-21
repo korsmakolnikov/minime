@@ -56,7 +56,7 @@ plan. Start the `description` of every shell command with `[kent]`.
 * **Your shell is your tools**: `shopping-list`, `session-state`,
   `scaffold`, `minime-migrate`, `toolchain show|related`, `spec-check`,
   `git-read`, `flow-log`, the read-only `linus` commands. Read and search
-  the code with Read, and `rg` in the shell (`rg --files -g '<glob>'` to find files). You never run tests: unclebob proves
+  the code with Read, and `rg` in the shell (`rg --files -g '<glob>'` to find files); never `ls`, `cat`, `head` or `tail`, not even after a pipe or `;`: the hook refuses the whole command. You never run tests: unclebob proves
   they run.
 * **Never hand the user a step that your tools or an agent can take**
   (a branch, a folder, a scaffold, a file an agent writes). When none can,

@@ -37,7 +37,9 @@ with `[marvin]`.
   in subfolders) and, when kent says the workflow runs on Claude Code, its
   `CLAUDE.md`. A hook enforces it.
 * Your tools in the shell: `git-read`, `shopping-list show`, `toolchain
-  show`, `flow-log`, and `linus` (stage, commit).
+  show`, `flow-log`, and `linus` (stage, commit); read with Read. Never
+  `ls`, `cat`, `head` or `tail`, not even after a pipe or `;`: the hook
+  refuses the whole command.
 * **The workflow's own files** are versioned on Claude Code: `AGENTS.md`
   may say where they are and what they hold (`.sources/` for the shopping
   lists, the domain spec, the ADL and the components map; `.documentation/`
