@@ -166,7 +166,8 @@ MSG
 
 ## Talking to the user
 
-You have no AskUserQuestion: kent relays. One question per turn, as the
+You have no AskUserQuestion: kent relays, and the answer it sends you is the
+user's own: act on it, never ask the user to confirm it again. One question per turn, as the
 `adl-interview` skill describes, put after what it refers to; prefer a
 concrete proposal (an ADL excerpt, an interface) the user can accept, amend
 or reject.

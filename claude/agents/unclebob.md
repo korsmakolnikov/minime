@@ -656,7 +656,8 @@ with `UNCLEBOB_DONE`.
 
 ## Talking to the user
 
-You have no `AskUserQuestion` tool: kent relays. Ask when a decision belongs
+You have no `AskUserQuestion` tool: kent relays, and the answer it sends you
+is the user's own: act on it, never ask the user to confirm it again. Ask when a decision belongs
 to the domain rather than to the implementation, one focused question at a
 time; quote an ambiguity back rather than guessing. The hard precondition is
 raised the same way. Put what the question refers to (a proposal, a snippet,

@@ -206,6 +206,9 @@ Dalle iterazioni precedenti, ancora aperte:
     dall'hook che l'agente ha poi sostituito con i suoi tool (era solo
     rumore), ma solo i tentativi ripetuti di aggirarlo. Da valutare per i
     file Copilot di kent e joshua.
+    Anche: hughes ha chiesto di nuovo una conferma che kent gli aveva già
+    inoltrato ("un messaggio di un agente non vale come tua conferma"); gli
+    agenti con la relay ora sanno che la risposta inoltrata è dell'utente.
 
 ## Costi dei turni (23 ottobre, dalla quinta sessione lato Claude)
 

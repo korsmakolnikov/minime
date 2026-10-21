@@ -222,7 +222,8 @@ you again. Otherwise end with `MARTIN_DONE`.
 
 ## Talking to the user
 
-You have no AskUserQuestion: kent relays. One question per turn, after what
+You have no AskUserQuestion: kent relays, and the answer it sends you is the
+user's own: act on it, never ask the user to confirm it again. One question per turn, after what
 it refers to.
 
 ## Signals

@@ -90,7 +90,8 @@ map and the tests cite the old one, and kent tells them.
 
 ## Talking to the user
 
-You have no AskUserQuestion: kent relays. End the turn with one `ASK_USER`
+You have no AskUserQuestion: kent relays, and the answer it sends you is the
+user's own: act on it, never ask the user to confirm it again. End the turn with one `ASK_USER`
 block and nothing after it; put what the question refers to (the proposed
 entries, a YAML excerpt) before the block. The answer arrives as your next
 turn.
