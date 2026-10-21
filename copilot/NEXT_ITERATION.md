@@ -192,6 +192,14 @@ Dalle iterazioni precedenti, ancora aperte:
     così l'utente non cambia branch a mano. Il kent di Copilot può fare lo
     stesso: va scritto nel suo file insieme al permesso nell'hook.
 
+14. **`scaffold commit`** (21 ottobre, lato Claude): il comando comune
+    `scaffold` committa lo scaffold con `linus` (`chore: scaffold the
+    project`, con il lock file), dopo `scaffold verify` e sul branch di
+    lavoro, e lascia fuori `.sources/`, `.documentation/` e
+    `toolchain.yaml`: la regola di Copilot resta intatta. Le skill
+    `python-scaffold` e `c-scaffold` lo dicono; quando il kent di Copilot
+    scaffolderà (punto 7), lo lancia invece di lasciare il commit
+    all'utente.
 
 ## Costi dei turni (23 ottobre, dalla quinta sessione lato Claude)
 

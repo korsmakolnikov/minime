@@ -246,6 +246,21 @@ class ToolTest(unittest.TestCase):
         self.assertIn("not empty", again.stdout + again.stderr)
         self.assertNotEqual(self.sh("scaffold", "verify", "--dir", "missing", ok=False).returncode, 0)
 
+    def test_scaffold_commit_leaves_out_the_workflow_files(self):
+        self.sh("linus", "branch", "scaffold-it")
+        self.sh("scaffold", "python", "PROJECT_NAME=sub-kent", "--dir", "sub-kent")
+        self.write("sub-kent/.sources/spec.yaml", "version: 2\n")
+        self.write("sub-kent/uv.lock", "lock\n")
+        self.sh("scaffold", "commit", "--dir", "sub-kent", "--model", "claude-test")
+        log = self.sh("git", "log", "-1", "--format=%s", "--name-only").stdout
+        self.assertIn("chore: scaffold the project", log)
+        self.assertIn("sub-kent/pyproject.toml", log)
+        self.assertIn("sub-kent/uv.lock", log)
+        self.assertNotIn("toolchain.yaml", log)
+        self.assertNotIn(".sources", log)
+        again = self.sh("scaffold", "commit", "--dir", "sub-kent", ok=False)
+        self.assertIn("committed already", again.stdout + again.stderr)
+
 
 if __name__ == "__main__":
     unittest.main()

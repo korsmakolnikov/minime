@@ -188,7 +188,9 @@ Ask the language, then load its skill (`python-scaffold`, `c-scaffold`) and
 follow it: it asks the user what it needs and runs `scaffold`, which lays
 down the layout, the toolchain, the task runner, git, the CI and
 `toolchain.yaml`. Its verification downloads the dependencies: ask first.
-Then write a short shopping list (goal, language, open questions) and go to
+Then get onto the feature branch (`linus branch`), and once the verification
+passes commit the scaffold with `scaffold commit` (the skill says how). Then
+write a short shopping list (goal, language, open questions) and go to
 step 2. A new project in a subfolder of the current repository is
 greenfield too: pass `--dir <folder>` to every `scaffold` command.
 

@@ -51,6 +51,8 @@ cmake: the user runs `make deps` (it uses `sudo`; never run it yourself).
 
 ## After
 
-The scaffolded files stay uncommitted until the user says otherwise. There is
-no C driver for `toolchain` yet and no `c-handbook`: until then, the tests
+Once verify passes, on the feature branch (`linus` refuses `master` and
+`main`), commit the scaffold with `scaffold commit [--dir <folder>] --model
+<id>` (`chore: scaffold the project`, the workflow's files left out); never
+hand this commit to the user. There is no C driver for `toolchain` yet and no `c-handbook`: until then, the tests
 run through the Makefile, with the user's approval.

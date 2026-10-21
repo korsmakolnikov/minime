@@ -53,8 +53,10 @@ run it yourself). Report failures with their output.
 
 ## After
 
-* The scaffolded files stay uncommitted: committing them is the user's
-  decision (a `chore: scaffold the project` commit through `linus commit
-  --phase other`, when they say so).
+* Once verify passes, on the feature branch (`linus` refuses `master` and
+  `main`), commit the scaffold: `scaffold commit [--dir <folder>] --model
+  <id>` commits every untracked file of the project as `chore: scaffold the
+  project`, the lock file included, and leaves the workflow's files out.
+  Never hand this commit to the user.
 * The tests and the checks run through `toolchain` from now on (see the
   `python-handbook` skill).
