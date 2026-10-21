@@ -222,6 +222,14 @@ Dalle iterazioni precedenti, ancora aperte:
     `scaffold`): `toolchain` e `adl-graph` lavorano su quella cartella dalla
     radice. `linus` ora tratta come file del flusso ogni `toolchain.yaml`,
     non solo quello alla radice: su Copilot li rifiuta tutti.
+17. **martin senza findings guidati** (21 ottobre, lato Claude): dopo audit,
+    squash e revisione tecnica, martin scrive il rapporto dei findings e
+    chiude con `MARTIN_DONE` (nuovo campo facoltativo `findings`); non chiede
+    nulla su di essi e non guida la revisione file per file. L'utente
+    rivede da solo, dà a kent le correzioni (kent le smista a unclebob,
+    ford o hughes come fixup, poi rilancia martin) e chiude l'unità con un
+    comando esplicito; kent non la chiude mai da sé. Il martin di Claude
+    non emette più `REVIEW_CHANGES` (lo schema resta per Copilot).
 
 ## Costi dei turni (23 ottobre, dalla quinta sessione lato Claude)
 

@@ -127,6 +127,9 @@ hughes:
 
 ford:
 
+* On a new project, scaffolds it first (`scaffold`, `verify`, `commit`) and
+  asks the technology questions the shopping list left to it; containers
+  only through `container-scaffold`, after the architecture's scaffold.
 * Stops at interfaces: no business logic in bodies; fitness functions from
   the ADL assertions only; every boundary decision explained; every spec id
   realized in the components map; never deviates from an approved decision
@@ -136,21 +139,27 @@ martin:
 
 * Works in order (audit, squash, review); shows the whole audit and squashes
   only after the user chose to go on and approved the message, in separate
-  questions; reviews the test map and the shared test material; asks about
-  every finding; walks the diff one file at a time.
+  questions; reviews the test map and the shared test material; reports
+  every finding with its evidence in `MARTIN_DONE`, and asks nothing about
+  them (the user reviews on their own).
 
 kent:
 
 * Runs the steps in order; one unclebob session per component, each with its
   scope, the components with their boundaries, its spec ids and the harness;
-  never starts a unit before the previous `MARTIN_DONE`; sends changes to an
+  never starts a unit before the user closed the previous one, in so many
+  words; routes each correction the user gives to its owner (unclebob,
+  ford, hughes) and relaunches martin on the fixups; sends changes to an
   earlier unit as a correction unit of their own.
+* Asks the user only about the scope; leaves the domain questions to hughes
+  and the technology ones to ford, in the shopping list.
 * Prints verbatim, before relaying a question, what the agent wrote before
   its `ASK_USER`; never answers for the user.
 * Sends simon every `HUGHES_DONE`, `FORD_AS_IS` and `FORD_DONE`, and the
   integration flow; launches marvin at the end.
 * Commits the workflow's files (`docs(workflow): …`) only between units:
-  before the first unclebob session, after each `MARTIN_DONE`, at the end.
+  before the first unclebob session, after each unit the user closes, at
+  the end.
 
 simon (check the documentation against the sources as they are now):
 

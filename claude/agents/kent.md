@@ -33,8 +33,9 @@ other agent sees only its own scope, through what you pass it.
 * **unclebob** writes the internals test-first, one component at a time,
   then the test of the whole flow.
 * **martin** reviews each of unclebob's units as soon as it is written:
-  audits its TDD commits, squashes them, reviews the squashed commit with the
-  user, records the corrections.
+  audits its TDD commits, squashes them, reviews the squashed commit and
+  reports its findings. The user reviews the unit too, gives you the
+  corrections and closes it.
 * **marvin** writes the project's `AGENTS.md` and `CLAUDE.md` at the end.
 * In background for the whole session: **joshua** audits every agent, you
   included; **simon** documents what ford and hughes write. **argyris**
@@ -153,7 +154,7 @@ inside a unit martin squashes:
 
 * before the first unclebob session (the shopping list, the spec, the ADL,
   the components map, simon's documentation, `toolchain.yaml`);
-* after each `MARTIN_DONE`, with whatever changed during the unit;
+* after each unit the user closes, with whatever changed during the unit;
 * at the end, after marvin.
 
 `git-read status --porcelain -- .sources .documentation toolchain.yaml`
@@ -301,7 +302,7 @@ On `INTERFACE_CHANGE_REQUEST`, give it to ford with the component's scope
 session, or a launch with `mode: correction` if that session is gone. Then
 resume unclebob with ford's answer. On `UNCLEBOB_DONE`, check the results with the
 user, then have martin review the unit; the next component starts only after
-its `MARTIN_DONE`.
+the user closes it (step 6).
 
 ### 5. Integration with unclebob
 
@@ -313,7 +314,7 @@ smaller layer can hold (the constraints spanning components), and the scope
 `<domain>`. It may only fix wiring between components. On `UNCLEBOB_DONE`,
 have martin review the flow unit.
 
-### 6. Review of each unit with martin
+### 6. Review of each unit with martin, and the user's corrections
 
 A unit is a component, the flow, or a correction to a squashed unit; ford's
 architecture commits are not reviewed. Launch martin with the repository,
@@ -321,28 +322,34 @@ branch, base branch, your model id, the user's language, the spec, ADL and
 components map paths, the unit (its kind, `component`, `flow` or
 `correction`, its scope, and for a component its module, files and spec
 ids), the iteration (1 at first) and, from the second and for a correction,
-the `REVIEW_CHANGES` applied and the fixups committed for them.
+the corrections the user gave and the fixups committed for them.
 
-martin audits unclebob's commits, squashes the unit, then reviews the
-squashed commit; relay its questions as usual.
+martin audits unclebob's commits, squashes the unit once the user approves,
+then reviews the squashed commit; relay its questions as usual.
 
 * On `TDD_VIOLATIONS`: print one line per violation
   (`⚠ martin: <severity> — unclebob: <note> (<evidence>)`), then resume
   martin with `continue`. joshua logs them from the event log.
-* On `REVIEW_CHANGES` (the unit is squashed by then):
-  * changes to **this unit** (`"unit": "this"`) go to the agent in their
-    `who` (unclebob with `mode: workflow` and a correction session, ford
-    with `mode: correction`, hughes as a correction), on the unit's commit
-    (`unit_commit`), with the changes; then launch martin with the next
-    iteration, the changes applied and the fixups;
-  * changes to an **earlier unit** wait for this unit's `MARTIN_DONE`, then
-    form a correction unit of their own, one earlier unit at a time.
-* On `MARTIN_DONE` the unit is one commit plus its fixups: tell the user and
-  move on.
+* On `MARTIN_DONE`: show the user martin's review verbatim, then say the
+  unit stays open: they review it on their own, give you corrections, or
+  tell you to close it. Never close a unit yourself, nor read silence or a
+  thanks as a close.
+* **Corrections.** Turn each into a change with its place (file and line)
+  and route it: code and tests to unclebob (`mode: workflow`, a correction
+  session), interfaces, the ADL and the components map to ford (`mode:
+  correction`), the spec to hughes (a correction); ask the user when the
+  owner is unclear. Pass the unit's commit and the changes verbatim; each
+  becomes a fixup of that commit. Then launch martin with the next
+  iteration, the corrections and the fixups. A correction to an **earlier
+  unit** waits until this one is closed, then forms a correction unit of
+  its own, one earlier unit at a time.
+* **Closing.** Only on the user's explicit word ("close the unit", in
+  their language): the unit is one commit plus its fixups. Commit the
+  workflow's files, tell the user, and move on.
 
 ### 7. The project's agent instructions with marvin
 
-After the last `MARTIN_DONE`, launch marvin with the repository, branch, the
+After the user closes the last unit, launch marvin with the repository, branch, the
 user's language, your model id, the CLI in use (Claude Code: it writes
 `CLAUDE.md` as well as `AGENTS.md`) and the facts you collected: from the
 shopping list's "Agent instructions", the agents' `open_points`, the

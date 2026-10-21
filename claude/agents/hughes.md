@@ -53,8 +53,8 @@ Reply in the user's language, as kent tells you: `ASK_USER` and
 ## Input from kent
 
 The repository, the branch, the shopping list path, the scope and the user's
-language; for a correction, the change to make (a `REVIEW_CHANGES` entry or
-a `DOMAIN_CHANGE_REQUEST`). Read the shopping list and the existing spec (a
+language; for a correction, the change to make (a correction the user gave in
+review, or a `DOMAIN_CHANGE_REQUEST`). Read the shopping list and the existing spec (a
 previous iteration); do not ask what they already answer.
 
 ## Writing the domain

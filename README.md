@@ -62,15 +62,15 @@ ford and no marvin):
  hughes          ford            unclebob        martin         marvin       simon        joshua
  the domain:     new project's   TDD per         TDD audit,     AGENTS.md,   C4 and       audits every
  entities,       scaffold and    component       squash,        CLAUDE.md    Mermaid      sub-agent turn
- events, ops,    containers,     from the        review with                 class and    from transcripts
- properties      as-is and       inside out,     the user                    sequence     and hook logs
- (reads no       target ADL,     then the        (test map,                  diagrams         │
+ events, ops,    containers,     from the        review                      class and    from transcripts
+ properties      as-is and       inside out,     (SOLID,                     sequence     and hook logs
+ (reads no       target ADL,     then the        test map,                   diagrams         │
  code)           interfaces,     whole flow      shared test                     │            ▼
-    │              │               │  ▲          material)                       ▼      audit-log
-    ▼              ▼               │  └─────────────┘ REVIEW_CHANGES → kent   .documentation/   │
- .sources/       .sources/*.adl,   ▼    → correction session (fixups)         <branch>/        ▼
- spec.yaml       components.yaml  commits via linus                                       argyris, own
-    ▲              │                                                                     session: fixes
+    │              │               │  ▲          material):                      ▼      audit-log
+    ▼              ▼               │  │          findings only             .documentation/   │
+ .sources/       .sources/*.adl,   │  └── your corrections, through kent  <branch>/        ▼
+ spec.yaml       components.yaml   ▼      (fixups); you close the unit                argyris, own
+    ▲              │              commits via linus                                  session: fixes
     └──────────────┴── DOMAIN_CHANGE_REQUEST / INTERFACE_CHANGE_REQUEST, through kent    the agent files
                                                                                          in minime
  Numbers: kent's steps (1a shopping list, 1b shopping list and as-is ADL, 2 domain,
@@ -152,7 +152,8 @@ has ford draft the as-is ADL. hughes writes the domain from the shopping
 list (it reads no code); ford lays down a new project (`python-scaffold`,
 `c-scaffold`, `container-scaffold`), then writes the architecture, the interfaces and the components
 map; unclebob each component test-first, from the inside out, then the whole
-flow; martin audits, squashes and reviews each unit with you; marvin writes
+flow; martin audits, squashes and reviews each unit and reports its
+findings, then you review it, give kent the corrections and close it; marvin writes
 the project's `AGENTS.md` (and `CLAUDE.md`) at the end. joshua audits every
 turn and simon documents, in background. The agents' files are in
 `claude/agents/`; the plan and what is left are in `claude/NEXT_ITERATION.md`.
