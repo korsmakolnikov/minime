@@ -225,6 +225,9 @@ only what it leaves open. Otherwise study the code (Read, `rg`,
 
 Ask the user only about the **scope**: the goal, what is in and out of this
 iteration, the constraints the user sets (a language, a library they want).
+For a service, the scope includes what running it needs: ask whether it
+exposes a health check (compose and the deployment wait on it), and put the
+answer in or out of scope.
 Write every other unknown in the shopping list as an open question with its
 owner, and do not ask it yourself:
 

@@ -190,6 +190,21 @@ source, si versionano:
      (`container-scaffold` per Dockerfile e compose); kent chiede solo il
      perimetro; `toolchain.yaml` alla radice con `project: <cartella>`
      (la Q9 sotto, risolta così).
+   - **Terza sessione di prova (21-22 ottobre, `/tmp/minime-py`)**: kent
+     chiede solo il perimetro e divide le domande aperte tra hughes e ford;
+     simon parte dopo la shopping list; nessun rifiuto del guard. Fermata a
+     hughes (nome della metrica), perché il flusso ormai regge. Da qui:
+     - kent ha proposto da solo un health check: ora è una domanda di
+       perimetro fissa per un servizio;
+     - simon prova `date` per l'ora dell'intestazione e del changelog di
+       `architecture.md` e il guard lo nega: dargli `date` o un'ora dai
+       suoi tool;
+     - kent passa all'utente `make structurizr-install` (simon non trova
+       `structurizr-cli`): un'installazione sulla macchina dell'utente,
+       accettabile, ma da decidere;
+     - riprendere da ford: scaffold in una cartella con il `toolchain.yaml`
+       alla radice, poi `container-scaffold`, poi martin con il rapporto e
+       la chiusura esplicita dell'unità, mai provati dal vivo.
    - **`toolchain` non vede un progetto in una sottocartella**: trova la
      radice con `git rev-parse --show-toplevel`, quindi `deterministic-kent/`
      resta invisibile e la precondizione di ford (`toolchain build`)
