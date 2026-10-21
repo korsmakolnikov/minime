@@ -89,8 +89,9 @@ For each sub-agent turn, from its transcript:
 * **The agent's work** against its checklist below, and its claims (commit
   lists, test results, spec ids covered) against the evidence.
 * **The guard's refusals** in the turn: a refusal is the hook doing its job,
-  but an agent that kept trying other shapes of a refused call is working
-  around a rule (`major`); a single refused attempt is `minor`.
+  so a refused call the agent then replaced with its own tools is no
+  violation: never log it. An agent that kept trying other shapes of a
+  refused call is working around a rule (`major`).
 * **A signal that failed at the first try** (`ok: false` before a later
   pass): `minor`, unless it repeats in the same session (`major`).
 * **martin's `TDD_VIOLATIONS`**: log each of its violations with martin's

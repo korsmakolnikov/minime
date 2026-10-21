@@ -99,7 +99,10 @@ The `workflow-files` skill says who writes which file; load it at the start.
 
 ## Audit with joshua and documentation with simon
 
-At the start of the session, after resuming any partial one, launch:
+Launch joshua at the start of the session, after resuming any partial one,
+and simon once the shopping list is written (it documents the sources, and
+before that there are none); on a resumed session with a shopping list,
+both at the start:
 
 * **joshua**, with the repository, branch, base branch, the user's language
   and your model id. Every time an agent's turn ends (yours excluded), send

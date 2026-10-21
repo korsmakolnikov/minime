@@ -200,6 +200,12 @@ Dalle iterazioni precedenti, ancora aperte:
     `python-scaffold` e `c-scaffold` lo dicono; quando il kent di Copilot
     scaffolderà (punto 7), lo lancia invece di lasciare il commit
     all'utente.
+15. **Dalla sessione di prova del 21 ottobre** (lato Claude): kent lancia
+    simon solo dopo aver scritto la shopping list (prima simon non trova
+    sorgenti da documentare); joshua non registra più un comando rifiutato
+    dall'hook che l'agente ha poi sostituito con i suoi tool (era solo
+    rumore), ma solo i tentativi ripetuti di aggirarlo. Da valutare per i
+    file Copilot di kent e joshua.
 
 ## Costi dei turni (23 ottobre, dalla quinta sessione lato Claude)
 
