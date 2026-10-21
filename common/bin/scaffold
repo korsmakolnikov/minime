@@ -124,6 +124,34 @@ def verify():
     return 1 if failed else 0
 
 
+CI = os.path.join(".github", "workflows", "ci.yml")
+
+
+def repo_root():
+    return subprocess.run(["git", "rev-parse", "--show-toplevel"],
+                          capture_output=True, text=True, check=True).stdout.strip()
+
+
+def root_ci(root, prefix):
+    """The CI of the project at <prefix> (a folder of the repository at <root>)."""
+    return os.path.join(root, ".github", "workflows", prefix.replace(os.sep, "-") + ".yml")
+
+
+def ci_at_root(files, folder):
+    """GitHub reads workflows only from the repository's root: move the CI of
+    a project in a folder there, running every step inside the folder."""
+    root = repo_root()
+    prefix = os.path.relpath(os.path.abspath(folder), root)
+    moved = []
+    for dest, text, mode in files:
+        if dest == CI:
+            name, _, rest = text.partition("\n")
+            text = (f"{name} {prefix}\n\ndefaults:\n  run:\n    working-directory: {prefix}\n{rest}")
+            dest = root_ci(root, prefix)
+        moved.append((dest, text, mode))
+    return moved
+
+
 WORKFLOW_FILE = re.compile(r"(^|/)\.(sources|documentation)/|(^|/)toolchain\.yaml$")
 
 
@@ -133,6 +161,13 @@ def commit(model):
     if listed.returncode != 0:
         raise ToolError("not inside a git repository")
     files = [f for f in listed.stdout.splitlines() if not WORKFLOW_FILE.search(f)]
+    prefix = subprocess.run(["git", "rev-parse", "--show-prefix"],
+                            capture_output=True, text=True).stdout.strip().rstrip("/")
+    if prefix:
+        ci = os.path.relpath(root_ci(repo_root(), prefix))
+        tracked = subprocess.run(["git", "ls-files", "--error-unmatch", ci], capture_output=True)
+        if os.path.exists(ci) and tracked.returncode != 0:
+            files.append(ci)
     if not files:
         raise ToolError("no untracked file to commit: the scaffold is committed already")
     command = ["linus", "commit", "--phase", "other", *(["--model", model] if model else []), *files]
@@ -195,19 +230,22 @@ def main():
         raise ToolError(f"missing {', '.join(missing)} (scaffold languages)")
     derive(values)
     files = plan(language, values)
+    if folder and inside_repo():
+        files = ci_at_root(files, folder)
     # A dry run never creates the folder: a missing one holds nothing to clash with.
     fresh = bool(folder) and dry and not os.path.isdir(folder)
     if fresh:
         print(f"would create {folder}/")
     elif folder:
         enter(folder, create=not dry)
-    clash = [] if fresh else [d for d, _, _ in files if os.path.exists(d)]
+    clash = [d for d, _, _ in files if os.path.isabs(d) and os.path.exists(d)]
+    clash += [] if fresh else [d for d, _, _ in files if not os.path.isabs(d) and os.path.exists(d)]
     if toolchain and not fresh and os.path.exists("toolchain.yaml"):
         clash.append("toolchain.yaml")
     if clash:
         raise ToolError(f"already present, refusing to overwrite: {', '.join(clash)}")
     for dest, text, mode in files:
-        print(("would create " if dry else "created ") + dest)
+        print(("would create " if dry else "created ") + os.path.relpath(dest))
         if not dry:
             os.makedirs(os.path.dirname(dest) or ".", exist_ok=True)
             with open(dest, "w") as out:

@@ -242,6 +242,10 @@ class ToolTest(unittest.TestCase):
         self.assertIn("scaffold verify --dir sub-kent", run.stdout)
         for path in ("pyproject.toml", "Makefile", "src/sub_kent/__init__.py", "toolchain.yaml"):
             self.assertTrue(os.path.exists(os.path.join(self.repo, "sub-kent", path)), path)
+        # GitHub reads only the root's workflows: the CI moves there and runs in the folder
+        self.assertFalse(os.path.exists(os.path.join(self.repo, "sub-kent", ".github")))
+        with open(os.path.join(self.repo, ".github", "workflows", "sub-kent.yml")) as ci:
+            self.assertIn("working-directory: sub-kent", ci.read())
         again = self.sh("scaffold", "python", "PROJECT_NAME=sub-kent", "--dir", "sub-kent", ok=False)
         self.assertIn("not empty", again.stdout + again.stderr)
         self.assertNotEqual(self.sh("scaffold", "verify", "--dir", "missing", ok=False).returncode, 0)
@@ -256,6 +260,7 @@ class ToolTest(unittest.TestCase):
         self.assertIn("chore: scaffold the project", log)
         self.assertIn("sub-kent/pyproject.toml", log)
         self.assertIn("sub-kent/uv.lock", log)
+        self.assertIn(".github/workflows/sub-kent.yml", log)
         self.assertNotIn("toolchain.yaml", log)
         self.assertNotIn(".sources", log)
         again = self.sh("scaffold", "commit", "--dir", "sub-kent", ok=False)

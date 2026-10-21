@@ -43,6 +43,9 @@ toolchain.yaml            language: python (see workflow-files for versioning)
 
 then `git init` and an empty `start.` commit, unless the directory is inside
 a repository already. It refuses to overwrite a file.
+With `--dir` inside a repository, the CI goes to the repository's root
+(`.github/workflows/<folder>.yml`, every step run in the folder): GitHub
+reads workflows only from there.
 
 ## Verify
 
