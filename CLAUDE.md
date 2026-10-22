@@ -45,6 +45,9 @@ When you work on one side, keep the other side's rule intact.
   touching `common/bin`, `common/lib` or `claude/hooks`; set
   `MINIME_STATE_DIR` so a manual try does not write into the real logs
   under `/tmp`.
+* **Trying the workflow**: the `kent-loop` skill (`.claude/skills/`) runs
+  kent headless on a test project; you answer as the user and fix minime
+  between turns.
 * **Installing**: `make install` (Claude), `make copilot-install`
   (Copilot), `make clean` to remove everything either installed.
 * **Commits**: Conventional Commits, on a feature branch; never push

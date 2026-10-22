@@ -42,6 +42,8 @@ What the repository holds and where `make` installs it:
    settings.json, copilot-instructions.md ───────────────────────► ~/.copilot/
    bin/      kent, argyris ──────────────────────────────────────► ~/.local/bin/
  tests/    the tools and the hooks                make test
+ .claude/  skills/kent-loop: drives a headless kent session on a test project
+           (developing minime; not installed)
                                                   clean: removes all of it (INSTALLED)
 ```
 
