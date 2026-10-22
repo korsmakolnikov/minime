@@ -205,6 +205,19 @@ source, si versionano:
      - riprendere da ford: scaffold in una cartella con il `toolchain.yaml`
        alla radice, poi `container-scaffold`, poi martin con il rapporto e
        la chiusura esplicita dell'unità, mai provati dal vivo.
+   - **Quarta sessione (22 ottobre, con la skill `kent-loop`)**: arrivata a
+     fine ford. Lo scaffold di ford in una cartella regge: `scaffold
+     verify`/`commit`, `toolchain.yaml` alla radice, `container-scaffold`
+     (Dockerfile, compose con Postgres 18, `up`/`down`/`logs`), interfacce,
+     mappa realizzata; build, ruff, mypy strict, test e `docker build`
+     passano. Le deleghe a parole ("accetto le opzioni che consigli")
+     funzionano con hughes e ford. simon ha trovato due ambiguità vere della
+     spec. Aperti: ford non poteva lanciare `toolchain check` (corretto);
+     joshua conta come "minor" le domande dello scaffold saltate sotto
+     delega (chiarire nella skill che la delega le copre); nessuno scrive
+     l'harness dei test (la fixture testcontainers di Postgres): ford, come
+     scaffold, o unclebob nel primo componente che la usa? Il prossimo
+     passo è unclebob.
    - **`toolchain` non vede un progetto in una sottocartella**: trova la
      radice con `git rev-parse --show-toplevel`, quindi `deterministic-kent/`
      resta invisibile e la precondizione di ford (`toolchain build`)
