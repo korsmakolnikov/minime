@@ -136,6 +136,7 @@ class GuardTest(unittest.TestCase):
 
     def test_ford_scaffolds_the_project(self):
         self.allowed("ford", "scaffold python PROJECT_NAME=x --dir x")
+        self.allowed("ford", "toolchain check --agent ford")
         self.allowed("kent", "scaffold init")
         self.denied("kent", "scaffold python PROJECT_NAME=x", "may run scaffold only as: init")
 

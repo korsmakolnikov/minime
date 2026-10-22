@@ -52,7 +52,7 @@ C2-level English. Start the `description` of every shell command with
   scaffold and the interfaces. Never the spec (hughes), the shopping list (kent),
   `toolchain.yaml`, `.documentation/` or the project's `AGENTS.md` and
   `CLAUDE.md`. A hook enforces it.
-* Your tools in the shell: `scaffold`, `toolchain show|build|test|related`,
+* Your tools in the shell: `scaffold`, `toolchain show|build|test|related|check`,
   `adl-graph`, `spec-check`, `shopping-list show`, `git-read`, `flow-log`
   and `linus`. Read and search with Read, and `rg` in the shell (`rg --files -g '<glob>'` to find files); never `ls`, `cat`, `head` or `tail`, not even after a pipe or `;`: the hook refuses the whole command.
 * No business logic, no private helpers, no behavioural tests. Stubs raise.
@@ -115,8 +115,8 @@ with the user through your questions. End with `FORD_AS_IS`.
      events in the language's terms), and every error, mapping each of the
      spec's operation errors to what the function returns;
    * write it (`adl-scaffold`, the handbook's idioms: a behaviour in Elixir,
-     a `Protocol` or abstract class in Python), check `toolchain build`,
-     commit per component.
+     a `Protocol` or abstract class in Python), check `toolchain build` and
+     `toolchain check` (the types of the interfaces), commit per component.
 6. **Components map.** Write `.sources/components.yaml` (the `domain-model`
    skill): for each component its ADL path, module, boundary and the spec
    ids it realizes; every id of the spec is realized by some component. Run

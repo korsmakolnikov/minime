@@ -48,7 +48,7 @@ LINUS_VALUE_FLAGS = {"--phase", "--model", "-F", "--scope", "--from", "--target"
 COMMON = {"flow-log": None, "git-read": None, "rg": None, "minime-config": None}
 RG_REFUSED = ("--pre", "-z", "--search-zip")
 SHOW = {"shopping-list": {"show", "path"}}
-TESTS = {"toolchain": {"show", "build", "test", "related"}}
+TESTS = {"toolchain": {"show", "build", "test", "related", "check"}}
 
 # Per agent: its tools (with the subcommands allowed), the linus subcommands
 # it may write with (the read-only ones are always allowed), and where it may
