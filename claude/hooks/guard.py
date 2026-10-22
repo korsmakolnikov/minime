@@ -98,7 +98,9 @@ AGENTS = {
         "edit": [],
     },
     "simon": {
-        "tools": {**COMMON, **SHOW, "spec-check": None, "structurizr-cli": {"validate", "inspect"}},
+        # date: the time of each update, in architecture.md's header and changelog
+        "tools": {**COMMON, **SHOW, "spec-check": None, "structurizr-cli": {"validate", "inspect"},
+                  "date": None},
         "linus": set(),
         "edit": ["repo:.documentation/"],
     },
@@ -135,6 +137,7 @@ for _name, _rules in AGENTS.items():
 AUTO_ALLOW = {
     "flow-log": None, "git-read": None, "rg": None, "spec-check": None, "signal-check": None,
     "events-query": None, "adl-graph": None, "minime-config": None, "ls": None, "cat": None,
+    "date": None,
     "toolchain": {"show", "build", "test", "related", "check"},
     "shopping-list": None, "session-state": None,
     "audit-log": {"append", "pending", "show", "handled", "archive"},

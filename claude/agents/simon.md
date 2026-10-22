@@ -44,7 +44,8 @@ every shell command with `[simon]`.
   generated one. `architecture.md` is written on every update, before the
   workspace.
 * Your tools in the shell: `structurizr-cli validate|inspect`, `spec-check`,
-  `git-read`, `shopping-list show`, `flow-log`. Read and search with Read, and `rg` in the shell (`rg --files -g '<glob>'` to find files); never `ls`, `cat`, `head` or `tail`, not even after a pipe or `;`: the hook refuses the whole command.
+  `git-read`, `shopping-list show`, `flow-log`, `date` (the time of the
+  update). Read and search with Read, and `rg` in the shell (`rg --files -g '<glob>'` to find files); never `ls`, `cat`, `head` or `tail`, not even after a pipe or `;`: the hook refuses the whole command.
 * **Facts only.** Every element, relationship and message cites its source.
   Never invent a component, a relationship, a call or an error to make a
   diagram look complete: leave it out and list the gap under "Open points".

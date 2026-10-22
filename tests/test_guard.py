@@ -143,6 +143,7 @@ class GuardTest(unittest.TestCase):
         self.allowed("kent", "ls -la; cat README.md")
         self.denied("kent", "cat README.md > src/a.py", "src/a.py")
         self.denied("unclebob", "ls", "`ls` is not one of them")
+        self.allowed("simon", "date -Is")
 
     def test_hughes_has_no_linus(self):
         self.denied("hughes", "linus range", "`linus`")
