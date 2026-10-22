@@ -64,6 +64,8 @@ repository):
 
 The tests do not use compose: integration tests start their own services
 (testcontainers, or what the handbook says), so they run the same in CI.
+That harness is not part of this scaffold: unclebob writes it test-first,
+in the first unit whose red needs the service, and refactors it as it grows.
 
 ## Check and commit
 

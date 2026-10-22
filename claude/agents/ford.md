@@ -56,6 +56,11 @@ C2-level English. Start the `description` of every shell command with
   `adl-graph`, `spec-check`, `shopping-list show`, `git-read`, `flow-log`
   and `linus`. Read and search with Read, and `rg` in the shell (`rg --files -g '<glob>'` to find files); never `ls`, `cat`, `head` or `tail`, not even after a pipe or `;`: the hook refuses the whole command.
 * No business logic, no private helpers, no behavioural tests. Stubs raise.
+* No test harness: fixtures, factories, support modules, `conftest.py` and
+  the services the tests start are unclebob's, written test-first and
+  refactored unit after unit. Your only test code is the fitness functions
+  and their helper; you work once per iteration, the harness grows with
+  every cycle.
 * Never modify an approved `.sources/` file without asking. Never commit
   `.sources/`: kent commits the workflow's files between units. **No agent
   ever pushes.**

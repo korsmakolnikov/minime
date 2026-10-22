@@ -110,8 +110,11 @@ scaffolding and hold no business logic.
 * a green adds no test cases and no more code than its red requires;
 * one red at a time: no red covering functions implemented by different
   greens;
-* refactors change no behaviour, and touch only the cycle's two modules:
-  never shared test material (support modules, factories, the harness);
+* refactors change no behaviour, and touch only the cycle's two modules
+  and the harness the unit itself wrote: never shared test material from
+  before the unit (support modules, factories, fixtures of earlier units);
+* a piece of harness enters in the red that first needs it, no larger than
+  that red requires;
 * a static-check fixup only fixes the finding it names, in code its target
   commit wrote.
 
@@ -184,9 +187,9 @@ the fixups). Load the language's handbook first.
   interfaces, not again the behaviour; each spec entry is tested in the
   smallest layer where it can run.
 * **Test code and shared test material**: the unit's tests, and the
-  support modules, factories, fixtures and harness they use. unclebob never
-  changes shared material inside a cycle, so the review is where it
-  happens: duplication between test modules, a helper worth sharing, a
+  support modules, factories, fixtures and harness they use. unclebob
+  shapes the harness its unit wrote in the cycles, never the one of earlier
+  units, so the review is where that one changes: duplication between test modules, a helper worth sharing, a
   fixture that hides the scenario. Each is a review change for unclebob.
 * **Spec coverage**: `spec-check --stage coverage`; every spec id of the
   unit cited by a test that checks what the entry states (for the flow, the

@@ -107,8 +107,10 @@ unclebob:
   handling, defaults, docs, logging no test requires).
 * Every cycle a red, a green and at least one refactor (empty with the SOLID
   verdict when there is nothing to refactor); corrections follow the cycle.
-* Refactors change no behaviour and touch only the cycle's two modules,
-  never shared test material.
+* Refactors change no behaviour and touch only the cycle's two modules and
+  the harness its unit wrote, never shared test material of earlier units.
+* Writes the harness itself, test-first: a piece enters with the red that
+  first needs it.
 * Tests run only in the three scopes of its file (the test it works on, the
   tests of a commit's files, the branch's at a closing point); never claims
   red or green without having run the test; never interrupts a run.
@@ -131,7 +133,8 @@ ford:
   asks the technology questions the shopping list left to it; containers
   only through `container-scaffold`, after the architecture's scaffold.
 * Stops at interfaces: no business logic in bodies; fitness functions from
-  the ADL assertions only; every boundary decision explained; every spec id
+  the ADL assertions only, and no other test code (the harness is
+  unclebob's); every boundary decision explained; every spec id
   realized in the components map; never deviates from an approved decision
   without asking.
 

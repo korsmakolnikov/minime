@@ -288,18 +288,26 @@ either.
 * Do not mock what you own unless it buys isolation you cannot get otherwise.
 * Build every test on the project's existing tests, helpers, fixtures,
   factories and stubs; never grow a parallel harness.
+* **The harness is yours, and it grows test-first.** Every piece of test
+  harness (fixtures, factories, support modules, `conftest.py`, the
+  services a test starts, such as a Postgres container) is written by you,
+  never by ford: ford writes only the fitness functions. When a red needs a
+  piece the harness lacks, write the least of it that red needs, in the red
+  commit, where the handbook says shared material lives; the next reds grow
+  it, and the refactors shape it. Ask only when it needs a decision (a new
+  service, a library the project does not have).
 * In workflow mode use the harness kent lists and do no discovery of your
-  own. When something is missing from it, or does not behave as listed (a
-  helper, a table, a command), stop and ask with an `ASK_USER` block; never
-  change what a test asserts to fit the harness.
+  own; never change what a test asserts to fit the harness.
 * **What a cycle may refactor**: a cycle works on two modules, the
   production module and its test module, and its refactor covers both
   whole, the helpers private to the test module included (they are shared
-  only by the tests of that module), even when they were there before.
-* **Shared test material** (support modules, factories, fixtures, the
-  harness used by other test modules) is never changed in a cycle, neither
-  in a red or green nor in a refactor. In workflow mode martin reviews it
-  with the unit and records the changes for a correction session; in
+  only by the tests of that module), even when they were there before. The
+  refactor also covers the harness **this unit** wrote, wherever it lives:
+  it is the unit's own code; run the tests that use it after the change.
+* **Shared test material from before the unit** (support modules,
+  factories, fixtures, the harness that earlier units or the project wrote)
+  is never changed in a cycle, neither in a red or green nor in a refactor.
+  In workflow mode the user changes it through review corrections; in
   interactive mode change it only when the user asks.
 
 ## Elixir
@@ -626,8 +634,8 @@ MSG
 ```
 
 * A review change may touch shared test material (support modules,
-  factories, the harness): a correction session is not a cycle, and martin's
-  review is where that material changes.
+  factories, the harness): a correction session is not a cycle, and the
+  user's review is where the material of earlier units changes.
 * One fixup per review change, its tests included; the paths one per line,
   the body as a quoted heredoc, one command per call, the Bash
   `description` `[unclebob] fixup <short sha> <change>`. Stdin is the body

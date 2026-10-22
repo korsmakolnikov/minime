@@ -284,7 +284,9 @@ Before each launch, discover the component's test harness yourself: reread
 the shopping list, then the existing tests of the contexts it touches, and
 list the test files to imitate and the helpers, fixtures, factories and
 stubs to reuse (path and a short usage example each, including how external
-services are stubbed). Pass unclebob:
+services are stubbed). On a new project there is none yet: say so, with
+the services the tests will need (from ford's `container-scaffold` report);
+unclebob builds the harness test-first. ford never writes it. Pass unclebob:
 
 * `mode: workflow`, the user's language and your model id;
 * the component: its ADL path, module, responsibility and commit scope;
