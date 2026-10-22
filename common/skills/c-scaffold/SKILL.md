@@ -13,7 +13,10 @@ The project's environment, not its architecture.
   `--dir <folder>` creates (a project inside an existing repository); it
   holds nothing the templates write (`scaffold c … --dry-run` lists them).
 * Ask the user (in the workflow, through kent's relay), in one question
-  each, with the default first:
+  each, with the default first, only what kent's prompt and the shopping
+  list do not already give. A user's delegation of the technology choices
+  to your recommendations covers these questions too: take the defaults and
+  report the values you used.
   1. **Project name**: the directory's basename. Used for the executable,
      the header and the README title; the tool derives a C identifier.
   2. **C standard**: `23`, then `17`, `11` (CMake's `C_STANDARD`).

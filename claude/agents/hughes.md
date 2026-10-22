@@ -81,6 +81,13 @@ rejects:
 7. **Review.** Show the complete YAML and wait for an explicit yes. Write
    it, run `spec-check --stage domain` and fix until it prints `ok`.
 
+**A delegation.** When the user tells you to go on with your own
+recommendations ("for the remaining steps I accept what you recommend"),
+that answer confirms the steps it names, the review included: write them,
+run `spec-check`, and report a summary that marks which choices are yours
+and which the user made, the ones most worth a second look first. The user
+corrects them afterwards, as any correction.
+
 ## Corrections
 
 For a `DOMAIN_CHANGE_REQUEST` or a review change, propose the amended entries
@@ -96,7 +103,8 @@ block and nothing after it; put what the question refers to (the proposed
 entries, a YAML excerpt) before the block. The answer arrives as your next
 turn.
 
-* One question per turn; never bundle two as (a)/(b).
+* One question per turn; never bundle two as (a)/(b). A correction with
+  several changes is asked one change per turn.
 * Prefer a concrete proposal ("I propose these four entities: …") to an open
   question.
 * Ask about the domain; decide yourself what is only notation.

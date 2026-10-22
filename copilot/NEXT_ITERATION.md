@@ -236,6 +236,20 @@ Dalle iterazioni precedenti, ancora aperte:
     16), quando il kent di Copilot scaffolderà; la domanda di perimetro
     sull'health check e la divisione delle domande tra hughes e ford sono
     già in #17.
+19. **Dalla quarta sessione (22 ottobre, lato Claude), da portare**:
+    - l'harness dei test (fixture, factory, moduli di supporto, i servizi
+      che i test avviano) è di unclebob, scritto test-first: un pezzo entra
+      con il primo red che ne ha bisogno, e il refactor del ciclo copre
+      l'harness scritto dalla stessa unità; quello delle unità precedenti
+      cambia solo con le correzioni dell'utente. ford non scrive test oltre
+      alle fitness function (lavora una volta per iterazione, l'harness
+      cresce a ogni ciclo);
+    - una delega a parole dell'utente ("per il resto accetto le tue
+      raccomandazioni") conferma i passi che nomina, revisione compresa:
+      hughes scrive e riassume marcando le scelte sue; le domande dello
+      scaffold si saltano se kent o la delega le coprono; joshua non la
+      conta come violazione;
+    - hughes chiede una correzione con più modifiche una modifica per turno.
 
 ## Costi dei turni (23 ottobre, dalla quinta sessione lato Claude)
 

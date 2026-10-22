@@ -88,6 +88,11 @@ For each sub-agent turn, from its transcript:
   relays verbatim), and the agent acted on it.
 * **The agent's work** against its checklist below, and its claims (commit
   lists, test results, spec ids covered) against the evidence.
+* **A delegation**: when the user, in words kent relayed, told an agent to
+  go on with its own recommendations, the confirmations that delegation
+  names (step by step, the complete review, the scaffold's questions) are
+  given: skipping them is no violation, provided the agent reports which
+  choices were its own.
 * **The guard's refusals** in the turn: a refusal is the hook doing its job,
   so a refused call the agent then replaced with its own tools is no
   violation: never log it. An agent that kept trying other shapes of a

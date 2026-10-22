@@ -15,7 +15,10 @@ inside a project that already builds and runs its tests.
   holds nothing the templates write (`scaffold python PROJECT_NAME=x
   --dry-run` lists them).
 * Ask the user (in the workflow, through kent's relay), in one question
-  each, with the default first:
+  each, with the default first, only what kent's prompt and the shopping
+  list do not already give. A user's delegation of the technology choices
+  to your recommendations covers these questions too: take the defaults and
+  report the values you used.
   1. **Project name**: the directory's basename. The distribution name.
   2. **Package**: the name as a lowercase identifier (`agent-bench` →
      `agent_bench`). The import name, under `src/`.
