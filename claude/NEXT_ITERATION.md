@@ -149,90 +149,82 @@ source, si versionano:
 
 ## Da fare
 
-0. **Per il 17 ottobre: il ruolo di argyris e come chiudere il loop
-   agentico.** Oggi argyris legge le violazioni di joshua, propone una
-   modifica per ciascuna, la applica in `~/code/minime` dopo l'approvazione,
-   lancia `make install` e committa. L'utente non vede il senso di
-   `make install` se argyris non ha autonomia (approva comunque ogni
-   modifica). Da capire: chi installa e quando, se argyris deve avere un
-   livello di autonomia, come una violazione diventa davvero una regola che
-   non si ripete (testo, guard, tool), e come si misura che il loop si è
-   chiuso.
+### Fatto il 21-22 ottobre (quattro sessioni di prova in `/tmp/minime-py`)
 
-1. **La prima sessione vera**: `make install`, poi `claude --agent kent` sul
-   progetto LangGraph (scaffold Python). Il nome della cartella va aggiunto
-   a `projects` in `python-handbook` (oggi `minime-langgraph`, provvisorio).
-2. **C**: un driver C per `toolchain` (CMake + Make) e una `c-handbook`.
-3. **Le citazioni `spec:` nel codice di produzione**: chi le toglie prima
-   della PR (martin in review? un tool?).
-4. **Autonomia**: oggi i commit chiedono sempre conferma. Se serve, un
-   livello configurabile (come `AUTONOMY_LINUS` su Copilot).
-5. **Versione LangGraph**, con metriche comuni per il confronto.
-6. **Dopo la prima sessione vera (21 ottobre, commit `456140e`)**: argyris ha
-   corretto kent (lingua, `linus branch` a inizio sessione, `scaffold --dir`
-   per un progetto in una sottocartella, mai passare all'utente un passo che
-   un tool o un agente può fare) e l'hook dei segnali (legge il messaggio di
-   `SubagentHandback`). Restano da fare:
-   - **`make test`**: argyris non può lanciarlo. Non ha mai visto girare i
-     test nuovi (`test_linus_branch`,
-     `test_scaffold_into_a_new_folder_of_the_repository`,
-     `test_kent_switches_branch`). Lanciarlo prima di continuare e
-     correggere quello che fallisce.
-   - **Un test per `signal_stop.py`**: oggi non ce n'è nessuno. Due casi:
-     un transcript che finisce con una chiamata `SubagentHandback` con il
-     blocco nel `message`, e uno senza handback, che usa
-     `last_assistant_message`. Da verificare anche in una sessione vera:
-     dopo un handback forzato l'hook registra due eventi per lo stesso
-     turno, e joshua non deve contarli come due violazioni.
-   - **Fatto il 21 ottobre** (sessione di prova in `/tmp/minime-py`): `make
-     test` verde; `scaffold commit`; CI di un progetto in cartella alla
-     radice con filtro `paths`; ogni scaffold passa a ford
-     (`container-scaffold` per Dockerfile e compose); kent chiede solo il
-     perimetro; `toolchain.yaml` alla radice con `project: <cartella>`
-     (la Q9 sotto, risolta così).
-   - **Terza sessione di prova (21-22 ottobre, `/tmp/minime-py`)**: kent
-     chiede solo il perimetro e divide le domande aperte tra hughes e ford;
-     simon parte dopo la shopping list; nessun rifiuto del guard. Fermata a
-     hughes (nome della metrica), perché il flusso ormai regge. Da qui:
-     - kent ha proposto da solo un health check: ora è una domanda di
-       perimetro fissa per un servizio;
-     - simon prova `date` per l'ora dell'intestazione e del changelog di
-       `architecture.md` e il guard lo nega: dargli `date` o un'ora dai
-       suoi tool;
-     - kent passa all'utente `make structurizr-install` (simon non trova
-       `structurizr-cli`): un'installazione sulla macchina dell'utente,
-       accettabile, ma da decidere;
-     - riprendere da ford: scaffold in una cartella con il `toolchain.yaml`
-       alla radice, poi `container-scaffold`, poi martin con il rapporto e
-       la chiusura esplicita dell'unità, mai provati dal vivo.
-   - **Quarta sessione (22 ottobre, con la skill `kent-loop`)**: arrivata a
-     fine ford. Lo scaffold di ford in una cartella regge: `scaffold
-     verify`/`commit`, `toolchain.yaml` alla radice, `container-scaffold`
-     (Dockerfile, compose con Postgres 18, `up`/`down`/`logs`), interfacce,
-     mappa realizzata; build, ruff, mypy strict, test e `docker build`
-     passano. Le deleghe a parole ("accetto le opzioni che consigli")
-     funzionano con hughes e ford. simon ha trovato due ambiguità vere della
-     spec. Aperti: ford non poteva lanciare `toolchain check` (corretto);
-     joshua conta come "minor" le domande dello scaffold saltate sotto
-     delega (chiarire nella skill che la delega le copre); nessuno scrive
-     l'harness dei test (la fixture testcontainers di Postgres): ford, come
-     scaffold, o unclebob nel primo componente che la usa? Il prossimo
-     passo è unclebob.
-   - **`toolchain` non vede un progetto in una sottocartella**: trova la
-     radice con `git rev-parse --show-toplevel`, quindi `deterministic-kent/`
-     resta invisibile e la precondizione di ford (`toolchain build`)
-     fallisce. È la Q9 della shopping list `deterministic-workflow`: una
-     chiave `project: <cartella>` nel `toolchain.yaml` alla radice, che
-     l'utente fa con unclebob interattivo prima che kent lanci hughes. Va
-     aggiunto anche `minime` (o la cartella) a `projects` di
-     `python-handbook`.
-   - **PATH**: `make install` avverte che `~/.local/bin` non è nel PATH della
-     shell di `make`. Controllare sull'altro PC.
-   - **Riprendere la sessione di kent**: `claude --agent kent` sul branch
-     `deterministic-workflow`. Lo stato è in `session-state` (sotto `/tmp`,
-     quindi non arriva sull'altro PC: lì basta la shopping list
-     `.sources/shopping_lists/deterministic-workflow.md`, che kent non ha
-     ancora committato e che va copiata a mano o committata prima).
+Un progetto Python `metrics-server` in una cartella di un repository
+fittizio, guidato da qui con la skill `kent-loop`. Corretto strada facendo:
+
+- **Ruoli.** kent è analista e orchestratore: chiede all'utente solo il
+  perimetro (con l'health check fisso per un servizio) e lascia il dominio a
+  hughes e la tecnologia a ford, come domande aperte con proprietario nella
+  shopping list. Ogni scaffold è di ford (`<linguaggio>-scaffold`,
+  `scaffold verify`/`commit`, poi `container-scaffold` dopo `adl-scaffold`);
+  kent lancia solo `scaffold init` in una cartella vuota. Ogni riga di
+  codice è di unclebob, **harness dei test compreso**: test-first, un pezzo
+  entra con il primo red che ne ha bisogno; ford scrive solo le fitness
+  function.
+- **martin**: audit, squash, revisione tecnica, rapporto dei findings in
+  `MARTIN_DONE`; nessuna domanda sui findings, nessuna revisione guidata.
+  L'utente rivede da solo, dà a kent le correzioni (fixup tramite
+  unclebob, ford o hughes) e chiude l'unità con un comando esplicito.
+- **Tool.** `scaffold init` e `scaffold commit`; CI di un progetto in
+  cartella alla radice, con `working-directory` e filtro `paths`;
+  `toolchain.yaml` alla radice con `project: <cartella>` (la Q9: `toolchain`
+  e `adl-graph` lavorano sulla cartella dalla radice); ogni `toolchain.yaml`
+  è un file del flusso.
+- **Guard.** `ls` e `cat` a kent, `date` a simon, `toolchain check` a ford.
+- **Agenti.** La risposta inoltrata da kent è dell'utente; una delega a
+  parole ("per il resto accetto le tue raccomandazioni") conferma i passi
+  che nomina, e l'agente riporta quali scelte sono sue; simon parte dopo la
+  shopping list; joshua non registra i rifiuti del guard già superati né le
+  deleghe.
+- **Copilot**: la revisione guidata dall'utente, la divisione delle domande,
+  l'ordine di simon e la fiducia nella relay sono in #17 (mergiata).
+
+L'ultima sessione è arrivata a fine ford: scaffold, container, interfacce e
+mappa verificati (build, ruff, mypy strict, test, `docker build`).
+
+### Prossimi passi
+
+1. **Continuare la prova da unclebob** con `kent-loop`: il primo componente
+   con l'harness test-first (la fixture testcontainers di Postgres), il
+   rapporto di martin, una correzione dell'utente come fixup, la chiusura
+   esplicita dell'unità. Mai provati dal vivo.
+2. **L'harness delle unità precedenti**: oggi il refactor di un ciclo copre
+   solo quello scritto dalla stessa unità; quello delle unità precedenti
+   cambia solo con le correzioni dell'utente. Decidere se togliere anche
+   questo limite.
+3. **`kent-loop` come modalità di lavoro**: l'agente principale guida kent
+   headless e corregge minime da sé, un argyris migliorato. Per ora un
+   esperimento; decidere se diventa il default e cosa resta ad argyris.
+4. **Copilot, punto 19** del suo `NEXT_ITERATION.md` (harness a unclebob,
+   deleghe, una correzione per turno): una PR a parte quando l'utente lo
+   chiede. Lo scaffold a ford e `toolchain` con `project:` aspettano che il
+   kent di Copilot scaffoldi.
+5. **Riprendere la sessione su `deterministic-workflow`**: il progetto è in
+   `deterministic-kent/`, quindi serve un `toolchain.yaml` alla radice con
+   `project: deterministic-kent` (lo scrive kent, con l'approvazione
+   dell'utente). La shopping list
+   `.sources/shopping_lists/deterministic-workflow.md` va committata o
+   copiata sull'altro PC; `session-state` è sotto `/tmp`.
+6. **Un test per `signal_stop.py`**: un transcript che finisce con
+   `SubagentHandback` (il blocco nel `message`) e uno senza, che usa
+   `last_assistant_message`. Da verificare dal vivo: dopo un handback
+   forzato l'hook registra due eventi per lo stesso turno, e joshua non deve
+   contarli due volte.
+7. **`structurizr-cli`**: kent passa all'utente `make structurizr-install`
+   quando simon non lo trova; decidere se va bene così.
+8. **`python-handbook`**: aggiungere a `projects` le cartelle vere
+   (`deterministic-kent`, poi il progetto LangGraph).
+9. **PATH**: `make install` avverte che `~/.local/bin` non è nel PATH della
+   shell di `make`; controllare sull'altro PC.
+10. **C**: un driver C per `toolchain` (CMake + Make) e una `c-handbook`.
+11. **Le citazioni `spec:` nel codice di produzione**: chi le toglie prima
+    della PR (martin in review? un tool?).
+12. **Autonomia dei commit**: oggi chiedono conferma (in `kent-loop` li
+    approva l'allowlist). Se serve, un livello configurabile, come
+    `AUTONOMY_LINUS` su Copilot.
+13. **Versione LangGraph**, con metriche comuni per il confronto.
 
 ## Refactor dell'architettura degli agenti (decisioni del 16 ottobre)
 
