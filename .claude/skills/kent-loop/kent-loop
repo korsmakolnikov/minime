@@ -41,7 +41,7 @@ message() {
 
 running() { [ -f "$PIDFILE" ] && kill -0 "$(cat "$PIDFILE")" 2>/dev/null; }
 
-results() { grep -c '"type":"result"' "$OUT" 2>/dev/null || echo 0; }
+results() { local n; n=$(grep -c '"type":"result"' "$OUT" 2>/dev/null); echo "${n:-0}"; }
 
 last_text() {
   python3 - "$OUT" <<'PY'
