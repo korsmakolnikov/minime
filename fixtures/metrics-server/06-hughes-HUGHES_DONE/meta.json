@@ -1,0 +1,14 @@
+{
+  "time": "2026-10-24T09:14:25+0200",
+  "label": "hughes-HUGHES_DONE",
+  "event": {
+    "time": "2026-10-24T09:14:24+02:00",
+    "agent": "hughes",
+    "agent_id": "ae2d2473a9efba025",
+    "transcript": "/home/blacksheep/.claude/projects/-tmp-metrics-server-project/29184fec-44e9-4f1d-be84-7e97ab620912/subagents/agent-ae2d2473a9efba025.jsonl",
+    "signal": "HUGHES_DONE",
+    "ok": true
+  },
+  "minime": "fc9ab56",
+  "base": "/tmp/metrics-server"
+}

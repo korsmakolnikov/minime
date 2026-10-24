@@ -184,6 +184,29 @@ fittizio, guidato da qui con la skill `kent-loop`. Corretto strada facendo:
 L'ultima sessione è arrivata a fine ford: scaffold, container, interfacce e
 mappa verificati (build, ruff, mypy strict, test, `docker build`).
 
+### Sessione del 24 ottobre (`/tmp/metrics-server`, interrotta)
+
+Rifatta da capo fino a unclebob, con gli snapshot nuovi di `kent-loop` in
+`fixtures/metrics-server/` (01 progetto vuoto … 06 correzione di hughes;
+07 preso a mano a metà della prima unità `metrics`, con i cicli TDD fino
+al nome che finisce con un punto). Per ripartire: `KENT_LOOP=/tmp/metrics-server
+kent-loop restore 07`, poi `start "riprendi"`; i transcript e lo stream di kent
+restano solo in locale (`fixtures/.gitignore`).
+
+- Decisioni prese come utente: dominio di hughes approvato con la sua
+  delega; i codici di forma della richiesta restano contratto HTTP di ford,
+  non dominio; i tre punti di architettura di simon (store che non si apre
+  all'avvio, fitness function sul pacchetto radice, Starlette e psycopg
+  senza componente) vanno a ford dopo la chiusura di `metrics`, prima di
+  `storage`.
+- Corretto strada facendo: `git-read symbolic-ref` in lettura; `head`,
+  `tail`, `wc`, `sort`, `uniq` come filtri di pipe; `cd` ammesso e nessun
+  comando fuori da un repo git (tranne `session-state show`,
+  `scaffold init`, `ls`).
+- Rumore lasciato: `echo` (simon), redirect di joshua in `/tmp`.
+- Da fare: chiudere `metrics` (rapporto di martin, una correzione come
+  fixup, chiusura esplicita), poi `storage` con testcontainers.
+
 ### Prossimi passi
 
 1. **Continuare la prova da unclebob** con `kent-loop`: il primo componente
