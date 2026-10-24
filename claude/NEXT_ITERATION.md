@@ -207,11 +207,10 @@ mappa verificati (build, ruff, mypy strict, test, `docker build`).
    dell'utente). La shopping list
    `.sources/shopping_lists/deterministic-workflow.md` va committata o
    copiata sull'altro PC; `session-state` è sotto `/tmp`.
-6. **Un test per `signal_stop.py`**: un transcript che finisce con
-   `SubagentHandback` (il blocco nel `message`) e uno senza, che usa
-   `last_assistant_message`. Da verificare dal vivo: dopo un handback
-   forzato l'hook registra due eventi per lo stesso turno, e joshua non deve
-   contarli due volte.
+6. **`signal_stop.py`**: fatto, `tests/test_signal_stop.py` (handback,
+   `last_assistant_message`, blocco e riprova: un evento `ok: false` e poi
+   uno `ok: true` con lo stesso id, che joshua legge già come un turno
+   solo). Resta da verificare dal vivo che il CLI dia proprio questa forma.
 7. **`structurizr-cli`**: kent passa all'utente `make structurizr-install`
    quando simon non lo trova; decidere se va bene così.
 8. **`python-handbook`**: aggiungere a `projects` le cartelle vere
