@@ -207,6 +207,77 @@ restano solo in locale (`fixtures/.gitignore`).
 - Da fare: chiudere `metrics` (rapporto di martin, una correzione come
   fixup, chiusura esplicita), poi `storage` con testcontainers.
 
+### Sessione del 24 ottobre, ripresa (da snapshot 07, fermata per la quota)
+
+Ripresa con `restore 07` e `start "riprendi"`; fermata a mano per la quota
+(snapshot `08-stopped-during-unclebob-shape-codes`) mentre unclebob era ai
+controlli statici di chiusura di `metrics`, dopo i codici di forma. martin
+non è mai partito. Per ripartire: `restore 08`, `start "riprendi"`.
+
+Errori, problemi, imprecisioni:
+
+- **Il file di progresso di kent mancava**: kent non aveva mai chiamato
+  `session-state write` prima dell'interruzione, quindi lo snapshot 07 non
+  l'aveva. kent ha ricostruito bene da git il punto di unclebob (red
+  committato, green in sospeso) ma ha perso una decisione dell'utente (i
+  tre punti di simon a ford prima di `storage`), ha richiesto ordine e scope
+  dei componenti, e la sua lista degli id scoperti era una deduzione non
+  verificata. Ridata a mano; ora è nello stato. Da decidere: kent scrive lo
+  stato a ogni decisione dell'utente, non solo alla fine.
+- **`wait` di kent-loop non tornava mai** prima del primo turno chiuso
+  (`grep -c || echo 0` stampava `0` due volte). Corretto (`9b4d7c2`).
+- **joshua cercava nel log sbagliato**: `joshua.md` nominava
+  `/tmp/kent-flow.log`, che con `MINIME_STATE_DIR` non esiste; il suo audit
+  non vedeva il flusso. Nuovo `events-query --flow` (`f6ae3f7`); vale dalla
+  prossima sessione. Copilot ha lo stesso percorso fisso, ma lì non c'è
+  `MINIME_STATE_DIR`.
+- **Contratto oltre la spec**: i codici di forma di `Violation` (scritti da
+  ford nel docstring) non avevano spec id; unclebob li ha trovati solo a
+  fine unità, con `parse_batch` che sollevava `KeyError`/`TypeError` (un 500
+  in api). Bene che abbia chiesto; ma ford dovrebbe mappare ogni codice del
+  contratto (in `components.yaml`, o un id di contratto), così entra nella
+  lista di unclebob dall'inizio.
+- **Granularità del TDD**: 200 commit per un componente (66 cicli: 66 test,
+  66 feat, 66 refactor, 2 fixup di chiusura); **52 refactor su 66 sono
+  vuoti** ("keep … as is"), imposti da `linus` dopo ogni green. Ogni
+  refactor vuoto è un giro di chiamate che rilegge tutto il contesto.
+  Codice: 249 righe di produzione, 478 di test.
+- **Rifiuti del guard**: 9 in tutta la prova, nessuno ripetuto; nella
+  ripresa due, rumore (joshua `rg … /tmp/kent-flow.log`, ora corretto;
+  unclebob `uv run ruff format` invece di `toolchain check --fix`).
+  Nessun segnale fallito al primo colpo (28 eventi).
+- joshua: `AUDIT_OK` su ogni turno, nessuna violazione.
+
+### Metriche dei token (prova `metrics-server`, entrambe le sessioni del 24 ottobre)
+
+Dai transcript locali (`~/.claude/projects/-tmp-metrics-server-project/`,
+script: messaggi deduplicati per id). Il peso è in token-equivalenti di
+input col listino relativo di Opus: input 1, scrittura cache 1,25, lettura
+cache 0,1, output 5. kent dichiara $7,40 + $6,96 nei `result`, che
+probabilmente non contano i subagent in background.
+
+| agente | chiamate | contesto medio/chiamata | output medio/chiamata | lettura cache | peso (M) | quota |
+|---|---|---|---|---|---|---|
+| unclebob | 537 | 122k | 338 | 65,2M | 7,93 | **70,8%** |
+| joshua | 83 | 80k | 180 | 6,2M | 1,20 | 10,7% |
+| kent | 73 | 51k | 506 | 3,6M | 0,72 | 6,4% |
+| simon | 43 | 50k | 1216 | 2,0M | 0,66 | 5,9% |
+| ford | 54 | 53k | 776 | 2,8M | 0,59 | 5,2% |
+| hughes | 10 | 16k | 1097 | 0,1M | 0,11 | 1,0% |
+
+unclebob per ciclo TDD (66 cicli): 8,1 chiamate, 987k token letti dalla
+cache, 2,75k di output, 120k token-equivalenti. L'82% del suo peso è
+**rilettura della cache**: il contesto cresce con il componente (122k di
+media), e ogni chiamata lo rilegge. Leve da misurare alla prossima prova
+contro questa riga di base:
+
+1. Il refactor vuoto senza commit (o dentro il commit del green), quando
+   non c'è niente da cambiare: −1 fase su 3 per ciclo.
+2. Un unclebob per gruppo di spec id (contesto nuovo), non uno per
+   componente.
+3. Output più corti dei comandi che unclebob rilegge (`toolchain test`,
+   `linus`): il contesto per chiamata è il moltiplicatore.
+
 ### Prossimi passi
 
 1. **Continuare la prova da unclebob** con `kent-loop`: il primo componente
