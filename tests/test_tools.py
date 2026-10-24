@@ -45,6 +45,14 @@ class ToolTest(unittest.TestCase):
         with open(os.path.join(self.state, "kent-flow.log")) as log:
             self.assertIn("[tester] one line", log.read())
 
+    def test_events_query_flow(self):
+        self.sh("flow-log", "kent", "launch ford")
+        self.sh("flow-log", "ford", "scaffold done")
+        flow = self.sh("events-query", "--flow", "--agent", "ford").stdout
+        self.assertIn("[ford] scaffold done", flow)
+        self.assertNotIn("[kent]", flow)
+        self.assertEqual(self.sh("events-query", "--flow", "--since", "9999").stdout, "")
+
     def test_shopping_list(self):
         self.sh("git", "switch", "-qc", "feat/x")
         self.assertNotEqual(self.sh("shopping-list", "show", ok=False).returncode, 0)

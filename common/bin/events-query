@@ -5,6 +5,8 @@ Usage:
   events-query [filters]            the sub-agent stops, /tmp/kent-events.jsonl
   events-query --guard [filters]    the guard's refusals, /tmp/kent-guard.jsonl
   events-query --new [filters]      only the stops not acknowledged yet
+  events-query --flow [filters]     every call of every agent, /tmp/kent-flow.log
+                                    (--agent and --since only)
   events-query ack                  acknowledge every stop the last --new printed
   events-query transcript <agent id | path> [--full]
                                     a sub-agent's transcript, condensed: its
@@ -24,6 +26,7 @@ from minime import ToolError, state_path, main_guard  # noqa: E402
 
 EVENTS = state_path("kent-events.jsonl")
 GUARD = state_path("kent-guard.jsonl")
+FLOW = state_path("kent-flow.log")
 OFFSET = state_path("joshua-events.offset")
 LIMIT = 400
 
@@ -96,6 +99,16 @@ def transcript(target, full):
                     print(f"[result {part.get('tool_use_id', '')}{flag}] {short(body, full)}")
 
 
+def flow(args):
+    if not os.path.exists(FLOW):
+        return
+    tag = f" [{args.agent}] " if args.agent else ""
+    with open(FLOW) as log:
+        for line in log:
+            if tag in line and (not args.since or line[:25] >= args.since):
+                sys.stdout.write(line)
+
+
 def main():
     argv = sys.argv[1:]
     if argv[:1] in (["-h"], ["--help"]):
@@ -115,9 +128,12 @@ def main():
     parser = argparse.ArgumentParser(add_help=False)
     for flag in ("--agent", "--id", "--since", "--signal"):
         parser.add_argument(flag)
-    for flag in ("--failed", "--guard", "--new"):
+    for flag in ("--failed", "--guard", "--new", "--flow"):
         parser.add_argument(flag, action="store_true")
     args = parser.parse_args(argv)
+    if args.flow:
+        flow(args)
+        return 0
     rows = load(GUARD if args.guard else EVENTS)
     start = 0
     if args.new:

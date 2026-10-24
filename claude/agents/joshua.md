@@ -64,7 +64,9 @@ command with `[joshua]`.
    * `events-query --guard --since <time>`: the calls the guard refused;
    * the repository: `git-read log --format='%h %s%n%b' {base}..HEAD`,
      `git-read show`, `linus range`;
-   * `/tmp/kent-flow.log`, every call of every agent, tagged.
+   * `events-query --flow [--agent <name>] [--since <time>]`: every call of
+     every agent, tagged (`/tmp/kent-flow.log`, or the state directory the
+     session runs with).
 
 ## Messages from kent
 
