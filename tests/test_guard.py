@@ -139,6 +139,8 @@ class GuardTest(unittest.TestCase):
         self.allowed("ford", "toolchain check --agent ford")
         self.allowed("ford", "scaffold --help 2>&1 | head -40")
         self.allowed("joshua", "events-query --new | tail -n 5 | wc -l")
+        self.allowed("kent", "rg --files metrics-server | sort | uniq -c")
+        self.denied("kent", "rg --files . | sort -o out.txt", "only filters a pipe")
         self.denied("hughes", "head -5 src/app.py", "only filters a pipe")
         self.denied("ford", "toolchain test | tail -f", "only filters a pipe")
         self.denied("hughes", "spec-check --stage domain | head -3 > /etc/x", "may not write")

@@ -49,7 +49,7 @@ COMMON = {"flow-log": None, "git-read": None, "rg": None, "minime-config": None}
 RG_REFUSED = ("--pre", "-z", "--search-zip")
 # Filters every agent may pipe a tool's output into: with no file argument
 # they read only stdin, so they cannot reach a file the agent may not read.
-FILTERS = {"head", "tail", "wc"}
+FILTERS = {"head", "tail", "wc", "sort", "uniq"}
 SHOW = {"shopping-list": {"show", "path"}}
 TESTS = {"toolchain": {"show", "build", "test", "related", "check"}}
 
