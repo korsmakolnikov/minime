@@ -27,6 +27,9 @@ into the real logs.
 | `read` | kent's messages, its tool calls and errors, and the end of each turn with its cost, since the last read |
 | `wait` | blocks until kent ends a turn asking the user something, or stops; run it in background and read after |
 | `denials` | every call the guard refused, all agents |
+| `snapshot [label]` | a snapshot of the session now |
+| `snapshots` | the fixture's snapshots, numbered |
+| `restore <NN>` | replace `project/` and `state/` with snapshot NN (kent stopped) |
 | `status`, `stop` | the process |
 
 kent runs with `--permission-mode acceptEdits` and an allowlist of the
@@ -36,12 +39,32 @@ session stays alive between messages (`tail -f` on the inbox), so joshua
 and simon keep running in background. There is no AskUserQuestion in
 headless mode: kent asks in text.
 
+## Snapshots: time travel between agent turns
+
+While kent runs, a watcher snapshots the session every time an agent ends a
+turn with a signal matching `KENT_LOOP_SNAPSHOT_SIGNALS` (default `*_DONE`
+and `FORD_AS_IS`: a finished piece of work, not each question). A snapshot is
+a folder `<NN>-<agent>-<signal>` in `$KENT_LOOP_FIXTURE` (default
+`fixtures/<name of $KENT_LOOP>` in minime, versioned): the project with its
+`.git` (ignored files left out: rebuild them with `toolchain build`), the
+workflow's logs and state (`MINIME_STATE_DIR`, kent's progress file
+included), kent's stream and the sub-agent transcripts the events name.
+
+To iterate on one agent, restore the snapshot taken just before it and
+start kent again with "riprendi": kent resumes from its progress file, the
+logs say what happened before, and the agents up to that point do not run
+again. `meta.json` names the minime commit the snapshot was taken with.
+
+Before committing new snapshots, check their size, and that nothing in
+them names a real system (the test projects are fictitious).
+
 ## A session
 
 1. **Prepare the project** in `$KENT_LOOP/project`: an empty folder for a
    greenfield test, or a repository with a first commit (a README, some
-   docs) to test a project in a folder or a brownfield one. Remove the
-   folder and `state/` to start again from scratch.
+   docs) to test a project in a folder or a brownfield one; or `restore` a
+   snapshot of an earlier session. Remove the folder and `state/` to start
+   again from scratch.
 2. **Start** with what a user would say, in Italian: the goal, the scope
    and the decisions already taken, so that kent does not ask again what
    an earlier session settled.

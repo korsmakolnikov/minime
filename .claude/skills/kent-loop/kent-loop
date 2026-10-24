@@ -5,8 +5,14 @@
 #   kent-loop read                      what kent did since the last read
 #   kent-loop wait                      block until kent asks the user something, or stops
 #   kent-loop denials                   the calls the guard refused, every agent
+#   kent-loop snapshot [label]          snapshot the session now (also automatic, see below)
+#   kent-loop snapshots                 list the fixture's snapshots
+#   kent-loop restore <NN | folder>     replace project/ and state/ with a snapshot (kent stopped)
 #   kent-loop status | stop
 # KENT_LOOP is the session's folder (default /tmp/kent-loop): project/, state/, logs.
+# KENT_LOOP_FIXTURE is where its snapshots go (default fixtures/<KENT_LOOP's name> in
+# minime): while kent runs, every agent turn whose signal matches
+# KENT_LOOP_SNAPSHOT_SIGNALS (default: *_DONE and FORD_AS_IS) is snapshotted.
 set -euo pipefail
 
 BASE=${KENT_LOOP:-/tmp/kent-loop}
@@ -15,13 +21,17 @@ INBOX=$BASE/inbox.jsonl
 OUT=$BASE/out.jsonl
 PIDFILE=$BASE/kent.pid
 CURSOR=$BASE/read.cursor
+HERE=$(cd "$(dirname "$0")" && pwd)
+MINIME=$(cd "$HERE/../../.." && pwd)
+FIXTURE=${KENT_LOOP_FIXTURE:-$MINIME/fixtures/$(basename "$BASE")}
+case "$FIXTURE" in /*) ;; *) FIXTURE=$MINIME/$FIXTURE ;; esac
 export MINIME_STATE_DIR=$BASE/state
 
 # The workflow's tools only: anything else is refused by the guard or the headless prompt.
 TOOLS=(Read Write Edit Agent SendMessage Skill TodoWrite)
 for t in linus scaffold toolchain git-read shopping-list session-state flow-log \
          audit-log events-query minime-migrate adl-graph spec-check signal-check rg \
-         ls cat date structurizr-cli; do
+         ls cat date structurizr-cli minime-config; do
   TOOLS+=("Bash($t:*)")
 done
 
@@ -61,7 +71,8 @@ case "${1:-}" in
         --permission-mode acceptEdits --allowedTools ${TOOLS[*]@Q} \
         > '$OUT' 2> '$BASE/err.log'" > /dev/null 2>&1 &
     echo $! > "$PIDFILE"
-    echo "kent started (pid $(cat "$PIDFILE")), project $PROJECT"
+    setsid nohup python3 "$HERE/snapshots.py" watch "$BASE" "$FIXTURE" >> "$BASE/snapshots.log" 2>&1 &
+    echo "kent started (pid $(cat "$PIDFILE")), project $PROJECT, snapshots in $FIXTURE"
     ;;
   say)
     running || { echo "kent is not running"; exit 1; }
@@ -118,6 +129,19 @@ for line in open(path):
     print(f'{e["time"][11:19]} {e["agent"]} | {str(target)[:160]} | {e["reason"][:160]}')
 PY
     ;;
+  snapshot)
+    python3 "$HERE/snapshots.py" take "$BASE" "$FIXTURE" "${2:-manual}"
+    ;;
+  snapshots)
+    python3 "$HERE/snapshots.py" list "$FIXTURE"
+    ;;
+  restore)
+    running && { echo "stop kent first"; exit 1; }
+    target=${2:?usage: kent-loop restore <NN | folder>}
+    [ -d "$target" ] || target=$(ls -d "$FIXTURE/$target"-* 2>/dev/null | head -1)
+    [ -d "$target" ] || { echo "no snapshot $2 in $FIXTURE"; exit 1; }
+    python3 "$HERE/snapshots.py" restore "$BASE" "$target"
+    ;;
   status)
     running && echo "running (pid $(cat "$PIDFILE"))" || echo "stopped"
     tail -3 "$BASE/err.log" 2>/dev/null || true
@@ -126,5 +150,5 @@ PY
     running && kill -- -"$(cat "$PIDFILE")" 2>/dev/null || true
     rm -f "$PIDFILE"; echo "stopped"
     ;;
-  *) sed -n '2,9p' "$0"; exit 2 ;;
+  *) sed -n '2,15p' "$0"; exit 2 ;;
 esac

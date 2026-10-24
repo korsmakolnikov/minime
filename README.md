@@ -41,6 +41,8 @@ What the repository holds and where `make` installs it:
    hooks/    auto_approve.py, notify.py ─────────────────────────► ~/.copilot/hooks/
    settings.json, copilot-instructions.md ───────────────────────► ~/.copilot/
    bin/      kent, argyris ──────────────────────────────────────► ~/.local/bin/
+ .claude/  skills/kent-loop: drives kent headless, takes snapshots
+ fixtures/ kent-loop snapshots, one folder per test project
  tests/    the tools and the hooks                make test
  .claude/  skills/kent-loop: drives a headless kent session on a test project
            (developing minime; not installed)
