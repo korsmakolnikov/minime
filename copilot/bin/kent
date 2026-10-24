@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+# Starts the workflow orchestrator. The Copilot home (agent and skill folders,
+# and the session state where joshua reads events.jsonl) and the
+# minime mirror that minime-sync commits to are added to the session's allowed
+# paths: reaching them otherwise raises a path-access prompt that the
+# permission hook cannot answer. Sub-agents share these paths. So is the root
+# of the repository kent starts in, so that a session whose directory drifts
+# into a subfolder keeps reaching the whole project.
+# Usage: kent [any other copilot option, e.g. --resume -i "continue"]
+root=$(git rev-parse --show-toplevel 2>/dev/null) || root=$PWD
+exec copilot --agent kent \
+  --add-dir "$root" \
+  --add-dir "$HOME/.copilot" \
+  --add-dir "$HOME/code/minime" \
+  "$@"

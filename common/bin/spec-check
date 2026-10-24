@@ -1,0 +1,406 @@
+#!/usr/bin/env python3
+"""Validates a domain spec (.sources/spec.yaml) and what refers to it.
+
+Usage:
+  spec-check --stage domain|contracts [<path>]    version 1 (domain-spec skill)
+  spec-check --stage domain [<path>]              version 2 (domain-model skill)
+  spec-check --stage realization [<path>]         version 2: ford's
+                                                  .sources/components.yaml
+  spec-check --stage coverage [<path>]            version 2: the ids the tests cite
+
+<path> defaults to .sources/spec.yaml; the version comes from its `spec` key.
+Prints "ok" or one line per problem, exiting 1 on any problem and 2 on a usage
+or parse error. The contracts and realization stages also check the
+components against the ADL files in the spec's folder (as-is drafts
+excluded). The coverage stage lists, from the files git tracks or sees, the
+spec ids no test cites in a `spec: <id>` comment, the cited ids the spec
+lacks, and the production files that cite an id (allowed while the branch
+is open, gone before the pull request).
+"""
+import argparse
+import pathlib
+import re
+import subprocess
+import sys
+
+try:
+    import yaml
+except ImportError:
+    sys.exit("spec-check needs PyYAML (python3 -m pip install pyyaml)")
+
+ID_RE = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
+ENTITY_RE = re.compile(r"^[A-Z][A-Za-z0-9]*$")
+RELATION_KINDS = {"one_to_one", "one_to_many", "many_to_one", "many_to_many"}
+PROPERTY_KINDS = {"invariant", "roundtrip", "idempotence", "metamorphic", "model", "oracle"}
+PROVISIONAL_RE = re.compile(r"\b(should|for now|todo|tbd|later)\b", re.IGNORECASE)
+TOP_KEYS = {"spec", "system", "entities", "relations", "constraints", "contracts", "properties"}
+TOP_KEYS_2 = {"spec", "system", "entities", "events", "relations", "constraints", "operations", "properties"}
+ENTITY_KINDS = {"entity", "value_object"}
+BOUNDARIES = {"interface", "concrete"}
+TEST_FILE_RE = re.compile(r"(^|/)(tests?/|test_[^/]*\.py$|[^/]*_test\.(exs|py)$)")
+CITE_RE = re.compile(r"spec:\s*([a-z0-9]+(?:-[a-z0-9]+)*)")
+
+problems = []
+ids = {}
+
+
+def problem(where, message):
+    problems.append(f"{where}: {message}")
+
+
+def text(where, value, key):
+    if not isinstance(value, str) or not value.strip():
+        problem(where, f"'{key}' must be a non-empty sentence")
+    elif PROVISIONAL_RE.search(value):
+        problem(where, f"'{key}' has provisional wording: {value!r}")
+
+
+def a_list(where, value, key, required):
+    if value is None:
+        if required:
+            problem(where, f"'{key}' is missing")
+        return []
+    if not isinstance(value, list) or (required and not value):
+        problem(where, f"'{key}' must be a{' non-empty' if required else ''} list")
+        return []
+    return value
+
+
+def mapping(where, item):
+    if not isinstance(item, dict):
+        problem(where, "must be a mapping")
+        return {}
+    return item
+
+
+def an_id(where, item):
+    value = item.get("id")
+    if not isinstance(value, str) or not ID_RE.match(value):
+        problem(where, f"'id' must be kebab-case, got {value!r}")
+        return
+    if value in ids:
+        problem(where, f"id '{value}' already used at {ids[value]}")
+    else:
+        ids[value] = where
+
+
+def rules(where, value, key):
+    for i, rule in enumerate(a_list(where, value, key, False)):
+        at = f"{where}.{key}[{i}]"
+        rule = mapping(at, rule)
+        an_id(at, rule)
+        text(at, rule.get("rule"), "rule")
+
+
+def adl_components(folder):
+    """Full physical paths defined in the target ADL, and those of components and libraries."""
+    paths, components = set(), set()
+    for path in folder.rglob("*.adl"):
+        if "as-is" in path.relative_to(folder).parts:
+            continue
+        stack = []  # (indent, physical, full path)
+        for line in path.read_text().splitlines():
+            m = re.match(r"(\s*)DEFINE\s+(\w+)\s+.*?\bAS\s+([A-Za-z0-9_.]+)", line)
+            if not m:
+                continue
+            indent, kind, physical = len(m.group(1)), m.group(2).upper(), m.group(3)
+            while stack and stack[-1][0] >= indent:
+                stack.pop()
+            parent = stack[-1][2] if stack else ""
+            if stack and physical.startswith(stack[-1][1] + "."):
+                parent = stack[-2][2] if len(stack) > 1 else ""
+            full = f"{parent}.{physical}" if parent else physical
+            stack.append((indent, physical, full))
+            paths.add(full)
+            if kind in ("COMPONENT", "LIBRARY"):
+                components.add(full)
+    return paths, components
+
+
+def component(where, value, system, adl):
+    if not isinstance(value, str) or not value:
+        problem(where, "'component' is missing")
+        return
+    segments = value.split(".")
+    if segments[0] != system:
+        problem(where, f"component '{value}' does not start with the system '{system}'")
+    if adl is None:
+        return
+    paths, components = adl
+    if value not in paths:
+        problem(where, f"component '{value}' is not defined in the ADL")
+    elif value not in components:
+        problem(where, f"'{value}' is not a COMPONENT or LIBRARY in the ADL")
+
+
+def fields(at, item):
+    for j, field in enumerate(a_list(at, item.get("fields"), "fields", True)):
+        fat = f"{at}.fields[{j}]"
+        field = mapping(fat, field)
+        for key in ("name", "type"):
+            if not isinstance(field.get(key), str) or not field.get(key):
+                problem(fat, f"'{key}' is missing")
+        if "required" in field and not isinstance(field["required"], bool):
+            problem(fat, "'required' must be true or false")
+
+
+def domain_v2(spec):
+    """Version 2: hughes's domain, one pass, no architecture."""
+    for key in sorted(set(spec) - TOP_KEYS_2):
+        problem("spec", f"unknown key '{key}'")
+    system = spec.get("system")
+    if not isinstance(system, str) or not re.match(r"^[a-z0-9_]+$", system or ""):
+        problem("spec", "'system' must be the system's physical name (lowercase)")
+    entities = set()
+    for i, entity in enumerate(a_list("spec", spec.get("entities"), "entities", True)):
+        at = f"entities[{i}]"
+        entity = mapping(at, entity)
+        name = entity.get("name")
+        if not isinstance(name, str) or not ENTITY_RE.match(name):
+            problem(at, f"'name' must be PascalCase, got {name!r}")
+        elif name in entities:
+            problem(at, f"'{name}' defined twice")
+        else:
+            entities.add(name)
+        if entity.get("kind") not in ENTITY_KINDS:
+            problem(at, f"'kind' must be one of {', '.join(sorted(ENTITY_KINDS))}")
+        text(at, entity.get("description"), "description")
+        fields(at, entity)
+        rules(at, entity.get("invariants"), "invariants")
+    events = set()
+    for i, event in enumerate(a_list("spec", spec.get("events"), "events", False)):
+        at = f"events[{i}]"
+        event = mapping(at, event)
+        name = event.get("name")
+        if not isinstance(name, str) or not ENTITY_RE.match(name):
+            problem(at, f"'name' must be PascalCase, got {name!r}")
+        elif name in events or name in entities:
+            problem(at, f"'{name}' defined twice")
+        else:
+            events.add(name)
+        text(at, event.get("description"), "description")
+        if "fields" in event:
+            fields(at, event)
+    for i, relation in enumerate(a_list("spec", spec.get("relations"), "relations", False)):
+        at = f"relations[{i}]"
+        relation = mapping(at, relation)
+        for key in ("from", "to"):
+            if relation.get(key) not in entities:
+                problem(at, f"'{key}' names no entity: {relation.get(key)!r}")
+        if relation.get("kind") not in RELATION_KINDS:
+            problem(at, f"'kind' must be one of {', '.join(sorted(RELATION_KINDS))}")
+        text(at, relation.get("description"), "description")
+        rules(at, relation.get("rules"), "rules")
+    rules("spec", spec.get("constraints"), "constraints")
+    operations = set()
+    for i, operation in enumerate(a_list("spec", spec.get("operations"), "operations", True)):
+        at = f"operations[{i}]"
+        operation = mapping(at, operation)
+        an_id(at, operation)
+        operations.add(operation.get("id"))
+        text(at, operation.get("description"), "description")
+        for key in ("pre", "post"):
+            for j, sentence in enumerate(a_list(at, operation.get(key), key, key == "post")):
+                text(f"{at}.{key}[{j}]", sentence, key)
+        for j, error in enumerate(a_list(at, operation.get("errors"), "errors", False)):
+            eat = f"{at}.errors[{j}]"
+            error = mapping(eat, error)
+            an_id(eat, error)
+            text(eat, error.get("when"), "when")
+            text(eat, error.get("outcome"), "outcome")
+        for name in a_list(at, operation.get("emits"), "emits", False):
+            if name not in events:
+                problem(at, f"'emits' names no event: {name!r}")
+    for i, prop in enumerate(a_list("spec", spec.get("properties"), "properties", False)):
+        at = f"properties[{i}]"
+        prop = mapping(at, prop)
+        an_id(at, prop)
+        if "operation" in prop and prop["operation"] not in operations:
+            problem(at, f"'operation' names no operation: {prop['operation']!r}")
+        if prop.get("kind") not in PROPERTY_KINDS:
+            problem(at, f"'kind' must be one of {', '.join(sorted(PROPERTY_KINDS))}")
+        for j, var in enumerate(a_list(at, prop.get("forall"), "forall", True)):
+            vat = f"{at}.forall[{j}]"
+            var = mapping(vat, var)
+            if not isinstance(var.get("name"), str) or not var.get("name"):
+                problem(vat, "'name' is missing")
+            text(vat, var.get("generator"), "generator")
+        text(at, prop.get("holds"), "holds")
+
+
+def realization(spec, path):
+    """Version 2: ford's components.yaml, against the spec ids and the ADL."""
+    target = path.parent / "components.yaml"
+    try:
+        data = mapping(str(target), yaml.safe_load(target.read_text()))
+    except (OSError, yaml.YAMLError) as error:
+        print(f"{target}: {error}")
+        return 2
+    if data.get("components") is None or data.get("version") != 1:
+        problem(str(target), "'version' must be 1 and 'components' a list")
+    paths, kinds = adl_components(path.parent)
+    realized = set()
+    for i, item in enumerate(a_list(str(target), data.get("components"), "components", True)):
+        at = f"components[{i}]"
+        item = mapping(at, item)
+        value = item.get("path")
+        if value not in paths:
+            problem(at, f"'path' is not defined in the ADL: {value!r}")
+        elif value not in kinds:
+            problem(at, f"'{value}' is not a COMPONENT or LIBRARY in the ADL")
+        if not isinstance(item.get("module"), str) or not item.get("module"):
+            problem(at, "'module' is missing (the code module or class at the boundary)")
+        if item.get("boundary") not in BOUNDARIES:
+            problem(at, f"'boundary' must be one of {', '.join(sorted(BOUNDARIES))}")
+        for spec_id in a_list(at, item.get("realizes"), "realizes", False):
+            if spec_id not in ids:
+                problem(at, f"'realizes' names no spec id: {spec_id!r}")
+            realized.add(spec_id)
+    for spec_id, where in ids.items():
+        if spec_id not in realized and ".errors[" not in where:
+            problem(where, f"'{spec_id}' is realized by no component")
+    return None
+
+
+def coverage(root):
+    listed = subprocess.run(["git", "ls-files", "--cached", "--others", "--exclude-standard"],
+                            cwd=root, capture_output=True, text=True).stdout.split()
+    tested, production = {}, {}
+    for name in listed:
+        file = root / name
+        if not file.is_file() or file.suffix not in (".ex", ".exs", ".py", ".c", ".h", ".ts", ".js", ".go", ".rs"):
+            continue
+        for cited in CITE_RE.findall(file.read_text(errors="replace")):
+            (tested if TEST_FILE_RE.search(name) else production).setdefault(cited, set()).add(name)
+    for spec_id, where in ids.items():
+        if spec_id not in tested and ".errors[" not in where:
+            problem(where, f"'{spec_id}' is cited by no test (`spec: {spec_id}`)")
+    for spec_id in sorted(set(tested) - set(ids)):
+        problem("tests", f"'{spec_id}' is not in the spec, cited by {', '.join(sorted(tested[spec_id]))}")
+    for spec_id, names in sorted(production.items()):
+        print(f"note: '{spec_id}' cited in production code: {', '.join(sorted(names))}")
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Validate a domain spec.")
+    parser.add_argument("--stage", choices=["domain", "contracts", "realization", "coverage"], required=True)
+    parser.add_argument("path", nargs="?", default=".sources/spec.yaml")
+    args = parser.parse_args()
+    path = pathlib.Path(args.path)
+    try:
+        spec = yaml.safe_load(path.read_text())
+    except (OSError, yaml.YAMLError) as error:
+        print(f"{path}: {error}")
+        return 2
+    spec = mapping(str(path), spec)
+    if spec.get("spec") == 2:
+        if args.stage == "contracts":
+            print("version 2 has no contracts stage: ford's components.yaml is checked by --stage realization")
+            return 2
+        domain_v2(spec)
+        if args.stage == "realization":
+            status = realization(spec, path)
+            if status:
+                return status
+        elif args.stage == "coverage":
+            coverage(path.resolve().parent.parent)
+        return report()
+    if args.stage in ("realization", "coverage"):
+        print(f"the {args.stage} stage needs a version 2 spec ('spec: 2')")
+        return 2
+
+    for key in sorted(set(spec) - TOP_KEYS):
+        problem("spec", f"unknown key '{key}'")
+    if spec.get("spec") != 1:
+        problem("spec", "'spec' must be 1")
+    system = spec.get("system")
+    if not isinstance(system, str) or not re.match(r"^[a-z0-9_]+$", system or ""):
+        problem("spec", "'system' must be the ADL SYSTEM physical name")
+
+    entities = set()
+    for i, entity in enumerate(a_list("spec", spec.get("entities"), "entities", True)):
+        at = f"entities[{i}]"
+        entity = mapping(at, entity)
+        name = entity.get("name")
+        if not isinstance(name, str) or not ENTITY_RE.match(name):
+            problem(at, f"'name' must be PascalCase, got {name!r}")
+        elif name in entities:
+            problem(at, f"entity '{name}' defined twice")
+        else:
+            entities.add(name)
+        text(at, entity.get("description"), "description")
+        for j, field in enumerate(a_list(at, entity.get("fields"), "fields", True)):
+            fat = f"{at}.fields[{j}]"
+            field = mapping(fat, field)
+            for key in ("name", "type"):
+                if not isinstance(field.get(key), str) or not field.get(key):
+                    problem(fat, f"'{key}' is missing")
+            if "required" in field and not isinstance(field["required"], bool):
+                problem(fat, "'required' must be true or false")
+        rules(at, entity.get("invariants"), "invariants")
+
+    for i, relation in enumerate(a_list("spec", spec.get("relations"), "relations", False)):
+        at = f"relations[{i}]"
+        relation = mapping(at, relation)
+        for key in ("from", "to"):
+            if relation.get(key) not in entities:
+                problem(at, f"'{key}' names no entity: {relation.get(key)!r}")
+        if relation.get("kind") not in RELATION_KINDS:
+            problem(at, f"'kind' must be one of {', '.join(sorted(RELATION_KINDS))}")
+        text(at, relation.get("description"), "description")
+        rules(at, relation.get("rules"), "rules")
+
+    rules("spec", spec.get("constraints"), "constraints")
+
+    contracts_stage = args.stage == "contracts"
+    adl = adl_components(path.parent) if contracts_stage else None
+    if not contracts_stage:
+        for key in ("contracts", "properties"):
+            if spec.get(key):
+                problem("spec", f"'{key}' belong to the contracts stage")
+
+    for i, contract in enumerate(a_list("spec", spec.get("contracts"), "contracts", contracts_stage)):
+        at = f"contracts[{i}]"
+        contract = mapping(at, contract)
+        an_id(at, contract)
+        component(at, contract.get("component"), system, adl)
+        if not isinstance(contract.get("operation"), str) or not contract.get("operation"):
+            problem(at, "'operation' is missing")
+        for key in ("pre", "post"):
+            for j, sentence in enumerate(a_list(at, contract.get(key), key, key == "post")):
+                text(f"{at}.{key}[{j}]", sentence, key)
+        for j, error in enumerate(a_list(at, contract.get("errors"), "errors", False)):
+            eat = f"{at}.errors[{j}]"
+            error = mapping(eat, error)
+            text(eat, error.get("when"), "when")
+            if not isinstance(error.get("returns"), str) or not error.get("returns"):
+                problem(eat, "'returns' is missing")
+
+    for i, prop in enumerate(a_list("spec", spec.get("properties"), "properties", contracts_stage)):
+        at = f"properties[{i}]"
+        prop = mapping(at, prop)
+        an_id(at, prop)
+        component(at, prop.get("component"), system, adl)
+        if prop.get("kind") not in PROPERTY_KINDS:
+            problem(at, f"'kind' must be one of {', '.join(sorted(PROPERTY_KINDS))}")
+        for j, var in enumerate(a_list(at, prop.get("forall"), "forall", True)):
+            vat = f"{at}.forall[{j}]"
+            var = mapping(vat, var)
+            if not isinstance(var.get("name"), str) or not var.get("name"):
+                problem(vat, "'name' is missing")
+            text(vat, var.get("generator"), "generator")
+        text(at, prop.get("holds"), "holds")
+
+    return report()
+
+
+def report():
+    if problems:
+        print("\n".join(problems))
+        return 1
+    print("ok")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

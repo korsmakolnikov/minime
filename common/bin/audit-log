@@ -1,0 +1,133 @@
+#!/usr/bin/env python3
+"""joshua's violation log, /tmp/joshua.log, shared with argyris.
+
+Usage:
+  audit-log append <<'AUDIT'   joshua: append entries (stdin), never rewrite
+  ...
+  AUDIT
+  audit-log pending            the ids still pending, oldest first
+  audit-log show <id>...       print those entries whole
+  audit-log handled <id>... --reason "<applied: file | no change: why | duplicate of <id>>"
+                               argyris: mark them settled (HANDLED lines)
+  audit-log archive            argyris: when nothing is pending, move the log
+                               to /tmp/joshua.log.prev (the last one only)
+
+An entry starts with a heading `## <id> — <severity> — <agent> (<agent id>)`,
+the id `V-<YYYYMMDD>-<HHMMSS>-<n>` (joshua) or `M-…` (martin's TDD
+violations). An entry is pending until a `HANDLED <id>` line follows it.
+"""
+import os
+import re
+import sys
+
+sys.path[:0] = [os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "lib"),
+                os.path.expanduser("~/.local/share/minime/lib")]
+from minime import ToolError, state_path, main_guard, read_stdin  # noqa: E402
+
+LOG = state_path("joshua.log")
+ARCHIVE = state_path("joshua.log.prev")
+LEGACY = state_path("joshua-violations.md")
+ID = r"[VM]-\d{8}-\d{6}-\d+"
+HEADING = re.compile(rf"^## ({ID}) — (critical|major|minor) — \S+")
+HANDLED = re.compile(rf"^HANDLED ({ID})\b")
+
+
+def read(path=LOG):
+    return open(path).read() if os.path.exists(path) else ""
+
+
+def merge_legacy():
+    if os.path.exists(LEGACY):
+        with open(LOG, "a") as log:
+            log.write(read(LEGACY))
+        os.remove(LEGACY)
+
+
+def pending(text):
+    ids = [m.group(1) for line in text.splitlines() if (m := HEADING.match(line))]
+    handled = {m.group(1) for line in text.splitlines() if (m := HANDLED.match(line))}
+    seen, out = set(), []
+    for entry in ids:
+        if entry not in handled and entry not in seen:
+            seen.add(entry)
+            out.append(entry)
+    return out
+
+
+def entries(text):
+    """Maps every id to its entry text, from its heading to the next one."""
+    out, current = {}, None
+    for line in text.splitlines(keepends=True):
+        match = HEADING.match(line)
+        if match:
+            current = match.group(1)
+            out[current] = ""
+        elif line.startswith("## ") or HANDLED.match(line):
+            current = None
+        if current:
+            out[current] += line
+    return out
+
+
+def main():
+    args = sys.argv[1:]
+    if args in ([], ["-h"], ["--help"]):
+        print(__doc__.strip())
+        return 0 if args else 2
+    command, rest = args[0], args[1:]
+    merge_legacy()
+    if command == "append" and not rest:
+        text = read_stdin("the entries")
+        headings = [line for line in text.splitlines() if line.startswith("## ")]
+        bad = [h for h in headings if not HEADING.match(h)]
+        if not headings or bad:
+            raise ToolError("every entry starts with `## <V-YYYYMMDD-HHMMSS-n> — <critical|major|minor> — "
+                            f"<agent> (<id>)`; wrong headings: {bad or 'none found'}")
+        known = set(entries(read()))
+        again = [m.group(1) for h in headings if (m := HEADING.match(h)) and m.group(1) in known]
+        if again:
+            raise ToolError(f"ids already in the log: {', '.join(again)}")
+        with open(LOG, "a") as log:
+            log.write(("\n" if read() and not read().endswith("\n\n") else "") + text)
+        print(f"appended {len(headings)} entr{'y' if len(headings) == 1 else 'ies'}")
+    elif command == "pending" and not rest:
+        print("\n".join(pending(read())) or "nothing pending")
+    elif command == "show" and rest:
+        found = entries(read())
+        missing = [i for i in rest if i not in found]
+        if missing:
+            raise ToolError(f"no such entries: {', '.join(missing)}")
+        sys.stdout.write("\n".join(found[i] for i in rest))
+    elif command == "handled" and rest:
+        if "--reason" not in rest or rest.index("--reason") + 1 >= len(rest):
+            raise ToolError('handled needs --reason "<applied: file | no change: why | duplicate of <id>>"')
+        at = rest.index("--reason")
+        reason, ids = " ".join(rest[at + 1:]), rest[:at]
+        known = entries(read())
+        missing = [i for i in ids if i not in known]
+        if not ids or missing:
+            raise ToolError(f"no such entries: {', '.join(missing) or 'none given'}")
+        with open(LOG, "a") as log:
+            log.write("".join(f"HANDLED {i} — {reason}\n" for i in ids))
+        print(f"handled {', '.join(ids)}")
+    elif command == "archive" and not rest:
+        left = pending(read())
+        if left:
+            raise ToolError(f"still pending: {', '.join(left)}")
+        if not os.path.exists(LOG):
+            print("no log")
+            return 0
+        os.replace(LOG, ARCHIVE)
+        # joshua may have appended between the check and the move.
+        late = pending(read(ARCHIVE))
+        if late:
+            with open(LOG, "a") as log:
+                log.write(read(ARCHIVE))
+            os.remove(ARCHIVE)
+            raise ToolError(f"joshua appended meanwhile; log kept, pending: {', '.join(late)}")
+        print(f"archived to {ARCHIVE}")
+    else:
+        raise ToolError("usage: audit-log append|pending|show <id>...|handled <id>...|archive")
+
+
+main_guard(main)

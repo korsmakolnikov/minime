@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ASK_USER",
+  "description": "A question a sub-agent relays to the user through kent. One question per block; kent forwards it verbatim.",
+  "type": "object",
+  "required": ["question", "why"],
+  "additionalProperties": false,
+  "properties": {
+    "question": {"type": "string", "minLength": 1, "description": "One focused, self-contained question, in the user's language."},
+    "choices": {"type": "array", "minItems": 2, "items": {"type": "string", "minLength": 1}, "description": "The options kent offers; free text stays possible."},
+    "default": {"type": "string", "minLength": 1, "description": "The recommended option, one of the choices."},
+    "why": {"type": "string", "minLength": 1, "description": "One line on what the answer changes."}
+  }
+}

@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "MARTIN_DONE",
+  "description": "martin's report at the end of its review of a unit (on Claude Code the unit stays open until the user closes it).",
+  "type": "object",
+  "required": ["unit", "commit", "squashed", "fixups", "left_uncommitted", "tdd_violations", "code_volume"],
+  "additionalProperties": false,
+  "properties": {
+    "unit": {"type": "string", "minLength": 1, "description": "The unit's scope."},
+    "commit": {"$ref": "#/$defs/commit", "description": "The unit's commit."},
+    "squashed": {
+      "oneOf": [
+        {"type": "integer", "minimum": 1},
+        {"const": "earlier"}
+      ],
+      "description": "The number of commits squashed, or \"earlier\" for a correction."
+    },
+    "fixups": {"type": "array", "items": {"$ref": "#/$defs/commit"}, "description": "The fixups reviewed in this iteration."},
+    "left_uncommitted": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["change", "why"],
+        "additionalProperties": false,
+        "properties": {
+          "change": {"type": "string", "minLength": 1},
+          "why": {"type": "string", "minLength": 1}
+        }
+      }
+    },
+    "tdd_violations": {"type": "array", "items": {"type": "string", "pattern": "^M-[0-9]{8}-[0-9]{6}-[1-9][0-9]*$"}, "description": "The ids logged for argyris."},
+    "code_volume": {
+      "type": ["object", "null"],
+      "required": ["greens", "refactors", "cycles", "empty_refactors"],
+      "additionalProperties": false,
+      "properties": {
+        "greens": {"$ref": "#/$defs/lines"},
+        "refactors": {"$ref": "#/$defs/lines"},
+        "cycles": {"type": "integer", "minimum": 0},
+        "empty_refactors": {"type": "integer", "minimum": 0}
+      },
+      "description": "null for a correction, which has no cycles to measure."
+    },
+    "findings": {
+      "type": "array",
+      "description": "The review's findings, for the user to act on (Claude Code).",
+      "items": {
+        "type": "object",
+        "required": ["check", "where", "what"],
+        "additionalProperties": false,
+        "properties": {
+          "check": {"type": "string", "minLength": 1},
+          "where": {"type": "string", "minLength": 1, "description": "file:line, or the commit."},
+          "what": {"type": "string", "minLength": 1},
+          "suggestion": {"type": "string"}
+        }
+      }
+    }
+  },
+  "$defs": {
+    "commit": {"type": "string", "pattern": "^[0-9a-f]{7,40} \\S", "description": "A short hash and the subject."},
+    "lines": {
+      "type": "object",
+      "required": ["added", "removed"],
+      "additionalProperties": false,
+      "properties": {
+        "added": {"type": "integer", "minimum": 0},
+        "removed": {"type": "integer", "minimum": 0}
+      }
+    }
+  }
+}

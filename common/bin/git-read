@@ -1,0 +1,50 @@
+#!/usr/bin/env python3
+"""Read-only git, for the agents: the only git they run besides linus.
+
+Usage: git-read <subcommand> [args...]
+
+Subcommands: log, show, diff, status, blame, ls-files, grep, rev-parse,
+merge-base, rev-list, describe, shortlog, cat-file, name-rev, branch (only
+--show-current, --list, -a, -r, -v, --contains, --merged, --no-merged).
+`{base}` in an argument stands for the branch's base (`linus base`), so
+`git-read diff -U0 {base}...HEAD -- <file>` needs no command substitution.
+Runs without a pager. Options that write a file or run a program
+(--output, -O, --open-files-in-pager, --ext-diff, --exec-path,
+--upload-pack) are refused.
+"""
+import os
+import subprocess
+import sys
+
+sys.path[:0] = [os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "lib"),
+                os.path.expanduser("~/.local/share/minime/lib")]
+from minime import ToolError, main_guard  # noqa: E402
+
+READS = {"log", "show", "diff", "status", "blame", "ls-files", "grep", "rev-parse", "merge-base",
+         "rev-list", "describe", "shortlog", "cat-file", "name-rev", "branch"}
+BRANCH_READS = {"--show-current", "--list", "-l", "-a", "-r", "-v", "-vv", "--contains", "--merged", "--no-merged"}
+REFUSED = ("--output", "-O", "--open-files-in-pager", "--ext-diff", "--exec-path", "--upload-pack")
+
+
+def main():
+    args = sys.argv[1:]
+    if args[:1] in ([], ["-h"], ["--help"]):
+        print(__doc__.strip())
+        return 0 if args else 2
+    sub, rest = args[0], args[1:]
+    if sub not in READS:
+        raise ToolError(f"git {sub} is not a read: use linus for writes (linus --help)")
+    if sub == "branch" and (not rest or rest[0] not in BRANCH_READS):
+        raise ToolError("git-read branch needs one of " + ", ".join(sorted(BRANCH_READS)))
+    bad = [a for a in rest if a.startswith(REFUSED)]
+    if bad:
+        raise ToolError(f"refused options: {' '.join(bad)}")
+    if any("{base}" in a for a in rest):
+        base = subprocess.run(["linus", "base"], capture_output=True, text=True)
+        if base.returncode != 0:
+            raise ToolError(f"linus base: {base.stderr.strip()}")
+        rest = [a.replace("{base}", base.stdout.strip()) for a in rest]
+    return subprocess.run(["git", "--no-pager", "-c", "core.pager=cat", sub, *rest]).returncode
+
+
+main_guard(main)

@@ -1,0 +1,48 @@
+#!/usr/bin/env python3
+"""The shopping list of the current branch: .sources/shopping_lists/<branch>.md.
+
+Usage:
+  shopping-list path          print its path
+  shopping-list show          print it (exit 1 if there is none yet)
+  shopping-list write <<'EOF' replace it whole with stdin
+  ...
+  EOF
+
+A branch with "/" gives subfolders (CAI-221/task/foo.md). The folder is not
+versioned: the tool never stages it.
+"""
+import os
+import sys
+
+sys.path[:0] = [os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "lib"),
+                os.path.expanduser("~/.local/share/minime/lib")]
+from minime import ToolError, current_branch, main_guard, read_stdin, repo_root, write_atomic  # noqa: E402
+
+
+def path():
+    root = repo_root()
+    return os.path.join(root, ".sources", "shopping_lists", current_branch(root) + ".md")
+
+
+def main():
+    args = sys.argv[1:]
+    if args in ([], ["-h"], ["--help"]):
+        print(__doc__.strip())
+        return 0 if args else 2
+    command = args[0]
+    if command == "path" and len(args) == 1:
+        print(path())
+    elif command == "show" and len(args) == 1:
+        target = path()
+        if not os.path.exists(target):
+            raise ToolError(f"no shopping list yet: {target}")
+        sys.stdout.write(open(target).read())
+    elif command == "write" and len(args) == 1:
+        target = path()
+        write_atomic(target, read_stdin("the shopping list"))
+        print(f"written {target}")
+    else:
+        raise ToolError("usage: shopping-list path|show|write")
+
+
+main_guard(main)

@@ -1,0 +1,150 @@
+#!/usr/bin/env python3
+"""Builds, tests and checks the project, as its toolchain.yaml and language say.
+
+Usage:
+  toolchain show                         the language, the config, the commands
+  toolchain build [--agent A]            compile (warnings are errors)
+  toolchain test [--agent A] <path[:line]>...
+                                         one test, or a list of test files
+  toolchain test [--agent A] --commit [<rev>]
+                                         the tests that include the files of a
+                                         commit (default HEAD)
+  toolchain test [--agent A] --related <file>...
+                                         the tests that include these files
+  toolchain test [--agent A] --branch    the tests related to the branch, plus
+                                         the architecture tests
+  toolchain related (--commit [<rev>] | --branch | <file>...)
+                                         print those test files, run nothing
+  toolchain check [--agent A] [--fix] [--only format,lint,types]
+                                         the static checks on the files the
+                                         branch changed; --fix formats them first
+
+Never the full suite: the CI runs it, and `toolchain test` without paths is
+refused. A test file "includes" a file when it is that file, its mirrored
+test, or a test that names its module. With --agent, the output also goes to
+the activity log. Never interrupt a run: wait for it, however long.
+"""
+import argparse
+import os
+import sys
+
+sys.path[:0] = [os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "lib"),
+                os.path.expanduser("~/.local/share/minime/lib")]
+from minime import ToolError, flow_log, main_guard, repo_root  # noqa: E402
+from minime.toolchain import CONFIG, Project  # noqa: E402
+
+
+def tee_for(agent):
+    if not agent:
+        return None
+    return lambda line: flow_log(agent, [line]) if line.strip() else None
+
+
+def targets(project, args):
+    if args.commit is not None:
+        return project.related(project.commit_files(args.commit or "HEAD"))
+    if args.branch:
+        return project.related(project.branch_files(), architecture=True)
+    if args.related:
+        return project.related(args.paths)
+    return args.paths
+
+
+def selection(parser):
+    parser.add_argument("--commit", nargs="?", const="", default=None)
+    parser.add_argument("--branch", action="store_true")
+    parser.add_argument("paths", nargs="*")
+
+
+def main():
+    parser = argparse.ArgumentParser(prog="toolchain", add_help=False)
+    parser.add_argument("-h", "--help", action="store_true")
+    sub = parser.add_subparsers(dest="command")
+    sub.add_parser("show")
+    build = sub.add_parser("build")
+    build.add_argument("--agent")
+    test = sub.add_parser("test")
+    test.add_argument("--agent")
+    test.add_argument("--related", action="store_true")
+    selection(test)
+    related = sub.add_parser("related")
+    selection(related)
+    check = sub.add_parser("check")
+    check.add_argument("--agent")
+    check.add_argument("--fix", action="store_true")
+    check.add_argument("--only")
+    args = parser.parse_args()
+    if args.help or not args.command:
+        print(__doc__.strip())
+        return 0 if args.help else 2
+
+    project = Project(repo_root())
+    driver = project.driver
+    if args.command == "show":
+        print(f"root: {project.root}")
+        print(f"language: {driver.name}" + (f" (detected: no {CONFIG})" if project.config.get("detected") else ""))
+        for key in ("exec", "env", "commands", "architecture_tests"):
+            if key in project.config:
+                print(f"{key}: {project.config[key]}")
+        print("test: " + " ".join(project.argv("test", ["<paths>"], driver.test())[0]))
+        print("build: " + " ".join(project.argv("build", [], driver.build())[0]))
+        for name, default, _, configured in driver.checks([]):
+            state = "" if configured else "   (not configured: skipped)"
+            print(f"{name}: " + " ".join(project.argv(name, ["<files>"] if name != "types" else [], default)[0]) + state)
+        return 0
+
+    if args.command == "build":
+        status = project.run("build", [], driver.build(), tee_for(args.agent))
+        if args.agent:
+            flow_log(args.agent, [f"build: {'ok' if status == 0 else f'failed ({status})'}"])
+        return status
+
+    if args.command in ("test", "related"):
+        if args.command == "test" and args.related and not args.paths:
+            raise ToolError("--related needs the files")
+        if args.command == "related" and args.commit is None and not args.branch and not args.paths:
+            raise ToolError("related needs --commit, --branch or files")
+        if args.command == "related":
+            args.related = bool(args.paths)
+        files = targets(project, args)
+        if args.command == "related":
+            print("\n".join(files))
+            return 0
+        if args.commit is None and not args.branch and not args.paths:
+            raise ToolError("no paths: the full suite is the CI's (see toolchain --help)")
+        if not files:
+            print("no test includes these files: nothing to run")
+            return 0
+        status = project.run("test", files, driver.test(), tee_for(args.agent))
+        if args.agent:
+            flow_log(args.agent, [f"tests ({len(files)} files): {'passed' if status == 0 else f'failed ({status})'}"])
+        return status
+
+    if args.command == "check":
+        files = project.branch_files()
+        wanted = set((args.only or "format,lint,types").split(","))
+        unknown = wanted - {"format", "lint", "types"}
+        if unknown:
+            raise ToolError(f"unknown checks: {', '.join(sorted(unknown))}")
+        print("files: " + (" ".join(files) or "none"))
+        results = []
+        for name, default, paths, configured in driver.checks(files):
+            if name not in wanted:
+                continue
+            if not configured:
+                results.append(f"{name}: skipped (not configured in the project)")
+                continue
+            if name != "types" and not paths:
+                results.append(f"{name}: skipped (no changed files of the language)")
+                continue
+            if name == "format" and args.fix:
+                project.run("format_fix", paths, driver.fix_format(), tee_for(args.agent))
+            status = project.run(name, paths, default, tee_for(args.agent))
+            results.append(f"{name}: {'passed' if status == 0 else f'failed ({status})'}")
+        print("\n".join(results))
+        if args.agent:
+            flow_log(args.agent, results)
+        return 1 if any(": failed" in r for r in results) else 0
+
+
+main_guard(main)

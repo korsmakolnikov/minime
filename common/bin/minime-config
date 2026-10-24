@@ -1,0 +1,53 @@
+#!/usr/bin/env python3
+"""The workflow's optional configuration (TOML files in ~/.config/minime).
+
+Usage:
+  minime-config path                 the configuration folder
+  minime-config large-systems        every large system: <name> <path>
+  minime-config large-system [dir]   the large system dir (default: the
+                                     current folder) belongs to; exit 1 if none
+  minime-config projects <language>  the projects its handbook also covers
+  minime-config aliases              every alias: <docker command> = <cmd>
+                                     [context <container>]
+
+No file is required: a missing one lists nothing. The README's
+"Configuration" section describes the files.
+"""
+import os
+import sys
+
+sys.path[:0] = [os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "lib"),
+                os.path.expanduser("~/.local/share/minime/lib")]
+from minime import ToolError, main_guard  # noqa: E402
+from minime import config  # noqa: E402
+
+
+def main():
+    args = sys.argv[1:]
+    if args in ([], ["-h"], ["--help"]):
+        print(__doc__.strip())
+        return 0 if args else 2
+    if args == ["path"]:
+        print(config.config_dir())
+    elif args == ["large-systems"]:
+        for name, path in config.large_systems().items():
+            print(name, path)
+    elif args[:1] == ["large-system"] and len(args) <= 2:
+        here = os.path.realpath(args[1] if len(args) == 2 else os.getcwd())
+        for name, path in config.large_systems().items():
+            if here == path or here.startswith(path + os.sep):
+                print(name)
+                return 0
+        return 1
+    elif args[:1] == ["projects"] and len(args) == 2:
+        for name in config.projects(args[1]):
+            print(name)
+    elif args == ["aliases"]:
+        for name, entry in config.aliases().items():
+            context = f" context {entry['context']}" if entry.get("context") else ""
+            print(f"{name} = {entry['cmd']}{context}")
+    else:
+        raise ToolError("usage: minime-config path|large-systems|large-system [dir]|projects <language>|aliases")
+
+
+main_guard(main)

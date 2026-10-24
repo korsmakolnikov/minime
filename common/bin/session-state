@@ -1,0 +1,41 @@
+#!/usr/bin/env python3
+"""kent's progress file, to resume a session: /tmp/kent-partial-session-progress.md.
+
+Usage:
+  session-state show          print it (exit 1 if there is none)
+  session-state write <<'EOF' replace it whole with stdin
+  ...
+  EOF
+  session-state clear         remove it (the session is over)
+"""
+import os
+import sys
+
+sys.path[:0] = [os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "lib"),
+                os.path.expanduser("~/.local/share/minime/lib")]
+from minime import ToolError, state_path, main_guard, read_stdin, write_atomic  # noqa: E402
+
+STATE = state_path("kent-partial-session-progress.md")
+
+
+def main():
+    args = sys.argv[1:]
+    if args in ([], ["-h"], ["--help"]):
+        print(__doc__.strip())
+        return 0 if args else 2
+    if args == ["show"]:
+        if not os.path.exists(STATE):
+            raise ToolError("no session in progress")
+        sys.stdout.write(open(STATE).read())
+    elif args == ["write"]:
+        write_atomic(STATE, read_stdin("the session state"))
+        print(f"written {STATE}")
+    elif args == ["clear"]:
+        if os.path.exists(STATE):
+            os.remove(STATE)
+        print("cleared")
+    else:
+        raise ToolError("usage: session-state show|write|clear")
+
+
+main_guard(main)

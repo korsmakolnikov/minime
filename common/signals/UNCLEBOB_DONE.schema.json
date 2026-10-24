@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "UNCLEBOB_DONE",
+  "description": "unclebob's report once a component, or the integration flow, is done and its closing checks have run.",
+  "type": "object",
+  "required": ["component", "implemented", "tests", "spec_ids", "checks", "commits", "open_points"],
+  "additionalProperties": false,
+  "properties": {
+    "component": {"type": "string", "minLength": 1, "description": "The module or package, or \"integration\"."},
+    "implemented": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}, "description": "Functions and behaviours."},
+    "tests": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}, "description": "Test files added or changed."},
+    "spec_ids": {
+      "type": "object",
+      "required": ["covered", "left_out"],
+      "additionalProperties": false,
+      "properties": {
+        "covered": {"type": "array", "items": {"type": "string", "minLength": 1}},
+        "left_out": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "reason"],
+            "additionalProperties": false,
+            "properties": {
+              "id": {"type": "string", "minLength": 1},
+              "reason": {"type": "string", "minLength": 1, "description": "The user decided, or the entry cannot be tested as written."}
+            }
+          }
+        }
+      }
+    },
+    "checks": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["command", "result"],
+        "additionalProperties": false,
+        "properties": {
+          "command": {"type": "string", "minLength": 1},
+          "result": {"type": "string", "minLength": 1, "description": "For instance \"42 tests, 0 failures\"."}
+        }
+      },
+      "description": "Each closing command run, in order, and its result."
+    },
+    "commits": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/commit"}},
+    "open_points": {"type": "array", "items": {"type": "string", "minLength": 1}, "description": "Anything the next session must know."}
+  },
+  "$defs": {
+    "commit": {"type": "string", "pattern": "^[0-9a-f]{7,40} \\S", "description": "A short hash and the subject."}
+  }
+}
