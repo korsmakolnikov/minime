@@ -50,6 +50,9 @@ RG_REFUSED = ("--pre", "-z", "--search-zip")
 # Filters every agent may pipe a tool's output into: with no file argument
 # they read only stdin, so they cannot reach a file the agent may not read.
 FILTERS = {"head", "tail", "wc", "sort", "uniq"}
+# The shell works only inside a git repository; outside one, only what kent
+# needs to start a session in an empty folder and lay a new project down.
+OUTSIDE_A_REPO = ("session-state show", "scaffold init", "ls")
 SHOW = {"shopping-list": {"show", "path"}}
 TESTS = {"toolchain": {"show", "build", "test", "related", "check"}}
 
@@ -304,6 +307,17 @@ def check_bash(agent, rules, command, cwd, root):
             continue
         name = os.path.basename(words[0])
         tools = rules["tools"]
+        if name == "cd":
+            if len(words) != 2 or words[1] == "-":
+                raise Deny("cd takes one folder, inside a git repository.")
+            target = os.path.normpath(os.path.join(cwd, os.path.expanduser(words[1])))
+            if repo_root(target) is None:
+                raise Deny(f"{agent} works only inside a git repository: {target} is not in one.")
+            cwd, root = target, repo_root(target)
+            continue
+        if root is None and not any(same_prefix(words, entry) for entry in OUTSIDE_A_REPO):
+            raise Deny(f"{agent} works only inside a git repository: {cwd} is not in one "
+                       "(outside one, only session-state show, scaffold init and ls).")
         if name in FILTERS:
             if not all(re.fullmatch(r"-[A-Za-z]+|-?\d+", w) for w in words[1:]) or {"-f", "-F"} & set(words[1:]):
                 raise Deny(f"{name} only filters a pipe: options and counts, no file (read files with the Read tool).")

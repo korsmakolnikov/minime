@@ -23,8 +23,8 @@ class GuardTest(unittest.TestCase):
     def tearDownClass(cls):
         cls.tmp.cleanup()
 
-    def decision(self, agent, tool, agent_type=None, **tool_input):
-        payload = {"tool_name": tool, "tool_input": tool_input, "cwd": self.repo}
+    def decision(self, agent, tool, agent_type=None, cwd=None, **tool_input):
+        payload = {"tool_name": tool, "tool_input": tool_input, "cwd": cwd or self.repo}
         if agent_type:
             payload["agent_type"] = agent_type
         run = subprocess.run([sys.executable, GUARD, agent], input=json.dumps(payload),
@@ -140,6 +140,17 @@ class GuardTest(unittest.TestCase):
         self.allowed("ford", "scaffold --help 2>&1 | head -40")
         self.allowed("joshua", "events-query --new | tail -n 5 | wc -l")
         self.allowed("kent", "rg --files metrics-server | sort | uniq -c")
+        os.makedirs(os.path.join(self.repo, "sub"), exist_ok=True)
+        self.allowed("unclebob", "cd sub && toolchain test tests/test_x.py")
+        self.denied("unclebob", f"cd {self.tmp.name} && toolchain test", "only inside a git repository")
+        self.denied("unclebob", "cd", "one folder")
+        outside = os.path.join(self.tmp.name, "empty")
+        os.makedirs(outside, exist_ok=True)
+        kind, reason = self.decision("ford", "Bash", cwd=outside, command="toolchain build")
+        self.assertEqual(kind, "deny")
+        self.assertIn("only inside a git repository", reason)
+        kind, _ = self.decision("kent", "Bash", cwd=outside, command="scaffold init")
+        self.assertNotEqual(kind, "deny")
         self.denied("kent", "rg --files . | sort -o out.txt", "only filters a pipe")
         self.denied("hughes", "head -5 src/app.py", "only filters a pipe")
         self.denied("ford", "toolchain test | tail -f", "only filters a pipe")
