@@ -47,6 +47,9 @@ LINUS_VALUE_FLAGS = {"--phase", "--model", "-F", "--scope", "--from", "--target"
 # Tool -> the subcommands allowed (None: any). Shared by most agents.
 COMMON = {"flow-log": None, "git-read": None, "rg": None, "minime-config": None}
 RG_REFUSED = ("--pre", "-z", "--search-zip")
+# Filters every agent may pipe a tool's output into: with no file argument
+# they read only stdin, so they cannot reach a file the agent may not read.
+FILTERS = {"head", "tail", "wc"}
 SHOW = {"shopping-list": {"show", "path"}}
 TESTS = {"toolchain": {"show", "build", "test", "related", "check"}}
 
@@ -301,6 +304,13 @@ def check_bash(agent, rules, command, cwd, root):
             continue
         name = os.path.basename(words[0])
         tools = rules["tools"]
+        if name in FILTERS:
+            if not all(re.fullmatch(r"-[A-Za-z]+|-?\d+", w) for w in words[1:]) or {"-f", "-F"} & set(words[1:]):
+                raise Deny(f"{name} only filters a pipe: options and counts, no file (read files with the Read tool).")
+            for path in targets:
+                check_write(agent, rules, path, cwd, root)
+            quiet = quiet and not [t for t in targets if t != "/dev/null"]
+            continue
         if not any(same_prefix(words, entry) for entry in tools if " " in entry):
             if name not in tools:
                 plain = sorted(t for t in tools if " " not in t)

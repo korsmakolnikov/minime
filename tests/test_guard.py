@@ -137,6 +137,11 @@ class GuardTest(unittest.TestCase):
     def test_ford_scaffolds_the_project(self):
         self.allowed("ford", "scaffold python PROJECT_NAME=x --dir x")
         self.allowed("ford", "toolchain check --agent ford")
+        self.allowed("ford", "scaffold --help 2>&1 | head -40")
+        self.allowed("joshua", "events-query --new | tail -n 5 | wc -l")
+        self.denied("hughes", "head -5 src/app.py", "only filters a pipe")
+        self.denied("ford", "toolchain test | tail -f", "only filters a pipe")
+        self.denied("hughes", "spec-check --stage domain | head -3 > /etc/x", "may not write")
         self.allowed("kent", "scaffold init")
         self.denied("kent", "scaffold python PROJECT_NAME=x", "may run scaffold only as: init")
 
