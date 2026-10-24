@@ -5,7 +5,8 @@ Usage: git-read <subcommand> [args...]
 
 Subcommands: log, show, diff, status, blame, ls-files, grep, rev-parse,
 merge-base, rev-list, describe, shortlog, cat-file, name-rev, branch (only
---show-current, --list, -a, -r, -v, --contains, --merged, --no-merged).
+--show-current, --list, -a, -r, -v, --contains, --merged, --no-merged),
+symbolic-ref (only reading one ref: [-q] [--short] <name>).
 `{base}` in an argument stands for the branch's base (`linus base`), so
 `git-read diff -U0 {base}...HEAD -- <file>` needs no command substitution.
 Runs without a pager. Options that write a file or run a program
@@ -21,7 +22,7 @@ sys.path[:0] = [os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", 
 from minime import ToolError, main_guard  # noqa: E402
 
 READS = {"log", "show", "diff", "status", "blame", "ls-files", "grep", "rev-parse", "merge-base",
-         "rev-list", "describe", "shortlog", "cat-file", "name-rev", "branch"}
+         "rev-list", "describe", "shortlog", "cat-file", "name-rev", "branch", "symbolic-ref"}
 BRANCH_READS = {"--show-current", "--list", "-l", "-a", "-r", "-v", "-vv", "--contains", "--merged", "--no-merged"}
 REFUSED = ("--output", "-O", "--open-files-in-pager", "--ext-diff", "--exec-path", "--upload-pack")
 
@@ -36,6 +37,9 @@ def main():
         raise ToolError(f"git {sub} is not a read: use linus for writes (linus --help)")
     if sub == "branch" and (not rest or rest[0] not in BRANCH_READS):
         raise ToolError("git-read branch needs one of " + ", ".join(sorted(BRANCH_READS)))
+    if sub == "symbolic-ref" and (len([a for a in rest if not a.startswith("-")]) != 1
+                                  or not set(a for a in rest if a.startswith("-")) <= {"-q", "--quiet", "--short"}):
+        raise ToolError("git-read symbolic-ref reads one ref: [-q] [--short] <name>")
     bad = [a for a in rest if a.startswith(REFUSED)]
     if bad:
         raise ToolError(f"refused options: {' '.join(bad)}")

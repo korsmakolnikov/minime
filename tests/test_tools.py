@@ -120,6 +120,9 @@ class ToolTest(unittest.TestCase):
         self.assertNotEqual(self.sh("git-read", "commit", "-m", "x", ok=False).returncode, 0)
         self.assertNotEqual(self.sh("git-read", "diff", "--output=/tmp/x", ok=False).returncode, 0)
         self.assertNotEqual(self.sh("git-read", "branch", "new", ok=False).returncode, 0)
+        self.assertEqual(self.sh("git-read", "symbolic-ref", "--short", "HEAD").stdout.strip(), "master")
+        self.assertNotEqual(self.sh("git-read", "symbolic-ref", "HEAD", "refs/heads/x", ok=False).returncode, 0)
+        self.assertNotEqual(self.sh("git-read", "symbolic-ref", "-d", "HEAD", ok=False).returncode, 0)
 
     def test_linus_branch(self):
         self.assertIn("On branch feat/b", self.sh("linus", "branch", "feat/b").stdout)
