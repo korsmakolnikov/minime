@@ -55,8 +55,12 @@ start kent again with "riprendi": kent resumes from its progress file, the
 logs say what happened before, and the agents up to that point do not run
 again. `meta.json` names the minime commit the snapshot was taken with.
 
-Before committing new snapshots, check their size, and that nothing in
-them names a real system (the test projects are fictitious).
+kent's stream and the sub-agent transcripts hold the whole API requests,
+the user's private instructions included: `fixtures/.gitignore` keeps them
+local (`kent.tar.gz`, `transcripts.tar.gz`), and git gets only the project
+and the workflow's logs. Before committing new snapshots, check their size,
+and that nothing in them names a real system (the test projects are
+fictitious).
 
 ## A session
 

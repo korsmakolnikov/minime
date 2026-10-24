@@ -1,0 +1,14 @@
+{
+  "time": "2026-10-24T09:11:00+0200",
+  "label": "ford-FORD_DONE",
+  "event": {
+    "time": "2026-10-24T09:10:59+02:00",
+    "agent": "ford",
+    "agent_id": "ad5174f8c2ba8ce9c",
+    "transcript": "/home/blacksheep/.claude/projects/-tmp-metrics-server-project/29184fec-44e9-4f1d-be84-7e97ab620912/subagents/agent-ad5174f8c2ba8ce9c.jsonl",
+    "signal": "FORD_DONE",
+    "ok": true
+  },
+  "minime": "1574a4e",
+  "base": "/tmp/metrics-server"
+}

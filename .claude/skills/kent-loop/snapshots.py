@@ -12,9 +12,13 @@ Usage (the kent-loop driver calls it; BASE is $KENT_LOOP):
 A snapshot is a folder <NN>-<label> in the fixture folder:
   meta.json            time, label, the event that triggered it, minime's HEAD
   project.tar.gz       the test project, its .git included, ignored files left out
-  state.tar.gz         the workflow's logs and state (MINIME_STATE_DIR) and
-                       kent's stream (out.jsonl)
-  transcripts.tar.gz   the sub-agent transcripts the events log names
+  state.tar.gz         the workflow's logs and state (MINIME_STATE_DIR)
+  kent.tar.gz          kent's stream (out.jsonl)                     } local only:
+  transcripts.tar.gz   the sub-agent transcripts the events log names } see below
+
+kent's stream and the transcripts hold the whole API requests, the user's
+private instructions and context included: fixtures/.gitignore keeps them out
+of git, so a snapshot restored on another machine has neither.
 """
 import io
 import json
@@ -74,8 +78,8 @@ def take(base, fixture, label, event=None):
     pack(os.path.join(target, "project.tar.gz"), project, project_files(project))
     state = [os.path.join("state", f) for f in sorted(os.listdir(os.path.join(base, "state")))] \
         if os.path.isdir(os.path.join(base, "state")) else []
-    state += [f for f in ("out.jsonl",) if os.path.exists(os.path.join(base, f))]
     pack(os.path.join(target, "state.tar.gz"), base, state)
+    pack(os.path.join(target, "kent.tar.gz"), base, [f for f in ("out.jsonl",) if os.path.exists(os.path.join(base, f))])
     transcripts = sorted({e["transcript"] for e in events(base) if e.get("transcript") and os.path.exists(e["transcript"])})
     with tarfile.open(os.path.join(target, "transcripts.tar.gz"), "w:gz") as tar:
         for path in transcripts:
@@ -111,7 +115,11 @@ def restore(base, snapshot):
         tar.extractall(project, filter="tar")
     with tarfile.open(os.path.join(snapshot, "state.tar.gz")) as tar:
         tar.extractall(base, filter="tar")
-    with tarfile.open(os.path.join(snapshot, "transcripts.tar.gz")) as tar:
+    if os.path.exists(os.path.join(snapshot, "kent.tar.gz")):
+        with tarfile.open(os.path.join(snapshot, "kent.tar.gz")) as tar:
+            tar.extractall(base, filter="tar")
+    transcripts = os.path.join(snapshot, "transcripts.tar.gz")
+    with tarfile.open(transcripts) if os.path.exists(transcripts) else tarfile.open(fileobj=io.BytesIO(), mode="w") as tar:
         for member in tar.getmembers():
             path = "/" + member.name
             if member.isfile() and not os.path.exists(path):
