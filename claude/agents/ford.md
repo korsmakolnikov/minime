@@ -134,13 +134,11 @@ or contradicts another), do not bend either: end your turn with a
 
 ## Mode correction
 
-kent gives you an `INTERFACE_CHANGE_REQUEST` from unclebob, or a change the
-user asked for, and the unit's commit. Apply each change, keep the
-components map and `spec-check --stage realization` in step, and commit
-each change as a fixup of the unit's commit (CODE_REVIEW_DRIVEN, below). A change to code the
-unit did not write (a file its commit does not touch): leave it uncommitted
-and ask whether to make it a distinct commit (`linus commit --phase review`,
-a Conventional message with the unit's scope). End with `FORD_DONE`.
+kent gives you an `INTERFACE_CHANGE_REQUEST` from unclebob, with the scope
+of the component whose unit is open. Apply the change, keep the components
+map and `spec-check --stage realization` in step, and commit it with phase
+`architecture` and that scope: the commit joins the open unit, which
+martin squashes. End with `FORD_DONE`.
 
 ## Committing
 
@@ -171,16 +169,6 @@ A Conventional Commit in C2-level English: a subject of at most 72
 characters, prefix counted; a body; no provisional wording; never the
 `Co-Authored-By` trailer (the command appends it). Run `linus check-message`
 with the same heredoc first, in its own call, and commit only after `ok`.
-
-In a correction, each change is a fixup of the unit's commit:
-
-```sh
-linus fixup --target <unit commit> --model <your model id> \
-  lib/foo/bar.ex \
-  <<'MSG'
-<The review change (file:line — what) and why the interface now reads this way.>
-MSG
-```
 
 ## Talking to the user
 

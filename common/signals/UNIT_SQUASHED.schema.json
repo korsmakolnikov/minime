@@ -3,13 +3,14 @@
   "title": "UNIT_SQUASHED",
   "description": "martin's report at the end of a unit (Claude Code): the TDD violations, the measures at time zero and after its refactor, the commit it squashed the unit into. The user reviews that commit on their own.",
   "type": "object",
-  "required": ["unit", "commit", "squashed", "benchmarks_dropped", "tdd_violations", "characterisations", "measures", "flaky_tests", "user_decisions", "findings"],
+  "required": ["unit", "commit", "squashed", "benchmarks_dropped", "branch_tests", "tdd_violations", "characterisations", "measures", "flaky_tests", "user_decisions", "findings"],
   "additionalProperties": false,
   "properties": {
     "unit": {"type": "string", "minLength": 1, "description": "The unit's scope."},
     "commit": {"type": "string", "minLength": 1, "description": "The squashed commit: short hash and subject."},
     "squashed": {"type": "integer", "minimum": 1, "description": "The number of commits squashed."},
     "benchmarks_dropped": {"type": "integer", "minimum": 0},
+    "branch_tests": {"type": "string", "minLength": 1, "description": "The result of the tests related to the branch at the close of the refactor, and the fixups they caused."},
     "tdd_violations": {"type": "array", "items": {"type": "string", "pattern": "^M-\\d{8}-\\d{6}-\\d+$"}, "description": "The ids logged with audit-log."},
     "characterisations": {"type": "array", "items": {"type": "string", "minLength": 1}, "description": "The empty feat: commits: tests that passed at once."},
     "measures": {

@@ -5,11 +5,14 @@ Usage:
   unit-audit order --scope "<domain> <component>"
       The order of the unit's commits. The unit is the run of commits ending
       at HEAD that carry the scope, plus martin's refactor(test) and
-      benchmark commits. unclebob's part must be cycles of one test: commit
-      (never empty, test files only) and one feat: commit (no test files; an
-      empty feat is a test that passed at once, reported as a
-      characterisation); then martin's part, in this order: refactor(test)
-      (test files only), refactor(<scope>) (no test files), any benchmark.
+      benchmark commits, and the fixups of any of them. unclebob's part must
+      be cycles of one test: commit (never empty, test files only) and one
+      feat: commit (no test files; an empty feat is a test that passed at
+      once, reported as a characterisation); then martin's part, in this
+      order: refactor(test) (test files only), refactor(<scope>) (no test
+      files), any benchmark. A fixup (unclebob's static-check fixes, martin's
+      fixes after the branch's tests) may come anywhere after its target and
+      holds the files its target's kind allows; it does not count as a step.
       Prints one line per violation and exits 1, else "ok".
   unit-audit lines <path>...
       Non-blank lines per file under the paths, in three groups: production
@@ -54,6 +57,9 @@ def base_ref(root):
 
 
 def kind(subject, scope):
+    if subject.startswith("fixup! "):
+        target = kind(subject[len("fixup! "):], scope)
+        return None if target is None else "fixup-" + target
     match = SUBJECT.match(subject)
     if not match:
         return None
@@ -64,6 +70,21 @@ def kind(subject, scope):
     if match["scope"] != scope:
         return None
     return {"test": "test", "feat": "feat", "refactor": "refactor-code"}.get(match["type"], "other")
+
+
+def fixup_problems(short, subject, files, target):
+    """A fixup holds only the files its target's kind allows."""
+    tests = [f for f in files if TEST_PATH.search(f)]
+    if not files:
+        return [f"{short} {subject}: an empty fixup"]
+    if target in ("test", "refactor-test") and len(tests) < len(files):
+        return [f"{short} {subject}: a fixup of a {target} commit with production code: "
+                + ", ".join(f for f in files if f not in tests)]
+    if target in ("feat", "refactor-code") and tests:
+        return [f"{short} {subject}: a fixup of a {target} commit with test files: {', '.join(tests)}"]
+    if target == "benchmark":
+        return [f"{short} {subject}: a fixup of a benchmark"]
+    return []
 
 
 def order(root, scope):
@@ -77,6 +98,10 @@ def order(root, scope):
     if not unit:
         raise ToolError(f"no commit with the scope ({scope}) at HEAD")
     problems, cycles, at_once = [], 0, 0
+    for short, subject, files, found in unit:
+        if found.startswith("fixup-"):
+            problems.extend(fixup_problems(short, subject, files, found[len("fixup-"):]))
+    unit = [c for c in unit if not c[3].startswith("fixup-")]
     martin = [i for i, c in enumerate(unit) if c[3] in ("refactor-test", "refactor-code", "benchmark")]
     split = martin[0] if martin else len(unit)
     expected = "test"

@@ -210,6 +210,39 @@ class ToolTest(unittest.TestCase):
         self.assertIn("tests: 2", counted)
         self.assertIn("harness: 1", counted)
 
+    def test_unit_audit_and_squash_take_the_fixups(self):
+        self.sh("git", "switch", "-qc", "feat/f")
+        env = dict(self.env, LINUS_COAUTHOR="claude", LINUS_MODEL="m")
+        steps = [("tests/test_f.py", "def test_f(): pass\n", "test(lab f): specify f"),
+                 ("src/f.py", "F = 1\n", "feat(lab f): add f"),
+                 ("tests/conftest.py", "Y = 1\n", "refactor(test): share y"),
+                 ("src/f.py", "F = 1  # f\n", "refactor(lab f): name f")]
+        shas = {}
+        for path, text, subject in steps:
+            self.write(path, text)
+            done = self.linus(env, "commit", path, stdin=f"{subject}\n\nWhy.\n")
+            self.assertEqual(done.returncode, 0, done.stderr)
+            shas[subject] = self.sh("git", "rev-parse", "HEAD").stdout.strip()
+        # unclebob's static-check fix, then martin's fix after the branch's tests
+        for path, text, target in [("src/f.py", "F = 1  # the f\n", "feat(lab f): add f"),
+                                   ("tests/conftest.py", "Y = 2\n", "refactor(test): share y")]:
+            self.write(path, text)
+            done = self.linus(env, "fixup", "--target", shas[target], path, stdin="Why.\n")
+            self.assertEqual(done.returncode, 0, done.stderr)
+        report = self.sh("unit-audit", "order", "--scope", "lab f").stdout
+        self.assertIn("1 cycles", report)
+        self.assertIn("ok", report)
+        first = self.sh("git", "rev-list", "--reverse", "master..HEAD").stdout.split()[0]
+        squash = self.linus(env, "squash", "--scope", "lab f", "--from", first,
+                            stdin="feat(lab f): add f\n\nThe unit.\n")
+        self.assertEqual(squash.returncode, 0, squash.stderr)
+        self.write("tests/test_f.py", "def test_f(): pass\nX = 1\n")
+        self.linus(env, "commit", "tests/test_f.py", stdin="test(lab f): specify g\n\nWhy.\n")
+        self.write("src/f.py", "F = 2\n")
+        self.linus(env, "fixup", "--target", "HEAD", "src/f.py", stdin="Why.\n")
+        bad = self.sh("unit-audit", "order", "--scope", "lab f", ok=False)
+        self.assertIn("a fixup of a test commit with production code", bad.stdout)
+
     def test_git_read(self):
         self.assertIn("base", self.sh("git-read", "log", "--oneline").stdout)
         self.assertNotEqual(self.sh("git-read", "commit", "-m", "x", ok=False).returncode, 0)

@@ -107,7 +107,7 @@ AGENTS = {
         # benchmarks, logs unclebob's TDD violations and squashes the unit
         "tools": {**COMMON, **SHOW, "toolchain": None, "spec-check": None, "unit-audit": None,
                   "audit-log": {"append"}},
-        "linus": {"stage", "stage-hunks", "unstage", "commit", "squash"},
+        "linus": {"stage", "stage-hunks", "unstage", "commit", "fixup", "squash"},
         "edit": ["/tmp/", "repo:"],
         "except": ["repo:.sources/", "repo:.documentation/", "name:toolchain.yaml",
                    "name:AGENTS.md", "name:CLAUDE.md"],

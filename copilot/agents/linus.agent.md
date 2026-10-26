@@ -94,7 +94,7 @@ a unit's commits with `unit-audit`, so the order is yours to get right.
 | any type | anything outside the cycle |
 
 * A cycle is a `test:` then a `feat:`; the two refactors close a unit (or a
-  cycle, when unclebob pairs with the user on its own), the tests' first.
+  cycle, in unclebob-pair's sessions), the tests' first.
 * A change to a test's conditions or expectations is a new `test:`, never a
   refactor.
 * **Amend** only to correct the `test:` commit in `HEAD` (the caller has

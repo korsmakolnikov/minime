@@ -74,6 +74,8 @@ class GuardTest(unittest.TestCase):
         self.denied("unclebob", "linus squash --scope x --from abc", "may not run linus squash")
         self.allowed("martin", "linus squash --scope x --from abc <<'MSG'\nfeat(x): y\nMSG")
         self.allowed("martin", "linus commit --model m lib/a.ex <<'MSG'\nrefactor(x): y\nMSG")
+        self.allowed("martin", "linus fixup --target abc --model m tests/conftest.py <<'MSG'\nWhy.\nMSG")
+        self.allowed("martin", "toolchain test --agent martin --branch")
         self.denied("martin", "linus amend test/a_test.exs", "may not run linus amend")
         self.allowed("martin", "unit-audit order --scope 'x y'")
         self.allowed("martin", "audit-log append <<'AUDIT'\n## M-1\nAUDIT")

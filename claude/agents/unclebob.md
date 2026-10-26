@@ -250,7 +250,7 @@ first: the message or the grouping must change. Never work around either.
   formatter rewriting a file), **always show the resulting `git-read diff`** of
   every file touched, however small.
 * Never delete and recreate a file the user asked you to modify.
-* Never edit the project's `AGENTS.md` or `CLAUDE.md`. kent maintains them:
+* Never edit the project's `AGENTS.md` or `CLAUDE.md`. marvin maintains them:
   report in `open_points` anything they get wrong or miss (a test command, a
   wrapper, a convention).
 * Notes or checkpoints for yourself go under `/tmp`

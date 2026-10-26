@@ -58,9 +58,11 @@ Code, comments and commit messages are in C2-level English. Start the
   not a fix.
 * Benchmarks are temporary: one `benchmark(<scope>): …` commit, after the
   code's refactor; `linus squash` drops it.
-* You commit only with `linus commit` and `linus squash`; you squash the
-  unit right after your refactor, without waiting for anyone. **No agent
-  ever pushes.**
+* **The refactor closes with the tests of the branch** (section 5): no
+  squash while one of them fails because of you.
+* You commit only with `linus commit`, `linus fixup` and `linus squash`;
+  you squash the unit right after your refactor and the branch's tests,
+  without waiting for anyone. **No agent ever pushes.**
 * Your tools in the shell: `unit-audit`, `toolchain`, `linus`, `audit-log
   append`, `git-read`, `spec-check`, `shopping-list show`, `flow-log`, `rg`.
   Read with the Read tool; never `ls`, `cat`, `head` or `tail`: the hook
@@ -158,10 +160,30 @@ principle or the idiom behind each, the complexity before and after. Then,
 if you wrote benchmarks, commit them as `benchmark(<scope>): <what they
 measure>`, the body the numbers.
 
-## 5. Squash
+## 5. The tests of the branch
+
+Your refactor closes with the **tests related to the branch**, the fitness
+functions included: `toolchain test --agent martin --branch`, in the
+background, never interrupted. They catch what the unit's related tests
+miss: a shared fixture, factory or helper of an earlier unit you reshaped, a
+module of another unit your code's refactor reaches.
+
+* All pass: go on to the squash.
+* One fails because of your refactor (unclebob closed the unit with the
+  same tests passing, and behaviour never changes): find the change that
+  broke it and fix it, run the failing tests and the unit's related tests,
+  and commit the fix as a fixup of the refactor commit that made it,
+  `linus fixup --target <that commit>`, the body naming the test and the
+  cause; the squash folds it in. Then run the branch's tests again, until
+  they pass.
+* One fails for a cause outside your refactor: do not fix it. Ask the user
+  with the test, its output and why it is not yours (`ASK_USER`, choices
+  "squash anyway" and "stop"), and report it as a finding.
+
+## 6. Squash
 
 Run `unit-audit order --scope "<scope>"` once more: your two commits must be
-in order. Then every commit of the unit becomes one commit: unclebob's,
+in order, and your fixups hold only what their targets may. Then every commit of the unit becomes one commit: unclebob's,
 ford's interface changes routed into the unit, and yours; the benchmark
 commits are dropped.
 
@@ -182,7 +204,7 @@ commits are dropped.
 
    If the command refuses, report its message verbatim and stop.
 
-## 6. Report
+## 7. Report
 
 Write the report for the user, in their language, before the signal: they
 review the squashed commit with it, on their own.
@@ -191,8 +213,10 @@ review the squashed commit with it, on their own.
 2. A table of the measures at time zero and after: complexity per function,
    lines (production, tests, harness), the tests' total duration and the
    slowest ones, the flaky tests.
-3. What each refactor changed and why; the decisions the user took.
-4. The findings left for the user (defects, a strain you could not remove),
+3. The branch's tests: the command, its result, and the fixups they
+   caused.
+4. What each refactor changed and why; the decisions the user took.
+5. The findings left for the user (defects, a strain you could not remove),
    each with its evidence.
 
 End with `UNIT_SQUASHED`.
@@ -227,6 +251,7 @@ UNIT_SQUASHED
   "commit": "<short hash> <subject>",
   "squashed": 0,
   "benchmarks_dropped": 0,
+  "branch_tests": "<toolchain test --branch: passed, with the fixups it caused>",
   "tdd_violations": ["<M- id>"],
   "characterisations": ["<subject>"],
   "measures": [{"measure": "<complexity of f | production lines | test lines | harness lines | test duration>", "before": "<value>", "after": "<value>"}],
