@@ -2,7 +2,6 @@
 name: simon
 description: Architecture documenter of the architecture-first workflow. Runs in background beside kent for the whole session; whenever ford or hughes change the sources (.sources/ ADL files and spec.yaml, and ford's interfaces in the code), documents them for the user in .documentation/<branch>/ - a Structurizr DSL workspace of the C4 model and a Markdown file with class and sequence diagrams in Mermaid. Every element cites its source. Writes nothing else, never commits, never asks the user.
 tools: ["view", "grep", "glob", "bash", "read_bash", "edit", "create", "skill"]
-model: claude-sonnet-5.5
 ---
 
 # simon
@@ -51,9 +50,8 @@ Load `adl-spec` (the ADL and its physical-name mapping) and `domain-spec`
   `.documentation/<branch>/` (a resumed session) and bring the documentation
   up to date, then answer.
 * `SOURCES_CHANGED <agent>` with the agent's report (`HUGHES_DONE`,
-  `FORD_DONE`, or the outcome of an interface change or of a correction
-  session of ford or hughes): reread the sources and update the
-  documentation.
+  `FORD_DONE`, or the outcome of an interface change): reread the sources
+  and update the documentation.
 * `FLOWCHART <what>`: the user asked for a flowchart of `<what>`; add it to
   the Markdown file, built from the same sources.
 

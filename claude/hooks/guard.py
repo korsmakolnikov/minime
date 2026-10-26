@@ -13,8 +13,9 @@ are held to the same places.
 
 Reading goes through the Read tool, limited only for an agent with "read"
 places (hughes reads no code); searching through ripgrep (`rg`, without the
-options that run other programs: --pre, --search-zip). Every refusal is appended to kent-guard.jsonl under
-MINIME_STATE_DIR (default /tmp).
+options that run other programs: --pre, --search-zip). Every refusal is
+appended to kent-errors.jsonl (kind "refusal") in the workflow's state folder
+(see minime.state_dir).
 
 Approvals: a Bash call whose every command reads, or writes only the
 workflow's own files under /tmp and .sources/ (AUTO_ALLOW), is approved
@@ -33,21 +34,24 @@ import shlex
 import subprocess
 import sys
 
-STATE_DIR = os.environ.get("MINIME_STATE_DIR", "/tmp")
-GUARD_LOG = os.path.join(STATE_DIR, "kent-guard.jsonl")
+sys.path[:0] = [os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "..", "common", "lib"),
+                os.path.expanduser("~/.local/share/minime/lib")]
+from minime import ERRORS_LOG, append_jsonl  # noqa: E402
+
 SEPARATORS = {";", "&&", "||", "|", "&", "(", ")", "|&"}
-LINUS_READS = {"base", "range", "next", "check-message", "hunks", "--help", "-h", "help"}
+LINUS_READS = {"base", "range", "check-message", "hunks", "--help", "-h", "help"}
 MINIME = "~/code/minime"
 
 # The workflow's own files, versioned on Claude Code (see workflow-files).
-WORKFLOW_FILES = ["repo:.sources/", "repo:.documentation/", "repo:toolchain.yaml"]
+# toolchain.yaml: the project's, and the root's that names a project in a folder
+WORKFLOW_FILES = ["repo:.sources/", "repo:.documentation/", "name:toolchain.yaml"]
 LINUS_VALUE_FLAGS = {"--phase", "--model", "-F", "--scope", "--from", "--target"}
 
 # Tool -> the subcommands allowed (None: any). Shared by most agents.
 COMMON = {"flow-log": None, "git-read": None, "rg": None, "minime-config": None}
 RG_REFUSED = ("--pre", "-z", "--search-zip")
 SHOW = {"shopping-list": {"show", "path"}}
-TESTS = {"toolchain": {"show", "build", "test", "related"}}
+TESTS = {"toolchain": {"show", "build", "test", "related", "check"}}
 
 # Per agent: its tools (with the subcommands allowed), the linus subcommands
 # it may write with (the read-only ones are always allowed), and where it may
@@ -59,12 +63,16 @@ TESTS = {"toolchain": {"show", "build", "test", "related"}}
 # is an exact command prefix ("make -C ~/code/minime install").
 AGENTS = {
     "kent": {
-        "tools": {**COMMON, "shopping-list": None, "session-state": None, "scaffold": None,
-                  "minime-migrate": None, "toolchain": {"show", "related"}, "spec-check": None},
-        # kent commits the workflow's files between units, and nothing else
-        "linus": {"stage", "commit"},
+        # ls and cat: kent reaches for them even when told to use Read and rg
+        # kent only makes an empty directory a repository; ford scaffolds the project
+        "tools": {**COMMON, "shopping-list": None, "session-state": None, "scaffold": {"init"},
+                  "minime-migrate": None, "toolchain": {"show", "related"}, "spec-check": None,
+                  "ls": None, "cat": None},
+        # kent commits the workflow's files between units, and nothing else;
+        # it also puts the session on its feature branch
+        "linus": {"stage", "commit", "branch"},
         "linus_paths": WORKFLOW_FILES,
-        "edit": ["repo:toolchain.yaml"],
+        "edit": ["name:toolchain.yaml"],
     },
     "hughes": {
         "tools": {"flow-log": None, **SHOW, "spec-check": None},
@@ -74,26 +82,40 @@ AGENTS = {
         "read": ["repo:.sources/spec.yaml", "repo:.sources/shopping_lists/", "~/.claude/", "/tmp/"],
     },
     "ford": {
-        "tools": {**COMMON, **SHOW, **TESTS, "spec-check": None, "adl-graph": None},
+        "tools": {**COMMON, **SHOW, **TESTS, "spec-check": None, "adl-graph": None, "scaffold": None},
         "linus": {"stage", "stage-hunks", "unstage", "commit", "fixup"},
         "edit": ["repo:"],
         "except": ["repo:.sources/spec.yaml", "repo:.sources/shopping_lists/", "repo:.documentation/",
-                   "repo:toolchain.yaml", "name:AGENTS.md", "name:CLAUDE.md"],
+                   "name:toolchain.yaml", "name:AGENTS.md", "name:CLAUDE.md"],
     },
     "unclebob": {
         "tools": {**COMMON, **SHOW, "toolchain": None, "spec-check": None},
         "linus": {"stage", "stage-hunks", "unstage", "commit", "amend", "fixup"},
         "edit": ["/tmp/", "repo:"],
-        "except": ["repo:.sources/", "repo:.documentation/", "repo:toolchain.yaml",
+        "except": ["repo:.sources/", "repo:.documentation/", "name:toolchain.yaml",
+                   "name:AGENTS.md", "name:CLAUDE.md"],
+    },
+    "unclebob-pair": {
+        "tools": {**COMMON, "toolchain": None, "spec-check": None, "unit-audit": {"lines"}},
+        "linus": {"stage", "stage-hunks", "unstage", "commit", "amend"},
+        "edit": ["/tmp/", "repo:"],
+        "except": ["repo:.sources/", "repo:.documentation/", "name:toolchain.yaml",
                    "name:AGENTS.md", "name:CLAUDE.md"],
     },
     "martin": {
-        "tools": {**COMMON, **SHOW, "toolchain": None, "spec-check": None},
-        "linus": {"squash"},
-        "edit": [],
+        # martin refactors the unit's tests and code, writes temporary
+        # benchmarks, logs unclebob's TDD violations and squashes the unit
+        "tools": {**COMMON, **SHOW, "toolchain": None, "spec-check": None, "unit-audit": None,
+                  "audit-log": {"append"}},
+        "linus": {"stage", "stage-hunks", "unstage", "commit", "squash"},
+        "edit": ["/tmp/", "repo:"],
+        "except": ["repo:.sources/", "repo:.documentation/", "name:toolchain.yaml",
+                   "name:AGENTS.md", "name:CLAUDE.md"],
     },
     "simon": {
-        "tools": {**COMMON, **SHOW, "spec-check": None, "structurizr-cli": {"validate", "inspect"}},
+        # date: the time of each update, in architecture.md's header and changelog
+        "tools": {**COMMON, **SHOW, "spec-check": None, "structurizr-cli": {"validate", "inspect"},
+                  "date": None},
         "linus": set(),
         "edit": ["repo:.documentation/"],
     },
@@ -104,7 +126,7 @@ AGENTS = {
         "edit": [],
     },
     "argyris": {
-        "tools": {**COMMON, "events-query": None, "audit-log": {"pending", "show", "handled", "archive"},
+        "tools": {**COMMON, "events-query": None, "audit-log": {"repos", "pending", "show", "handled", "archive"},
                   f"make -C {MINIME} install": None, f"make -C {MINIME} clean-check": None},
         "linus": {"stage", "stage-hunks", "unstage", "commit"},
         "edit": [f"{MINIME}/"],
@@ -129,12 +151,13 @@ for _name, _rules in AGENTS.items():
 # agent's own rules allow the call.
 AUTO_ALLOW = {
     "flow-log": None, "git-read": None, "rg": None, "spec-check": None, "signal-check": None,
-    "events-query": None, "adl-graph": None, "minime-config": None,
-    "toolchain": {"show", "build", "test", "related", "check"},
+    "events-query": None, "adl-graph": None, "ls": None, "cat": None, "date": None,
+    "minime-config": None,
+    "toolchain": {"show", "build", "test", "related", "check", "bench"}, "unit-audit": None,
     "shopping-list": None, "session-state": None,
-    "audit-log": {"append", "pending", "show", "handled", "archive"},
+    "audit-log": {"append", "pending", "show", "handled", "archive", "repos"},
     "structurizr-cli": {"validate", "inspect"},
-    "linus": {"base", "range", "next", "check-message", "hunks", "--help", "-h", "help"},
+    "linus": {"base", "range", "check-message", "hunks", "--help", "-h", "help"},
 }
 
 
@@ -306,7 +329,7 @@ def check_bash(agent, rules, command, cwd, root):
                 if sub not in LINUS_READS and sub not in rules["linus"]:
                     allowed = ", ".join(sorted(rules["linus"])) or "none"
                     raise Deny(f"{agent} may not run linus {sub}: its linus writes are {allowed}.")
-                if sub not in LINUS_READS and "linus_paths" in rules:
+                if sub in ("stage", "commit") and "linus_paths" in rules:
                     check_linus_paths(agent, rules, words[2:], cwd, root)
             elif tools[name] is not None and sub not in tools[name] and sub not in ("-h", "--help"):
                 raise Deny(f"{agent} may run {name} only as: {', '.join(sorted(tools[name]))}.")
@@ -317,19 +340,15 @@ def check_bash(agent, rules, command, cwd, root):
 
 
 def log_denial(payload, agent, reason):
-    entry = {
+    append_jsonl(ERRORS_LOG, {
         "time": datetime.datetime.now().astimezone().isoformat(timespec="seconds"),
+        "kind": "refusal",
         "agent": agent,
         "agent_id": payload.get("agent_id"),
         "tool": payload.get("tool_name"),
         "input": payload.get("tool_input"),
         "reason": reason,
-    }
-    try:
-        with open(GUARD_LOG, "a") as log:
-            log.write(json.dumps(entry) + "\n")
-    except OSError:
-        pass
+    })
 
 
 def main():

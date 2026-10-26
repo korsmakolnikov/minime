@@ -1,0 +1,132 @@
+#!/bin/bash
+# Drives one headless kent session on a test project, for testing the workflow.
+#   kent-loop start "<first message>"   start kent in $KENT_LOOP/kent-loop-sandbox (prepare it first)
+#   kent-loop say "<text>"              send the next user message
+#   kent-loop read                      what kent did since the last read
+#   kent-loop wait                      block until kent asks the user something, or stops
+#   kent-loop denials                   the calls the guard refused, every agent
+#   kent-loop status | stop
+# KENT_LOOP is the session's folder (default ~/.cache/kent-loop, kept across reboots): kent-loop-sandbox/, state/, logs.
+set -euo pipefail
+
+BASE=${KENT_LOOP:-$HOME/.cache/kent-loop}
+PROJECT=$BASE/kent-loop-sandbox
+INBOX=$BASE/inbox.jsonl
+OUT=$BASE/out.jsonl
+PIDFILE=$BASE/kent.pid
+CURSOR=$BASE/read.cursor
+export MINIME_STATE_DIR=$BASE/state
+
+# The workflow's tools only: anything else is refused by the guard or the headless prompt.
+TOOLS=(Read Write Edit Agent SendMessage Skill TodoWrite)
+for t in linus scaffold toolchain git-read shopping-list session-state flow-log \
+         audit-log events-query minime-migrate adl-graph spec-check signal-check rg \
+         ls cat date structurizr-cli; do
+  TOOLS+=("Bash($t:*)")
+done
+
+message() {
+  python3 -c 'import json,sys; print(json.dumps({"type":"user","message":{"role":"user","content":sys.argv[1]}}))' "$1"
+}
+
+running() { [ -f "$PIDFILE" ] && kill -0 "$(cat "$PIDFILE")" 2>/dev/null; }
+
+results() { grep -c '"type":"result"' "$OUT" 2>/dev/null || echo 0; }
+
+last_text() {
+  python3 - "$OUT" <<'PY'
+import json, sys
+text = ""
+for line in open(sys.argv[1]):
+    try: e = json.loads(line)
+    except ValueError: continue
+    if e.get("type") == "assistant" and not e.get("parent_tool_use_id"):
+        for b in e["message"]["content"]:
+            if b["type"] == "text": text = b["text"]
+print(text[-500:])
+PY
+}
+
+case "${1:-}" in
+  start)
+    running && { echo "kent is already running (pid $(cat "$PIDFILE"))"; exit 1; }
+    [ -d "$PROJECT" ] || { echo "no $PROJECT: prepare the test project first"; exit 1; }
+    mkdir -p "$MINIME_STATE_DIR"
+    : > "$INBOX"; : > "$OUT"; echo 0 > "$CURSOR"
+    message "$2" >> "$INBOX"
+    cd "$PROJECT"
+    # tail -f keeps stdin open, so the session (and its background subagents) stays alive between messages
+    setsid nohup bash -c "tail -n +1 -f '$INBOX' | claude -p --agent kent \
+        --input-format stream-json --output-format stream-json --verbose \
+        --permission-mode acceptEdits --allowedTools ${TOOLS[*]@Q} \
+        > '$OUT' 2> '$BASE/err.log'" > /dev/null 2>&1 &
+    echo $! > "$PIDFILE"
+    echo "kent started (pid $(cat "$PIDFILE")), project $PROJECT"
+    ;;
+  say)
+    running || { echo "kent is not running"; exit 1; }
+    message "$2" >> "$INBOX"
+    echo "sent"
+    ;;
+  read)
+    python3 - "$OUT" "$CURSOR" <<'PY'
+import json, sys
+out, cursor = sys.argv[1], sys.argv[2]
+start = int(open(cursor).read().strip() or 0)
+lines = open(out).read().splitlines()
+for line in lines[start:]:
+    try: ev = json.loads(line)
+    except ValueError: continue
+    kind = ev.get("type")
+    if kind == "assistant" and not ev.get("parent_tool_use_id"):
+        for block in ev["message"]["content"]:
+            if block["type"] == "text": print("KENT:", block["text"])
+            elif block["type"] == "tool_use" and block["name"] != "SendMessage":
+                print("TOOL:", block["name"], json.dumps(block["input"])[:300])
+    elif kind == "user" and not ev.get("parent_tool_use_id"):
+        for block in ev["message"].get("content", []):
+            if isinstance(block, dict) and block.get("type") == "tool_result" and block.get("is_error"):
+                content = block["content"] if isinstance(block["content"], str) else json.dumps(block["content"])
+                print("ERROR:", content[:400])
+    elif kind == "result":
+        print(f"--- turn over: {ev.get('subtype')}, {ev.get('num_turns')} turns, ${ev.get('total_cost_usd', 0):.2f}")
+open(cursor, "w").write(str(len(lines)))
+PY
+    ;;
+  wait)
+    # kent also ends a turn while its agents work: wait for one that asks the user
+    seen=$(results)
+    while running; do
+      now=$(results)
+      if [ "$now" -gt "$seen" ]; then
+        last_text | grep -q '?' && { echo "kent asks"; exit 0; }
+        seen=$now
+      fi
+      sleep 3
+    done
+    echo "kent stopped"
+    ;;
+  denials)
+    python3 - "$MINIME_STATE_DIR/kent-errors.jsonl" <<'PY'
+import json, os, sys
+path = sys.argv[1]
+if not os.path.exists(path):
+    sys.exit(0)
+for line in open(path):
+    e = json.loads(line)
+    if e.get("kind") != "refusal":
+        continue
+    target = e["input"].get("command", e["input"].get("file_path"))
+    print(f'{e["time"][11:19]} {e["agent"]} | {str(target)[:160]} | {e["reason"][:160]}')
+PY
+    ;;
+  status)
+    running && echo "running (pid $(cat "$PIDFILE"))" || echo "stopped"
+    tail -3 "$BASE/err.log" 2>/dev/null || true
+    ;;
+  stop)
+    running && kill -- -"$(cat "$PIDFILE")" 2>/dev/null || true
+    rm -f "$PIDFILE"; echo "stopped"
+    ;;
+  *) sed -n '2,9p' "$0"; exit 2 ;;
+esac

@@ -43,7 +43,9 @@ Reply in the user's language, as kent tells you: `ASK_USER` and
 * You write **only** `.sources/spec.yaml`, in the format of the
   `domain-model` skill (version 2). You read only the shopping list and the
   spec: never the code, the tests or the ADL. A hook enforces both.
-* Your tools in the shell: `shopping-list show`, `spec-check`, `flow-log`.
+* Your tools in the shell: `shopping-list show`, `spec-check`, `flow-log`;
+  read with Read. Never `ls`, `cat`, `head` or `tail`, not even after a pipe
+  or `;`: the hook refuses the whole command.
 * You never commit: kent commits the workflow's files, the spec included,
   between units. **No agent ever pushes.**
 * Never write an entry the user has not confirmed.
@@ -51,8 +53,8 @@ Reply in the user's language, as kent tells you: `ASK_USER` and
 ## Input from kent
 
 The repository, the branch, the shopping list path, the scope and the user's
-language; for a correction, the change to make (a `REVIEW_CHANGES` entry or
-a `DOMAIN_CHANGE_REQUEST`). Read the shopping list and the existing spec (a
+language; for a correction, the change to make (a correction the user gave in
+review, or a `DOMAIN_CHANGE_REQUEST`). Read the shopping list and the existing spec (a
 previous iteration); do not ask what they already answer.
 
 ## Writing the domain
@@ -79,6 +81,13 @@ rejects:
 7. **Review.** Show the complete YAML and wait for an explicit yes. Write
    it, run `spec-check --stage domain` and fix until it prints `ok`.
 
+**A delegation.** When the user tells you to go on with your own
+recommendations ("for the remaining steps I accept what you recommend"),
+that answer confirms the steps it names, the review included: write them,
+run `spec-check`, and report a summary that marks which choices are yours
+and which the user made, the ones most worth a second look first. The user
+corrects them afterwards, as any correction.
+
 ## Corrections
 
 For a `DOMAIN_CHANGE_REQUEST` or a review change, propose the amended entries
@@ -88,12 +97,14 @@ map and the tests cite the old one, and kent tells them.
 
 ## Talking to the user
 
-You have no AskUserQuestion: kent relays. End the turn with one `ASK_USER`
+You have no AskUserQuestion: kent relays, and the answer it sends you is the
+user's own: act on it, never ask the user to confirm it again. End the turn with one `ASK_USER`
 block and nothing after it; put what the question refers to (the proposed
 entries, a YAML excerpt) before the block. The answer arrives as your next
 turn.
 
-* One question per turn; never bundle two as (a)/(b).
+* One question per turn; never bundle two as (a)/(b). A correction with
+  several changes is asked one change per turn.
 * Prefer a concrete proposal ("I propose these four entities: …") to an open
   question.
 * Ask about the domain; decide yourself what is only notation.
@@ -109,7 +120,9 @@ with its name, one JSON object, a line with `END_<name>`. Anything long goes
 before the block. A hook checks it against its schema in
 `~/.local/share/minime/signals/` when you end the turn; if it fails, you get
 the problems as your next instruction: end the turn again with the whole
-message and the block fixed.
+message and the block fixed. When you hand your report back with
+SubagentHandback, its `message` is that final message, whole, with the
+block last.
 
 ```
 ASK_USER

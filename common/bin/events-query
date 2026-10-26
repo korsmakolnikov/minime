@@ -2,8 +2,11 @@
 """Reads the workflow's event logs, for joshua's audit (Claude Code).
 
 Usage:
-  events-query [filters]            the sub-agent stops, /tmp/kent-events.jsonl
-  events-query --guard [filters]    the guard's refusals, /tmp/kent-guard.jsonl
+  events-query [filters]            the sub-agent stops, kent-events.jsonl (with
+                                    each turn's usage and what replays it)
+  events-query --errors [filters]   every error, kent-errors.jsonl: violations,
+                                    failed signals, the guard's refusals
+  events-query --guard [filters]    only the guard's refusals
   events-query --new [filters]      only the stops not acknowledged yet
   events-query ack                  acknowledge every stop the last --new printed
   events-query transcript <agent id | path> [--full]
@@ -12,6 +15,8 @@ Usage:
 
 Filters: --agent <name>, --id <agent id>, --since <ISO time>,
 --signal <NAME>, --failed (a signal-check failure). One JSON object per line.
+Every form reads the current repository's logs; `--repo <name>` reads
+another's, `--repo <path>` a state folder (kent-loop's).
 """
 import argparse
 import json
@@ -20,10 +25,10 @@ import sys
 
 sys.path[:0] = [os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "lib"),
                 os.path.expanduser("~/.local/share/minime/lib")]
-from minime import ToolError, state_path, main_guard  # noqa: E402
+from minime import ERRORS_LOG, EVENTS_LOG, ToolError, state_path, main_guard, take_repo  # noqa: E402
 
-EVENTS = state_path("kent-events.jsonl")
-GUARD = state_path("kent-guard.jsonl")
+EVENTS = EVENTS_LOG
+ERRORS = ERRORS_LOG
 OFFSET = state_path("joshua-events.offset")
 LIMIT = 400
 
@@ -97,7 +102,11 @@ def transcript(target, full):
 
 
 def main():
-    argv = sys.argv[1:]
+    global EVENTS, ERRORS, OFFSET
+    argv, other = take_repo(sys.argv[1:])
+    if other:
+        EVENTS, ERRORS = os.path.join(other, "kent-events.jsonl"), os.path.join(other, "kent-errors.jsonl")
+        OFFSET = os.path.join(other, "joshua-events.offset")
     if argv[:1] in (["-h"], ["--help"]):
         print(__doc__.strip())
         return 0
@@ -115,10 +124,14 @@ def main():
     parser = argparse.ArgumentParser(add_help=False)
     for flag in ("--agent", "--id", "--since", "--signal"):
         parser.add_argument(flag)
-    for flag in ("--failed", "--guard", "--new"):
+    for flag in ("--failed", "--guard", "--errors", "--new"):
         parser.add_argument(flag, action="store_true")
     args = parser.parse_args(argv)
-    rows = load(GUARD if args.guard else EVENTS)
+    if args.new and (args.guard or args.errors):
+        raise ToolError("--new reads only the stops")
+    rows = load(ERRORS if args.guard or args.errors else EVENTS)
+    if args.guard:
+        rows = [r for r in rows if r.get("kind") == "refusal"]
     start = 0
     if args.new:
         acked, _ = offsets()

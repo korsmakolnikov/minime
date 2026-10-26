@@ -52,9 +52,7 @@ it again.
 
 You run as a sub-agent of kent and have no `ask_user` tool. End your turn
 with exactly one relay block and nothing after it; the answer arrives as your
-next turn. The answer kent relays is the user's own: act on it, never ask the user to confirm it again.
-
-The block:
+next turn:
 
 ```
 ASK_USER

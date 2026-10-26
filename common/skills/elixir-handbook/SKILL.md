@@ -98,6 +98,20 @@ would change behaviour is a new TDD cycle, starting with a red.
 * **Architecture tests** (ford's fitness functions) live in
   `test/architecture/`; `toolchain test --branch` always includes them.
 
+## Durations and benchmarks (martin)
+
+* `toolchain test --durations <paths>` adds `--slowest 1000`: ExUnit prints
+  the tests, slowest first. A slow setup is usually a `setup` that should be
+  `setup_all`, or a service started per test.
+* A benchmark is a plain script under `benchmarks/` in the project, run with
+  `toolchain bench <file>` (`mix run <file>`). It defines the old version as
+  a module of its own (`<Module>.Old`, copied from the file at `HEAD`) and
+  times both with `:timer.tc/1` (Benchee when the project has it) on inputs
+  of growing size (for example 10, 100, 1000, 10000), printing one line per
+  size and version. Growing ratios between sizes show the complexity; equal
+  ratios with a constant gap show a constant factor. It is committed as
+  `benchmark(<scope>): …` and dropped by `linus squash`.
+
 ## Style rules
 
 The user's own rules: the team does not share them, so they live here and not
@@ -106,8 +120,10 @@ in the project's `.credo.exs`. Never add them to the project's configuration.
 * **Scope**: only the code you write or change in the current cycle; the rest
   of the project keeps its style, even in a module you touch.
 * A green stays the minimum the failing test needs, even when it breaks a
-  rule: the rules are applied in the **refactor** phase, one refactor commit
-  per rule applied, its body naming the rule (`elixir-style: <rule id>`). In
+  rule: the rules are applied in the **refactor** phase, the body naming
+  each rule (`elixir-style: <rule id>`). On Copilot, one refactor commit per
+  rule applied; on Claude Code martin applies them in the unit's code
+  refactor (`refactor(<scope>)`), and unclebob-pair in its cycle's. In
   review, a rule the unit's code breaks is a finding that cites the rule id.
 * A rule never justifies a change of behaviour. If following it would change
   what the code does, leave the code as is and say so in the refactor

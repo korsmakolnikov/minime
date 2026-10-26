@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Starts unclebob in interactive mode: the user designs every test and the
-# agent drives one TDD cycle at a time with Claude Code. In kent's workflow
-# kent launches unclebob as a sub-agent instead (workflow mode).
+# Starts unclebob-pair, the interactive TDD agent: the user designs every
+# test and the agent drives one red-green-blue cycle at a time with Claude
+# Code. In kent's workflow kent launches the unclebob agent instead.
 # Usage: unclebob [any other claude option, e.g. --continue]
-exec claude --agent unclebob "$@"
+exec claude --agent unclebob-pair "$@"

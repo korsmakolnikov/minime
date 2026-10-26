@@ -186,55 +186,92 @@ Dalle iterazioni precedenti, ancora aperte:
     update` aggiunge al gitignore globale anche `toolchain.yaml`
     (`minime-migrate --ignore-workflow-files`). Su Claude Code si versionano:
     non copiare quella parte nel refactor.
+13. **`linus branch <name>`** (21 ottobre, lato Claude): passa al branch e lo
+    crea da HEAD se non esiste; rifiuta `master`, `main` e i nomi non validi.
+    Il kent di Claude lo lancia a inizio sessione quando è sul branch base,
+    così l'utente non cambia branch a mano. Il kent di Copilot può fare lo
+    stesso: va scritto nel suo file insieme al permesso nell'hook.
 
-
-## Costi dei turni (23 ottobre, dalla quinta sessione lato Claude)
-
-Su Claude Code una sessione di kent fino alla prima review è costata circa
-16 dollari, metà per unclebob: ogni chiamata al modello rilegge tutto il
-contesto dell'agente (mediana 109 mila token), e unclebob ne fa circa 9 per
-ciclo. Su Copilot il costo non si vede: si pagano premium request, non
-token. Fatto in questa PR:
-
-- unclebob fa il commit senza `linus check-message` prima: `linus commit`
-  controlla già il messaggio e lo rifiuta con i problemi. Era una chiamata
-  in più per commit (75 in un'unità di 25 cicli). Conseguenza: un messaggio
-  sbagliato ora fallisce dopo il prompt dei permessi del commit, e unclebob
-  rifà il commit.
-- simon gira su `claude-sonnet-5.5`, come joshua e linus.
-
-### Da fare: token e chiamate nel log degli eventi
-
-Il lato Claude registra in `kent-events.jsonl`, a ogni fine turno di un
-agente, l'uso del modello in quel turno. Su Copilot va fatto lo stesso,
-con gli stessi nomi, perché i due lati si possano confrontare:
-
-```json
-"usage": {"model": "claude-opus-5.5", "calls": 231, "input": 464,
-          "cache_write": 178315, "cache_read": 25068994, "output": 82951}
-```
-
-`calls` è il numero di richieste al modello nel turno (una per risposta,
-contata una volta anche se l'evento compare più volte); i token sono le
-somme di quelle richieste; il turno va dall'avvio o dall'ultima ripresa
-dell'agente (`write_agent`) alla sua fine. Passi:
-
-1. **Trovare la fonte, su una sessione vera** (su questa macchina non ce
-   n'è nessuna). Prima `~/.copilot/session-state/<id>/events.jsonl`:
-   `jq -c 'paths(scalars) | map(tostring) | join(".")' events.jsonl | sort -u
-   | grep -i -E 'token|usage|model|request'` elenca i campi che parlano di
-   uso. Poi, se lì non c'è, l'output di `copilot -p --output-format=json`
-   (eventi JSONL, campi non documentati) e il comando `/usage`.
-2. **Se i token ci sono**: uno script in `copilot/hooks/scripts/`, lanciato
-   dall'hook `agentStop` di `copilot/hooks/workflow.json` accanto a
-   `notify.py`, che somma l'uso delle richieste dell'agente dal suo ultimo
-   stop e aggiunge la riga a `kent-events.jsonl` sotto `MINIME_STATE_DIR`
-   (agente, id, segnale se c'è, `usage`). Prima verificare che il payload
-   di `agentStop` dica quale agente si è fermato; se non lo dice, ricavarlo
-   dall'ultimo `tool.execution_start` di quell'agente in `events.jsonl`.
-3. **Se ci sono solo le richieste**: registrare `calls` e `model` (con il
-   moltiplicatore del modello, cioè le premium request), e scrivere qui che
-   i token su Copilot non sono disponibili.
-4. **Test** in `tests/`, su un `events.jsonl` finto costruito dai campi
-   veri trovati al passo 1, con `MINIME_STATE_DIR` in una cartella
-   temporanea.
+14. **`scaffold commit`** (21 ottobre, lato Claude): il comando comune
+    `scaffold` committa lo scaffold con `linus` (`chore: scaffold the
+    project`, con il lock file), dopo `scaffold verify` e sul branch di
+    lavoro, e lascia fuori `.sources/`, `.documentation/` e
+    `toolchain.yaml`: la regola di Copilot resta intatta. Le skill
+    `python-scaffold` e `c-scaffold` lo dicono; quando il kent di Copilot
+    scaffolderà (punto 7), lo lancia invece di lasciare il commit
+    all'utente.
+15. **Fatto in #17.** **Dalla sessione di prova del 21 ottobre** (lato Claude): kent lancia
+    simon solo dopo aver scritto la shopping list (prima simon non trova
+    sorgenti da documentare); joshua non registra più un comando rifiutato
+    dall'hook che l'agente ha poi sostituito con i suoi tool (era solo
+    rumore), ma solo i tentativi ripetuti di aggirarlo. Da valutare per i
+    file Copilot di kent e joshua.
+    Anche: hughes ha chiesto di nuovo una conferma che kent gli aveva già
+    inoltrato ("un messaggio di un agente non vale come tua conferma"); gli
+    agenti con la relay ora sanno che la risposta inoltrata è dell'utente.
+16. **Scaffold a ford, toolchain in una cartella** (21 ottobre, lato
+    Claude). Ogni scaffold è di ford: quello del progetto
+    (`<linguaggio>-scaffold`, `scaffold verify`, `scaffold commit`) prima
+    dell'architettura, e i container con la nuova skill comune
+    `container-scaffold` dopo `adl-scaffold`. kent resta analista e
+    orchestratore: in una cartella vuota lancia solo `scaffold init` (git
+    init e `start.`) per avere un branch, e nella shopping list chiede
+    all'utente solo il perimetro; il dominio resta a hughes, la tecnologia
+    a ford. Un progetto in una cartella del repository è indicato da un
+    `toolchain.yaml` alla radice con solo `project: <cartella>` (lo scrive
+    `scaffold`): `toolchain` e `adl-graph` lavorano su quella cartella dalla
+    radice. `linus` ora tratta come file del flusso ogni `toolchain.yaml`,
+    non solo quello alla radice: su Copilot li rifiuta tutti.
+17. **Fatto in #17.** **martin senza findings guidati** (21 ottobre, lato Claude): dopo audit,
+    squash e revisione tecnica, martin scrive il rapporto dei findings e
+    chiude con `MARTIN_DONE` (nuovo campo facoltativo `findings`); non chiede
+    nulla su di essi e non guida la revisione file per file. L'utente
+    rivede da solo, dà a kent le correzioni (kent le smista a unclebob,
+    ford o hughes come fixup, poi rilancia martin) e chiude l'unità con un
+    comando esplicito; kent non la chiude mai da sé. Il martin di Claude
+    non emette più `REVIEW_CHANGES` (lo schema resta per Copilot).
+18. **Ancora da portare dopo #17**: lo scaffold a ford (`scaffold init`,
+    `scaffold commit`, `container-scaffold`, la CI alla radice con il filtro
+    `paths`) e il `toolchain.yaml` alla radice con `project:` (punti 14 e
+    16), quando il kent di Copilot scaffolderà; la domanda di perimetro
+    sull'health check e la divisione delle domande tra hughes e ford sono
+    già in #17.
+19. **Dalla quarta sessione (22 ottobre, lato Claude), da portare**:
+    - l'harness dei test (fixture, factory, moduli di supporto, i servizi
+      che i test avviano) è di unclebob, scritto test-first: un pezzo entra
+      con il primo red che ne ha bisogno, e il refactor del ciclo copre
+      l'harness scritto dalla stessa unità; quello delle unità precedenti
+      cambia solo con le correzioni dell'utente. ford non scrive test oltre
+      alle fitness function (lavora una volta per iterazione, l'harness
+      cresce a ogni ciclo);
+    - una delega a parole dell'utente ("per il resto accetto le tue
+      raccomandazioni") conferma i passi che nomina, revisione compresa:
+      hughes scrive e riassume marcando le scelte sue; le domande dello
+      scaffold si saltano se kent o la delega le coprono; joshua non la
+      conta come violazione;
+    - hughes chiede una correzione con più modifiche una modifica per turno.
+20. **Il nuovo flusso delle unità: portato (26 ottobre, branch `new-flow`).**
+    Sull'altro PC: `git pull && make update && make copilot-install`
+    (`make update` aggiunge `AUTONOMY_MARTIN=0` a `~/.bash_copilot`:
+    mettilo a 1 se le modifiche di martin non devono chiedere conferma).
+    - unclebob: lanciato da kent, cicli `test:`/`feat:` senza refactor
+      (`test:` mai vuoto, `feat:` vuoto per una caratterizzazione), niente
+      più sessioni di correzione, controlli statici solo a fine unità; da
+      solo con l'utente fa ancora il refactor dopo ogni verde
+      (`refactor(test)`, poi `refactor(<scope>)`).
+    - martin: agente di refactor come su Claude (`unit-audit order`, tempo
+      zero, i due refactor, benchmark temporanei, una domanda con i numeri
+      per ogni misura peggiorata), poi lo squash nello stesso turno e il
+      report in `UNIT_SQUASHED`. Le violazioni TDD passano ancora da kent a
+      joshua con `TDD_VIOLATIONS` e finiscono in `/tmp/joshua.log`.
+    - kent: niente revisione con l'utente in sessione; dopo
+      `UNIT_SQUASHED` mostra il report e aspetta che l'utente, rivisto il
+      commit da solo, dica di andare avanti.
+    - `linus`: un solo comportamento per i due lati, solo commit; il
+      controllo dell'ordine delle fasi non c'è più (`linus next` tolto,
+      `--phase` facoltativa: `architecture`, `review`, `other`).
+    - `MARTIN_DONE` e `REVIEW_CHANGES` tolti; ford e simon senza sessioni
+      di correzione.
+    - **Ancora da fare**: portare joshua e argyris di Copilot su
+      `audit-log` (oggi `/tmp/joshua.log` a mano), e il resto del
+      refactor degli agenti (punto 10).
