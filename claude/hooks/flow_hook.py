@@ -3,9 +3,9 @@
 
 Usage, in an agent's frontmatter: flow_hook.py <agent>
 
-Appends one line per tool call to kent-flow.log under MINIME_STATE_DIR
-(default /tmp), tagged [<agent>], so the user can follow the whole flow with
-`tail -f /tmp/kent-flow.log` and no agent spends a call on logging. Reads
+Appends one line per tool call to kent-flow.log in the workflow's state
+folder (see minime.state_dir), tagged [<agent>], so the user can follow the
+whole flow with `tail -f` and no agent spends a call on logging. Reads
 and searches are not logged. The agents still use `flow-log` for what a call
 does not show: a verdict, a decision, the step they are at.
 """
@@ -14,8 +14,10 @@ import json
 import os
 import sys
 
-STATE_DIR = os.environ.get("MINIME_STATE_DIR", "/tmp")
-FLOW_LOG = os.path.join(STATE_DIR, "kent-flow.log")
+sys.path[:0] = [os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "..", "common", "lib"),
+                os.path.expanduser("~/.local/share/minime/lib")]
+from minime import FLOW_LOG  # noqa: E402
+
 WIDTH = 160
 
 

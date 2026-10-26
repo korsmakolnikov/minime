@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "UNIT_SQUASHED",
+  "description": "martin's report at the end of a unit (Claude Code): the TDD violations, the measures at time zero and after its refactor, the commit it squashed the unit into. The user reviews that commit on their own.",
+  "type": "object",
+  "required": ["unit", "commit", "squashed", "benchmarks_dropped", "tdd_violations", "characterisations", "measures", "flaky_tests", "user_decisions", "findings"],
+  "additionalProperties": false,
+  "properties": {
+    "unit": {"type": "string", "minLength": 1, "description": "The unit's scope."},
+    "commit": {"type": "string", "minLength": 1, "description": "The squashed commit: short hash and subject."},
+    "squashed": {"type": "integer", "minimum": 1, "description": "The number of commits squashed."},
+    "benchmarks_dropped": {"type": "integer", "minimum": 0},
+    "tdd_violations": {"type": "array", "items": {"type": "string", "pattern": "^M-\\d{8}-\\d{6}-\\d+$"}, "description": "The ids logged with audit-log."},
+    "characterisations": {"type": "array", "items": {"type": "string", "minLength": 1}, "description": "The empty feat: commits: tests that passed at once."},
+    "measures": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "measure",
+          "before",
+          "after"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "measure": {
+            "type": "string",
+            "minLength": 1
+          },
+          "before": {
+            "type": "string",
+            "minLength": 1
+          },
+          "after": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "flaky_tests": {"type": "array", "items": {"type": "string", "minLength": 1}},
+    "user_decisions": {"type": "array", "items": {"type": "string", "minLength": 1}},
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "where",
+          "what"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "where": {
+            "type": "string",
+            "minLength": 1
+          },
+          "what": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    }
+  }
+}

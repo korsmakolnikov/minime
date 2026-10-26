@@ -1,7 +1,8 @@
 """How to build, test and check a project: toolchain.yaml and the language drivers.
 
-toolchain.yaml sits at the project root and is never versioned (the global
-git ignore lists it). Every key is optional but `language`:
+toolchain.yaml sits at the project root; it is a workflow file, versioned on
+Claude Code and never on Copilot (see the workflow-files skill). Every key is
+optional but `language`:
 
     toolchain: 1
     language: elixir            # elixir | python: picks the driver
@@ -14,6 +15,16 @@ git ignore lists it). Every key is optional but `language`:
 
 Without the file, the language is detected (mix.exs, pyproject.toml) and the
 driver's defaults run on the host.
+
+A project in a folder of a repository: the toolchain.yaml at the repository's
+root names it, and holds nothing else (the folder has its own):
+
+    toolchain: 1
+    project: metrics-server
+
+The tools then work on that folder from the repository's root: the paths
+they take and print are relative to the current directory, as the agents
+see them.
 """
 import os
 import re
@@ -25,18 +36,45 @@ from minime import ToolError, git
 CONFIG = "toolchain.yaml"
 
 
+def read(path):
+    try:
+        import yaml
+    except ImportError:
+        raise ToolError("reading toolchain.yaml needs PyYAML (python3 -m pip install pyyaml)")
+    return yaml.safe_load(open(path)) or {}
+
+
+def find(top):
+    """The project of the repository at <top>: its root, or the folder that
+    the root's toolchain.yaml names with `project`."""
+    path = os.path.join(top, CONFIG)
+    folder = read(path).get("project") if os.path.exists(path) else None
+    if not folder:
+        return Project(top, top)
+    root = os.path.normpath(os.path.join(top, folder))
+    if not os.path.isdir(root) or not root.startswith(top + os.sep):
+        raise ToolError(f"{path}: `project: {folder}` is not a folder of the repository")
+    return Project(root, top)
+
+
+def projects_below(top):
+    """The folders right under <top> that hold a project, for the error message."""
+    return sorted(d for d in os.listdir(top)
+                  if os.path.isdir(os.path.join(top, d)) and not d.startswith(".")
+                  and (os.path.exists(os.path.join(top, d, CONFIG)) or detect(os.path.join(top, d))))
+
+
 def load(root):
     path = os.path.join(root, CONFIG)
     if not os.path.exists(path):
         language = detect(root)
         if language is None:
-            raise ToolError(f"no {CONFIG} and no known project file (mix.exs, pyproject.toml) in {root}")
+            below = projects_below(root)
+            hint = (f"; the folders {', '.join(below)} hold one: name it in {CONFIG} at the root"
+                    f" (`project: <folder>`)") if below else ""
+            raise ToolError(f"no {CONFIG} and no known project file (mix.exs, pyproject.toml) in {root}{hint}")
         return {"language": language, "detected": True}
-    try:
-        import yaml
-    except ImportError:
-        raise ToolError("reading toolchain.yaml needs PyYAML (python3 -m pip install pyyaml)")
-    config = yaml.safe_load(open(path)) or {}
+    config = read(path)
     if not isinstance(config, dict) or config.get("language") not in DRIVERS:
         raise ToolError(f"{path}: `language` must be one of {', '.join(DRIVERS)}")
     for key, kind in (("exec", list), ("exec_stdin", list), ("env", dict), ("commands", dict), ("architecture_tests", list)):
@@ -59,10 +97,28 @@ def workflow_file(path):
 
 
 class Project:
-    def __init__(self, root):
+    def __init__(self, root, top=None):
         self.root = root
+        self.top = top or root
         self.config = load(root)
         self.driver = DRIVERS[self.config["language"]](root)
+
+    # -- paths: the agents' (relative to the current directory), git's
+    # (relative to the repository's root), the project's (to self.root) --
+    def local(self, path):
+        """A path as the agent gave it, with an optional :line or ::test."""
+        name, sep, rest = path.partition(":")
+        inside = os.path.relpath(os.path.abspath(name), self.root)
+        if inside.startswith(".."):
+            raise ToolError(f"{name} is outside the project ({self.root})")
+        return inside + sep + rest
+
+    def from_git(self, paths):
+        inside = (os.path.relpath(os.path.join(self.top, p), self.root) for p in paths)
+        return [p for p in inside if not p.startswith("..")]
+
+    def shown(self, path):
+        return os.path.relpath(os.path.join(self.root, path))
 
     # -- commands ---------------------------------------------------------
     def argv(self, name, paths=(), default=None):
@@ -104,7 +160,7 @@ class Project:
 
     def commit_files(self, rev="HEAD"):
         out = git("show", "--name-only", "--diff-filter=d", "--format=", rev, cwd=self.root)
-        return self.existing(sorted(set(out.split())))
+        return self.existing(sorted(set(self.from_git(out.split()))))
 
     def branch_files(self):
         base = subprocess.run(["linus", "base"], cwd=self.root, capture_output=True, text=True)
@@ -113,7 +169,7 @@ class Project:
         committed = git("diff", "--name-only", "--diff-filter=d", f"{base.stdout.strip()}...HEAD", cwd=self.root)
         status = git("status", "--porcelain", "--untracked-files=all", cwd=self.root)
         dirty = [line[3:].split(" -> ")[-1] for line in status.splitlines()]
-        changed = set(committed.split()) | set(dirty)
+        changed = set(self.from_git(committed.split())) | set(self.from_git(dirty))
         return self.existing(sorted(f for f in changed if not workflow_file(f)))
 
     def related(self, files, architecture=False):
@@ -149,6 +205,12 @@ class Elixir:
 
     def test(self):
         return ["mix", "test"]
+
+    def durations(self):
+        return ["--slowest", "1000"]
+
+    def bench(self):
+        return ["mix", "run"]
 
     def build(self):
         return ["mix", "compile", "--warnings-as-errors"]
@@ -205,6 +267,12 @@ class Python:
 
     def test(self):
         return self.run("pytest")
+
+    def durations(self):
+        return ["--durations=0", "--durations-min=0"]
+
+    def bench(self):
+        return self.run("python")
 
     def build(self):
         folders = [f for f in ("src", "tests") if os.path.isdir(os.path.join(self.root, f))] or ["."]

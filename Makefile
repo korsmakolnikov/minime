@@ -46,6 +46,7 @@ SHELL_RC_FILES   := $(wildcard $(HOME)/.bashrc $(HOME)/.bash_aliases $(HOME)/.ba
 # user's autonomy settings, and copilot-install never overwrites it.
 INSTALLED := \
 	$(AGENTS_DEST_DIR)/unclebob.md \
+	$(AGENTS_DEST_DIR)/unclebob-pair.md \
 	$(AGENTS_DEST_DIR)/kent.md \
 	$(AGENTS_DEST_DIR)/hughes.md \
 	$(AGENTS_DEST_DIR)/ford.md \
@@ -65,11 +66,13 @@ INSTALLED := \
 	$(SKILLS_DEST_DIR)/python-handbook \
 	$(SKILLS_DEST_DIR)/python-scaffold \
 	$(SKILLS_DEST_DIR)/c-scaffold \
+	$(SKILLS_DEST_DIR)/container-scaffold \
 	$(SKILLS_DEST_DIR)/workflow-files \
 	$(SKILLS_DEST_DIR)/elixir-handbook \
 	$(SKILLS_DEST_DIR)/elixir-style \
 	$(SKILLS_DEST_DIR)/elixir-static-checks \
 	$(SKILLS_DEST_DIR)/scaffold \
+	$(SKILLS_DEST_DIR)/save-session \
 	$(HOME)/.claude/minime \
 	$(BIN_DIR)/unclebob \
 	$(BIN_DIR)/linus \
@@ -86,6 +89,7 @@ INSTALLED := \
 	$(BIN_DIR)/toolchain \
 	$(BIN_DIR)/adl-graph \
 	$(BIN_DIR)/scaffold \
+	$(BIN_DIR)/unit-audit \
 	$(SIGNALS_DIR) \
 	$(LIB_DIR) \
 	$(COPILOT_HOME)/agents/argyris.agent.md \
@@ -111,6 +115,7 @@ INSTALLED := \
 	$(COPILOT_HOME)/skills/python-handbook \
 	$(COPILOT_HOME)/skills/python-scaffold \
 	$(COPILOT_HOME)/skills/c-scaffold \
+	$(COPILOT_HOME)/skills/container-scaffold \
 	$(COPILOT_HOME)/skills/workflow-files \
 	$(COPILOT_HOME)/skills/elixir-handbook \
 	$(COPILOT_HOME)/skills/elixir-style \

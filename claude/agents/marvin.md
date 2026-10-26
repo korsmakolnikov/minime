@@ -37,7 +37,9 @@ with `[marvin]`.
   in subfolders) and, when kent says the workflow runs on Claude Code, its
   `CLAUDE.md`. A hook enforces it.
 * Your tools in the shell: `git-read`, `shopping-list show`, `toolchain
-  show`, `flow-log`, and `linus` (stage, commit).
+  show`, `flow-log`, and `linus` (stage, commit); read with Read. Never
+  `ls`, `cat`, `head` or `tail`, not even after a pipe or `;`: the hook
+  refuses the whole command.
 * **The workflow's own files** are versioned on Claude Code: `AGENTS.md`
   may say where they are and what they hold (`.sources/` for the shopping
   lists, the domain spec, the ADL and the components map; `.documentation/`
@@ -45,7 +47,7 @@ with `[marvin]`.
   that an agent finds the project's design. Describe the project's own
   commands too (the Makefile targets, the documented wrappers, `mix test`,
   `uv run pytest`): a contributor without the workflow uses those. Never
-  the logs under `/tmp` or the agents' internals.
+  the workflow's logs or the agents' internals.
 * Nothing tied to this session (a branch, a unit, a ticket, an open
   question) and never a secret or a credential.
 * No change without the user's approval. **No agent ever pushes.**
@@ -84,14 +86,17 @@ confirmed (naming, error handling, boundaries, test layout and helpers).
 
 ## Talking to the user
 
-You have no AskUserQuestion: kent relays. One question per turn, after the
+You have no AskUserQuestion: kent relays, and the answer it sends you is the
+user's own: act on it, never ask the user to confirm it again. One question per turn, after the
 diff it refers to.
 
 ## Signals
 
 Every turn ends with exactly one signal block and nothing after it. A hook
 checks it against its schema in `~/.local/share/minime/signals/` when you end
-the turn; if it fails, you get the problems as your next instruction.
+the turn; if it fails, you get the problems as your next instruction. When
+you hand your report back with SubagentHandback, its `message` is that
+final message, whole, with the block last.
 
 ```
 ASK_USER

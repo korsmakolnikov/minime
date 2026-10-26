@@ -81,7 +81,7 @@ without auditing them.
     the messages may hold backticks). The agent's signals: hughes
     `ASK_USER,HUGHES_DONE`; ford `ASK_USER,FORD_DONE`; unclebob
     `ASK_USER,INTERFACE_CHANGE_REQUEST,UNCLEBOB_DONE`; martin
-    `ASK_USER,TDD_VIOLATIONS,MARTIN_DONE`; simon
+    `ASK_USER,TDD_VIOLATIONS,REVIEW_CHANGES,MARTIN_DONE`; simon
     `SIMON_UPDATED`. Anything but `ok <name>` is a violation, its evidence
     the event and the lines signal-check printed.
 
@@ -222,9 +222,8 @@ kent:
   (`contracts`), then for each component unclebob and martin on its unit,
   then the integration session and martin on the flow unit; passes the spec
   path and the component's spec ids to unclebob.
-* Never starts a unit before the user closed the previous one, in so many
-  words; routes each correction the user gives to its owner (unclebob,
-  ford, hughes) and relaunches martin on the fixups; sends changes to an earlier, squashed unit as a correction
+* Never starts a unit before martin has reported `MARTIN_DONE` on the
+  previous one; sends changes to an earlier, squashed unit as a correction
   unit of their own after the current one, its agent given that unit's
   commit as the target of its fixups; gives ford the component's scope for an
   `INTERFACE_CHANGE_REQUEST`.
@@ -239,9 +238,6 @@ kent:
   each with its commit scope.
 * Prints verbatim, before relaying a question, the text the agent wrote
   before its `ASK_USER` block.
-* Asks the user only about the scope (a health check included, for a
-  service); leaves the domain questions to hughes and the technology ones
-  to ford.
 * Sends you every event, martin's `TDD_VIOLATIONS` included, prints your
   violations and martin's in its console, then resumes martin. Never
   launches argyris, never forwards violations to it and never restarts for
@@ -258,9 +254,10 @@ martin:
   incoherence sent as a `TDD_VIOLATIONS` block and the unit carried on; the
   squash; the technical review of the squashed commit (SOLID, time and space
   complexity, idiom, every possible result of every called function handled
-  and tested, the unit's spec ids covered by tests citing them); every
-  finding reported with its evidence in `MARTIN_DONE`, and no question
-  about them (the user reviews on their own).
+  and tested, the unit's spec ids covered by tests citing them); a question
+  to the user about every finding.
+* Walks the user through the unit's diff one file at a time, waiting for each
+  answer.
 * Shows the user the whole audit report (every commit of the unit, oldest
   first, the cycles, each check's verdict, the code volume) and asks for its
   approval, whatever the violations; squashes only after the user chose "go

@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
 # linus: the single write path to git of the workflow agents, on Copilot CLI
 # and on Claude Code alike.
-# Every change is a new commit; the TDD cycle (red, green, refactor) is
-# enforced from the phase recorded for each commit. Code-review corrections
-# are fixups of a branch commit, or review commits with the user's consent.
+# Every change is a new commit with a valid Conventional message. On Copilot
+# the TDD cycle (red, green, refactor) is enforced from the phase recorded for
+# each commit; on Claude Code linus only commits, and martin checks the order
+# of the unit's commits with unit-audit. Code-review corrections are fixups of
+# a branch commit, or review commits with the user's consent.
 
 set -euo pipefail
 
@@ -12,11 +14,13 @@ NC='\033[0m'
 COPILOT_EMAIL='223556219+Copilot@users.noreply.github.com'
 CLAUDE_EMAIL='noreply@anthropic.com'
 TRAILER_RE='^Co-[Aa]uthored-[Bb]y: (Copilot|Claude) '
-TYPES='feat|fix|test|refactor|perf|docs|style|build|ci|chore|revert'
+TYPES='feat|fix|test|refactor|perf|docs|style|build|ci|chore|revert|benchmark'
 SCOPE_RE='\(([a-z0-9._/-]+( [a-z0-9._/-]+)*)\)'
 CONVENTIONAL_RE="^($TYPES)($SCOPE_RE)?!?: [^ ].*[^.]\$"
 TEST_PATH_RE='(^|/)(test|tests|spec|__tests__)/|_test\.[a-z]+$|(^|/)test_[^/]*\.py$|\.(test|spec)\.[a-z]+$'
-FLOW_LOG=/tmp/kent-flow.log
+TEST_SUBJECT_RE='^test[(:!]'
+BENCHMARK_SUBJECT_RE='^benchmark[(:!]'
+TEST_REFACTOR_RE='^refactor\(test\)!?: '
 PHASES='red green refactor regression characterisation architecture review other'
 
 die() {
@@ -38,13 +42,17 @@ Read-only:
                                 Prints "ok (<n>/72)" or every problem found.
 
 Write:
+  branch <name>                 Switch to branch <name>, creating it from HEAD if it
+                                does not exist. Refuses master, main and an invalid name.
   stage <path>...               git add the given paths.
   hunks <path>                  List the unstaged hunks of <path>, numbered (read only).
   stage-hunks <path> <n>...     Stage only hunks <n>... of <path>, as `linus hunks` numbers them.
   stage-patch <patch-file>      Stage only the hunks in <patch-file> (git apply --cached).
   unstage [<path>...]           Unstage paths (all if none given).
-  commit --phase <phase> [--empty] [<path>...] <<'MSG'
+  commit [--phase <phase>] [--empty] [<path>...] <<'MSG'
                                 Stage the given paths, then commit everything staged.
+                                On Claude Code the phase is optional and only
+                                recorded, and a test: commit is never empty.
                                 The message comes from stdin: the subject line, a
                                 blank line and a body. The co-author trailer is appended.
   amend --phase <phase> [<path>...]
@@ -61,6 +69,10 @@ Write:
                                 unit's cycle is closed and the work tree is clean.
                                 The message has the same scope; the tree does
                                 not change. The commit is recorded as a "unit".
+                                On Claude Code the unit may also hold martin's
+                                refactor(test) and benchmark commits, the cycle
+                                is not checked, and the benchmark commits are
+                                dropped: the tree loses only their changes.
   fixup --target <commit> [<path>...] <<'MSG'
                                 Stage the given paths, then commit everything staged
                                 as "fixup! <subject of <commit>>" (code review, or
@@ -69,7 +81,8 @@ Write:
                                 the body; the co-author trailer is appended. The
                                 commit is recorded as a "fixup"; never autosquashed.
 
-Phases and the TDD cycle (the last cycle commit of the branch decides):
+Phases and the TDD cycle, enforced on Copilot only (the last cycle commit of
+the branch decides):
   red, characterisation   a new test; the cycle must be closed (no cycle commit
                           yet, or the last one is a refactor)
   regression              a new test after a green that broke other tests
@@ -96,7 +109,9 @@ Phases and the TDD cycle (the last cycle commit of the branch decides):
   (<model>)); unset, "claude" inside Claude Code (CLAUDECODE=1), else
   "copilot". The model is --model, else $LINUS_MODEL, else the "model" of the
   CLI's settings.json (~/.copilot or ~/.claude). Each commit is appended to
-  /tmp/kent-flow.log when that file exists.
+  the activity log (kent-flow.log in the workflow's state folder: $MINIME_STATE_DIR,
+  else ~/.local/state/minime/<repository> on Claude Code, else /tmp) when that
+  file exists.
 
 The base branch is $LINUS_BASE, else `git config linus.base`, else the first
 existing ref among origin/master, origin/main, master, main.
@@ -265,9 +280,11 @@ parse_commit_args() {
     *) PATHS+=("$1"); shift ;;
     esac
   done
-  [ -n "$PHASE" ] || die "The phase is missing: pass --phase <phase> ($PHASES)."
-  [[ " $PHASES " == *" $PHASE "* ]] || die "Unknown phase '$PHASE'. Phases: $PHASES."
   resolve_model
+  if [ -n "$PHASE" ] || [ "$COAUTHOR" = copilot ]; then
+    [ -n "$PHASE" ] || die "The phase is missing: pass --phase <phase> ($PHASES)."
+    [[ " $PHASES " == *" $PHASE "* ]] || die "Unknown phase '$PHASE'. Phases: $PHASES."
+  fi
   [ "$CMD" != commit ] || read_message
 }
 
@@ -295,7 +312,20 @@ report() {
   git diff-tree --no-commit-id --name-only -r HEAD | sed 's/^/  /'
 }
 
+# The workflow's state folder, as minime.state_dir finds it.
+state_dir() {
+  if [ -n "${MINIME_STATE_DIR:-}" ]; then
+    echo "$MINIME_STATE_DIR"
+  elif [ "${CLAUDECODE:-}" = 1 ]; then
+    echo "${XDG_STATE_HOME:-$HOME/.local/state}/minime/$(basename "$(git rev-parse --show-toplevel)")"
+  else
+    echo /tmp
+  fi
+}
+
 flow_log() {
+  local FLOW_LOG
+  FLOW_LOG="$(state_dir)/kent-flow.log"
   [ -f "$FLOW_LOG" ] || return 0
   echo "$(date -Is) [linus] $1 $(git log -1 --format='%h %s')" >>"$FLOW_LOG"
 }
@@ -308,8 +338,8 @@ trailer() {
 }
 
 # The workflow's own files: versioned on Claude Code, never on Copilot.
-WORKFLOW_FILES_RE='(^|/)\.(sources|documentation)/|^toolchain\.yaml$'
-WORKFLOW_PATHSPEC=(. ':!.sources' ':!.documentation' ':!toolchain.yaml')
+WORKFLOW_FILES_RE='(^|/)\.(sources|documentation)/|(^|/)toolchain\.yaml$'
+WORKFLOW_PATHSPEC=(. ':!.sources' ':!.documentation' ':(exclude,glob)**/toolchain.yaml')
 
 require_staged() {
   git diff --cached --quiet && die "Nothing is staged."
@@ -371,7 +401,7 @@ PHASE_LOG="$COMMON_DIR/linus/phases"
 # Write commands share the index: serialise them, so that parallel calls cannot
 # mix their files into one commit.
 case "$CMD" in
-stage | stage-hunks | stage-patch | unstage | commit | amend | squash | fixup)
+branch | stage | stage-hunks | stage-patch | unstage | commit | amend | squash | fixup)
   exec 9>"$COMMON_DIR/linus.lock"
   flock 9
   ;;
@@ -387,10 +417,25 @@ range)
   done < <(log_with_phases "$BASE..HEAD")
   ;;
 next)
+  load_coauthor
+  [ "$COAUTHOR" = copilot ] || { echo "linus does not check the order of the commits on Claude Code (martin: unit-audit order)."; exit 0; }
   last=$(last_cycle_phase)
   echo "last cycle commit: $last; allowed: $(allowed_after "$last")"
   ;;
 check-message) check_message "$@" ;;
+branch)
+  [ $# -eq 1 ] || die "Usage: linus branch <name>"
+  git check-ref-format --branch "$1" >/dev/null 2>&1 || die "Not a valid branch name: $1"
+  case "$1" in
+  master | main) die "Refusing to switch to '$1'. Work on a feature branch." ;;
+  esac
+  if git rev-parse --verify -q "refs/heads/$1" >/dev/null; then
+    git switch -q "$1"
+  else
+    git switch -q -c "$1"
+  fi
+  echo "On branch $1."
+  ;;
 stage)
   [ $# -ge 1 ] || die "Usage: linus stage <path>..."
   git add -- "$@"
@@ -424,18 +469,22 @@ commit)
   parse_commit_args "$@"
   current_branch_guard
   validate_message "$MSG_FILE"
-  check_subject_scope "$PHASE" "$(sed -n 1p "$MSG_FILE")"
-  cycle_guard "$PHASE" "$EMPTY"
+  if [ "$COAUTHOR" = copilot ]; then
+    check_subject_scope "$PHASE" "$(sed -n 1p "$MSG_FILE")"
+    cycle_guard "$PHASE" "$EMPTY"
+  elif [ -n "$EMPTY" ] && [[ "$(sed -n 1p "$MSG_FILE")" =~ $TEST_SUBJECT_RE ]]; then
+    die "A test: commit is never empty: it holds the new test."
+  fi
   stage_paths "${PATHS[@]}"
   if [ -n "$EMPTY" ]; then
     git diff --cached --quiet || die "--empty commits nothing: unstage the staged changes first."
   else
     require_staged
-    check_paths "$PHASE"
+    [ "$COAUTHOR" != copilot ] || check_paths "$PHASE"
   fi
   { strip_existing_trailer "$MSG_FILE"; echo; trailer; } | git commit -q ${EMPTY:+--allow-empty} -F -
-  record_phase "$PHASE"
-  flow_log "$PHASE"
+  [ -z "$PHASE" ] || record_phase "$PHASE"
+  flow_log "${PHASE:-commit}"
   report
   ;;
 amend)
@@ -444,18 +493,22 @@ amend)
   load_base
   head=$(git rev-parse HEAD)
   in_branch "$head" || die "HEAD is outside the branch: refusing to amend."
-  head_phase=$(phase_of "$head")
-  case "$head_phase" in
-  red | regression | characterisation) ;;
-  *) die "Only a red, regression or characterisation HEAD can be amended; HEAD is '${head_phase:-unrecorded}'." ;;
-  esac
-  [ "$PHASE" = "$head_phase" ] || die "HEAD is a $head_phase commit, not $PHASE."
+  if [ "$COAUTHOR" = copilot ]; then
+    head_phase=$(phase_of "$head")
+    case "$head_phase" in
+    red | regression | characterisation) ;;
+    *) die "Only a red, regression or characterisation HEAD can be amended; HEAD is '${head_phase:-unrecorded}'." ;;
+    esac
+    [ "$PHASE" = "$head_phase" ] || die "HEAD is a $head_phase commit, not $PHASE."
+  else
+    [[ "$(git log -1 --format=%s)" =~ $TEST_SUBJECT_RE ]] || die "Only a test: HEAD can be amended."
+  fi
   stage_paths "${PATHS[@]}"
   require_staged
-  check_paths "$PHASE"
+  [ "$COAUTHOR" != copilot ] || check_paths "$PHASE"
   git commit -q --amend --no-edit
-  record_phase "$PHASE"
-  flow_log "amend $PHASE"
+  [ -z "$PHASE" ] || record_phase "$PHASE"
+  flow_log "amend ${PHASE:-test}"
   report
   ;;
 squash)
@@ -488,11 +541,17 @@ squash)
   in_branch "$from" || die "$FROM is outside the branch (<base>..HEAD)."
   [ -z "$(git rev-list --merges "$from^..HEAD")" ] || die "The unit contains merge commits."
   count=0
-  while read -r _ short phase subject; do
+  BENCHMARKS=()
+  while read -r sha short phase subject; do
     count=$((count + 1))
-    [ "$(subject_scope "$subject")" = "$SCOPE" ] ||
-      die "$short does not carry the scope ($SCOPE): '$subject'"
     [ "$phase" != unit ] || die "$short is a squashed unit already: start the unit after it."
+    if [ "$COAUTHOR" = claude ] && [[ "$subject" =~ $BENCHMARK_SUBJECT_RE ]]; then
+      BENCHMARKS+=("$sha")
+      continue
+    fi
+    [ "$(subject_scope "$subject")" = "$SCOPE" ] ||
+      { [ "$COAUTHOR" = claude ] && [[ "$subject" =~ $TEST_REFACTOR_RE ]]; } ||
+      die "$short does not carry the scope ($SCOPE): '$subject'"
   done < <(log_with_phases "$from^..HEAD")
   before=$(git rev-parse "$from^")
   if in_branch "$before" &&
@@ -500,19 +559,37 @@ squash)
     [ "$(phase_of "$before")" != unit ]; then
     die "$(git rev-parse --short "$before") before $FROM also carries ($SCOPE): the unit starts earlier."
   fi
-  last=$(last_cycle_phase)
-  case "$last" in
-  none | refactor) ;;
-  *) die "The unit's cycle is open (last cycle commit: $last): close it with a refactor first." ;;
-  esac
+  if [ "$COAUTHOR" = copilot ]; then
+    last=$(last_cycle_phase)
+    case "$last" in
+    none | refactor) ;;
+    *) die "The unit's cycle is open (last cycle commit: $last): close it with a refactor first." ;;
+    esac
+  fi
   tip=$(git rev-parse HEAD)
   git reset -q --soft "$before"
+  # The benchmarks only measured the refactor: their changes leave the unit.
+  for sha in "${BENCHMARKS[@]}"; do
+    if ! git diff "$sha^" "$sha" | git apply -R --index --whitespace=nowarn; then
+      git reset -q --hard "$tip"
+      die "Cannot drop the benchmark commit $(git rev-parse --short "$sha"): a later commit changed its files. The branch is back at $(git rev-parse --short "$tip")."
+    fi
+  done
   if ! { strip_existing_trailer "$MSG_FILE"; echo; trailer; } | git commit -q --allow-empty -F -; then
     git reset -q --soft "$tip"
     die "The commit failed; the branch is back at $(git rev-parse --short "$tip")."
   fi
-  [ "$(git rev-parse HEAD^{tree})" = "$(git rev-parse "$tip^{tree}")" ] ||
-    die "The squashed tree differs from $(git rev-parse --short "$tip"): inspect, then 'git reset --hard $tip' restores the unit."
+  if [ ${#BENCHMARKS[@]} -eq 0 ]; then
+    [ "$(git rev-parse HEAD^{tree})" = "$(git rev-parse "$tip^{tree}")" ] ||
+      die "The squashed tree differs from $(git rev-parse --short "$tip"): inspect, then 'git reset --hard $tip' restores the unit."
+  else
+    benchmark_files=$(for sha in "${BENCHMARKS[@]}"; do git show --name-only --format= "$sha"; done | sort -u)
+    while read -r file; do
+      [ -z "$file" ] || grep -qxF "$file" <<<"$benchmark_files" ||
+        die "The squashed tree differs from $(git rev-parse --short "$tip") in $file, not a benchmark file: inspect, then 'git reset --hard $tip' restores the unit."
+    done < <(git diff --name-only HEAD "$tip")
+    echo "Dropped ${#BENCHMARKS[@]} benchmark commit(s)."
+  fi
   record_phase unit
   flow_log "squash of $count commits (previous tip $(git rev-parse --short "$tip")) into"
   echo "Squashed $count commits; the previous tip $(git rev-parse --short "$tip") stays reachable in the reflog."

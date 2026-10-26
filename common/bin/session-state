@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""kent's progress file, to resume a session: /tmp/kent-partial-session-progress.md.
+"""kent's progress file, to resume a session: kent-partial-session-progress.md in
+the workflow's state folder (see minime.state_dir).
 
 Usage:
   session-state show          print it (exit 1 if there is none)

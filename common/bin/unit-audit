@@ -1,0 +1,163 @@
+#!/usr/bin/env python3
+"""martin's measures of a unit, before its refactor (Claude Code).
+
+Usage:
+  unit-audit order --scope "<domain> <component>"
+      The order of the unit's commits. The unit is the run of commits ending
+      at HEAD that carry the scope, plus martin's refactor(test) and
+      benchmark commits. unclebob's part must be cycles of one test: commit
+      (never empty, test files only) and one feat: commit (no test files; an
+      empty feat is a test that passed at once, reported as a
+      characterisation); then martin's part, in this order: refactor(test)
+      (test files only), refactor(<scope>) (no test files), any benchmark.
+      Prints one line per violation and exits 1, else "ok".
+  unit-audit lines <path>...
+      Non-blank lines per file under the paths, in three groups: production
+      code, tests (the test modules) and harness (every other file under a
+      test folder: fixtures, factories, support modules, conftest). The
+      harness lines measure testability.
+"""
+import os
+import re
+import sys
+
+sys.path[:0] = [os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "lib"),
+                os.path.expanduser("~/.local/share/minime/lib")]
+from minime import ToolError, git, main_guard, repo_root  # noqa: E402
+
+# As linus and the toolchain drivers see test files.
+TEST_PATH = re.compile(r"(^|/)(test|tests|spec|__tests__)/|_test\.[a-z]+$|(^|/)test_[^/]*\.py$|\.(test|spec)\.[a-z]+$")
+TEST_MODULE = re.compile(r"(^|/)test_[^/]*\.py$|_test\.(py|exs)$|\.(test|spec)\.[a-z]+$")
+SUBJECT = re.compile(r"^(?P<type>[a-z]+)(?:\((?P<scope>[^)]*)\))?!?: ")
+
+
+def commits(root):
+    """(sha, subject, files) of every commit from HEAD back to the base."""
+    base = git("merge-base", "HEAD", os.environ.get("LINUS_BASE") or base_ref(root), cwd=root).strip()
+    out = git("log", "--format=%x00%H %s", "--name-only", f"{base}..HEAD", cwd=root)
+    found = []
+    for chunk in out.split("\0")[1:]:
+        lines = [line for line in chunk.splitlines() if line.strip()]
+        sha, _, subject = lines[0].partition(" ")
+        found.append((sha, subject, lines[1:]))
+    return found
+
+
+def base_ref(root):
+    configured = git("config", "--get", "linus.base", cwd=root, check=False).strip()
+    if configured:
+        return configured
+    for ref in ("origin/master", "origin/main", "master", "main"):
+        if git("rev-parse", "--verify", "-q", ref, cwd=root, check=False).strip():
+            return ref
+    raise ToolError("cannot find the base branch: set LINUS_BASE or git config linus.base")
+
+
+def kind(subject, scope):
+    match = SUBJECT.match(subject)
+    if not match:
+        return None
+    if match["type"] == "benchmark":
+        return "benchmark"
+    if match["type"] == "refactor" and match["scope"] == "test":
+        return "refactor-test"
+    if match["scope"] != scope:
+        return None
+    return {"test": "test", "feat": "feat", "refactor": "refactor-code"}.get(match["type"], "other")
+
+
+def order(root, scope):
+    unit = []
+    for sha, subject, files in commits(root):
+        found = kind(subject, scope)
+        if found is None:
+            break
+        unit.append((sha[:7], subject, files, found))
+    unit.reverse()
+    if not unit:
+        raise ToolError(f"no commit with the scope ({scope}) at HEAD")
+    problems, cycles, at_once = [], 0, 0
+    martin = [i for i, c in enumerate(unit) if c[3] in ("refactor-test", "refactor-code", "benchmark")]
+    split = martin[0] if martin else len(unit)
+    expected = "test"
+    for short, subject, files, found in unit[:split]:
+        tests = [f for f in files if TEST_PATH.search(f)]
+        if found not in ("test", "feat"):
+            problems.append(f"{short} {subject}: not a test: or feat: commit of the cycle")
+            continue
+        if found != expected:
+            problems.append(f"{short} {subject}: a {found}: where a {expected}: was due")
+        if found == "test":
+            if not files:
+                problems.append(f"{short} {subject}: an empty test: commit")
+            elif len(tests) < len(files):
+                problems.append(f"{short} {subject}: a test: commit with production code: "
+                                + ", ".join(f for f in files if f not in tests))
+        else:
+            cycles += 1
+            at_once += not files
+            if tests:
+                problems.append(f"{short} {subject}: a feat: commit with test files: {', '.join(tests)}")
+        expected = "feat" if found == "test" else "test"
+    if expected == "feat":
+        problems.append("the last cycle has a test: and no feat:")
+    rank = {"refactor-test": 0, "refactor-code": 1, "benchmark": 2}
+    last = -1
+    for short, subject, files, found in unit[split:]:
+        if found not in rank:
+            problems.append(f"{short} {subject}: a cycle commit after martin's refactor")
+            continue
+        if rank[found] < last and found != "benchmark":
+            problems.append(f"{short} {subject}: out of order (refactor(test), then refactor({scope}))")
+        last = max(last, rank[found])
+        tests = [f for f in files if TEST_PATH.search(f)]
+        if found == "refactor-test" and len(tests) < len(files):
+            problems.append(f"{short} {subject}: refactor(test) with production code")
+        if found == "refactor-code" and tests:
+            problems.append(f"{short} {subject}: the code's refactor changes tests: {', '.join(tests)}")
+    print(f"unit ({scope}): {len(unit)} commits, {cycles} cycles"
+          + (f", {at_once} characterisation(s): the test passed at once (empty feat:)" if at_once else ""))
+    for problem in problems:
+        print(f"violation: {problem}")
+    if not problems:
+        print("ok")
+    return 1 if problems else 0
+
+
+def lines(root, paths):
+    groups = {"production": {}, "tests": {}, "harness": {}}
+    for path in paths:
+        full = os.path.join(os.getcwd(), path)
+        files = [full] if os.path.isfile(full) else [os.path.join(d, f) for d, _, fs in os.walk(full) for f in fs]
+        for name in files:
+            rel = os.path.relpath(name, root)
+            if "__pycache__" in rel or not os.path.isfile(name):
+                continue
+            try:
+                with open(name) as source:
+                    count = sum(1 for line in source if line.strip())
+            except (OSError, UnicodeDecodeError):
+                continue
+            group = "production" if not TEST_PATH.search(rel) else "tests" if TEST_MODULE.search(rel) else "harness"
+            groups[group][rel] = count
+    for group, files in groups.items():
+        print(f"{group}: {sum(files.values())}")
+        for rel, count in sorted(files.items()):
+            print(f"  {count:6} {rel}")
+    return 0
+
+
+def main():
+    args = sys.argv[1:]
+    if not args or args[0] in ("-h", "--help"):
+        print(__doc__.strip())
+        return 0 if args else 2
+    root = repo_root()
+    if args[0] == "order" and len(args) == 3 and args[1] == "--scope":
+        return order(root, args[2])
+    if args[0] == "lines" and len(args) > 1:
+        return lines(root, args[1:])
+    raise ToolError('usage: unit-audit order --scope "<domain> <component>" | unit-audit lines <path>...')
+
+
+main_guard(main)

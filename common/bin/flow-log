@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
-"""Appends to the workflow's activity log, /tmp/kent-flow.log.
+"""Appends to the workflow's activity log, kent-flow.log in the workflow's
+state folder (see minime.state_dir; /tmp on Copilot).
 
 Usage:
   flow-log <agent> <message...>   one line
   flow-log <agent> -              every line of stdin
 
 Each line is stamped with the time and tagged [<agent>], so the user can
-follow the whole flow with `tail -f /tmp/kent-flow.log`. The hooks log every
+follow the whole flow with `tail -f`. The hooks log every
 tool call already: use it for what a call does not show (a verdict, a
 decision, the step you are at).
 """

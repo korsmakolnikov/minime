@@ -64,6 +64,8 @@ class GuardTest(unittest.TestCase):
         self.allowed("joshua", "audit-log append <<'AUDIT'\n## V-1\nAUDIT")
         self.denied("joshua", "audit-log archive", "only as")
         self.allowed("argyris", "audit-log archive")
+        self.allowed("argyris", "audit-log repos")
+        self.allowed("argyris", "audit-log pending --repo lab")
 
     def test_linus(self):
         self.allowed("unclebob", "linus commit --phase red --model m \\\n  test/a_test.exs \\\n  <<'MSG'\ntest(x): y\nMSG")
@@ -71,7 +73,13 @@ class GuardTest(unittest.TestCase):
         self.allowed("unclebob", "linus stage-hunks lib/a.ex 1 3")
         self.denied("unclebob", "linus squash --scope x --from abc", "may not run linus squash")
         self.allowed("martin", "linus squash --scope x --from abc <<'MSG'\nfeat(x): y\nMSG")
-        self.denied("martin", "linus commit --phase red", "may not run linus commit")
+        self.allowed("martin", "linus commit --model m lib/a.ex <<'MSG'\nrefactor(x): y\nMSG")
+        self.denied("martin", "linus amend test/a_test.exs", "may not run linus amend")
+        self.allowed("martin", "unit-audit order --scope 'x y'")
+        self.allowed("martin", "audit-log append <<'AUDIT'\n## M-1\nAUDIT")
+        self.denied("martin", "audit-log handled M-1 --reason x", "only as")
+        self.allowed("unclebob-pair", "unit-audit lines lib test")
+        self.denied("unclebob-pair", "unit-audit order --scope x", "only as")
         self.allowed("joshua", "linus range")
 
     def test_shell_tricks(self):
@@ -105,7 +113,8 @@ class GuardTest(unittest.TestCase):
         self.assertIsNone(edit("kent", "toolchain.yaml"))
         self.assertIsNotNone(edit("kent", "lib/a.ex"))
         self.assertIsNone(edit("simon", ".documentation/b/workspace.dsl"))
-        self.assertIsNotNone(edit("martin", "lib/a.ex"))
+        self.assertIsNone(edit("martin", "lib/a.ex"))
+        self.assertIsNotNone(edit("martin", ".sources/spec.yaml"))
 
     def test_read_places(self):
         def read(agent, tool, **args):
@@ -126,8 +135,25 @@ class GuardTest(unittest.TestCase):
     def test_kent_commits_only_the_workflow_files(self):
         self.allowed("kent", "linus commit --phase other --model m \\\n  .sources/spec.yaml \\\n  toolchain.yaml \\\n  <<'MSG'\ndocs(workflow): x\nMSG")
         self.denied("kent", "linus commit --phase other --model m src/a.py <<'MSG'\nx\nMSG", "not src/a.py")
+        self.allowed("kent", "linus commit --phase other --model m lab/toolchain.yaml <<'MSG'\ndocs(workflow): x\nMSG")
         self.denied("kent", "linus commit --phase other <<'MSG'\nx\nMSG", "only named paths")
         self.denied("kent", "linus squash --scope x --from a", "may not run linus squash")
+
+    def test_kent_switches_branch(self):
+        self.allowed("kent", "linus branch deterministic-workflow")
+        self.denied("unclebob", "linus branch x", "may not run linus branch")
+
+    def test_ford_scaffolds_the_project(self):
+        self.allowed("ford", "scaffold python PROJECT_NAME=x --dir x")
+        self.allowed("ford", "toolchain check --agent ford")
+        self.allowed("kent", "scaffold init")
+        self.denied("kent", "scaffold python PROJECT_NAME=x", "may run scaffold only as: init")
+
+    def test_kent_lists_and_reads_files(self):
+        self.allowed("kent", "ls -la; cat README.md")
+        self.denied("kent", "cat README.md > src/a.py", "src/a.py")
+        self.denied("unclebob", "ls", "`ls` is not one of them")
+        self.allowed("simon", "date -Is")
 
     def test_hughes_has_no_linus(self):
         self.denied("hughes", "linus range", "`linus`")
@@ -150,12 +176,12 @@ class GuardTest(unittest.TestCase):
         self.assertIsNone(kind("unclebob", "toolchain show > /tmp/x"))
         self.assertEqual(kind("unclebob", "toolchain show 2>/dev/null"), "allow")
         self.assertEqual(kind("kent", "shopping-list write <<'E'\nx\nE"), "allow")
-        self.assertIsNone(kind("kent", "scaffold python PROJECT_NAME=x"))
+        self.assertIsNone(kind("ford", "scaffold python PROJECT_NAME=x"))
         self.assertEqual(kind("unclebob", "rm -rf /"), "deny")
 
     def test_denials_are_logged(self):
         self.denied("joshua", "rm -rf /")
-        with open(os.path.join(self.tmp.name, "kent-guard.jsonl")) as log:
+        with open(os.path.join(self.tmp.name, "kent-errors.jsonl")) as log:
             last = json.loads(log.readlines()[-1])
         self.assertEqual(last["agent"], "joshua")
 

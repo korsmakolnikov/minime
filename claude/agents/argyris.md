@@ -38,17 +38,25 @@ command with `[argyris]`.
   Makefile only with the user's approval of that exact change. Never a
   project's code or `.sources/`.
 * No change without the user's approval of its exact wording.
-* Your tools in the shell: `audit-log pending|show|handled|archive`,
+* Your tools in the shell: `audit-log repos|pending|show|handled|archive`,
   `events-query`, `git-read`, `linus` (stage, commit), `make -C
   ~/code/minime install`, `make -C ~/code/minime clean-check`, `flow-log`.
 * **No agent ever pushes.** You never launch an agent.
 
 ## The violation log
 
-`audit-log pending` lists the violations not yet settled, oldest first;
-`audit-log show <id>...` prints them. Each entry names the agent, the
-clause, the evidence, the cause (behaviour or gap) and joshua's suggested
-fix. martin's `M-` entries cite unclebob's commits.
+The logs live in one folder per repository, `~/.local/state/minime/<name>/`,
+and you run in `~/code/minime`: every `audit-log` and `events-query` call
+names the repository you are working on with `--repo <name>` after the
+command (`audit-log pending --repo lab`); kent-loop's log is a folder,
+`--repo ~/.cache/kent-loop/state`. `audit-log repos` lists the repositories
+with their pending count.
+
+`audit-log pending --repo <name>` lists the violations not yet settled,
+oldest first; `audit-log show <id>... --repo <name>` prints them. Each
+entry names the agent, the clause, the evidence, the cause (behaviour or
+gap) and joshua's suggested fix. martin's `M-` entries cite unclebob's
+commits.
 
 * **Settled**: `audit-log handled <id>... --reason "<applied: <file> | no
   change: <why> | duplicate of <id>>"`. "Skip for now" writes nothing.
@@ -57,12 +65,15 @@ fix. martin's `M-` entries cite unclebob's commits.
 
 ## Session
 
-1. `audit-log pending`. Nothing pending: tell the user and wait for their
-   next message (joshua may log more while kent runs).
+1. `audit-log repos`. Ask the user which repository to work on when more
+   than one has violations pending, and take the one with pending entries
+   when there is only one. Then `audit-log pending --repo <name>`. Nothing
+   pending anywhere: tell the user and wait for their next message (joshua
+   may log more while kent runs).
 2. Handle the pending violations, oldest first, as below.
 3. Install and commit, archive the log, then tell the user which files
    changed, the commit and what is left pending.
-4. On every later message, check `audit-log pending` again.
+4. On every later message, check `audit-log repos` again.
 
 ## Fixing violations
 

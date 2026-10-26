@@ -149,25 +149,209 @@ source, si versionano:
 
 ## Da fare
 
-0. **Per il 17 ottobre: il ruolo di argyris e come chiudere il loop
-   agentico.** Oggi argyris legge le violazioni di joshua, propone una
-   modifica per ciascuna, la applica in `~/code/minime` dopo l'approvazione,
-   lancia `make install` e committa. L'utente non vede il senso di
-   `make install` se argyris non ha autonomia (approva comunque ogni
-   modifica). Da capire: chi installa e quando, se argyris deve avere un
-   livello di autonomia, come una violazione diventa davvero una regola che
-   non si ripete (testo, guard, tool), e come si misura che il loop si è
-   chiuso.
+### Fatto il 21-22 ottobre (quattro sessioni di prova in `/tmp/minime-py`)
 
-1. **La prima sessione vera**: `make install`, poi `claude --agent kent` sul
-   progetto LangGraph (scaffold Python). Il nome della cartella va aggiunto
-   a `projects` in `python-handbook` (oggi `minime-langgraph`, provvisorio).
-2. **C**: un driver C per `toolchain` (CMake + Make) e una `c-handbook`.
-3. **Le citazioni `spec:` nel codice di produzione**: chi le toglie prima
-   della PR (martin in review? un tool?).
-4. **Autonomia**: oggi i commit chiedono sempre conferma. Se serve, un
-   livello configurabile (come `AUTONOMY_LINUS` su Copilot).
-5. **Versione LangGraph**, con metriche comuni per il confronto.
+Un progetto Python `metrics-server` in una cartella di un repository
+fittizio, guidato da qui con la skill `kent-loop`. Corretto strada facendo:
+
+- **Ruoli.** kent è analista e orchestratore: chiede all'utente solo il
+  perimetro (con l'health check fisso per un servizio) e lascia il dominio a
+  hughes e la tecnologia a ford, come domande aperte con proprietario nella
+  shopping list. Ogni scaffold è di ford (`<linguaggio>-scaffold`,
+  `scaffold verify`/`commit`, poi `container-scaffold` dopo `adl-scaffold`);
+  kent lancia solo `scaffold init` in una cartella vuota. Ogni riga di
+  codice è di unclebob, **harness dei test compreso**: test-first, un pezzo
+  entra con il primo red che ne ha bisogno; ford scrive solo le fitness
+  function.
+- **martin**: audit, squash, revisione tecnica, rapporto dei findings in
+  `MARTIN_DONE`; nessuna domanda sui findings, nessuna revisione guidata.
+  L'utente rivede da solo, dà a kent le correzioni (fixup tramite
+  unclebob, ford o hughes) e chiude l'unità con un comando esplicito.
+- **Tool.** `scaffold init` e `scaffold commit`; CI di un progetto in
+  cartella alla radice, con `working-directory` e filtro `paths`;
+  `toolchain.yaml` alla radice con `project: <cartella>` (la Q9: `toolchain`
+  e `adl-graph` lavorano sulla cartella dalla radice); ogni `toolchain.yaml`
+  è un file del flusso.
+- **Guard.** `ls` e `cat` a kent, `date` a simon, `toolchain check` a ford.
+- **Agenti.** La risposta inoltrata da kent è dell'utente; una delega a
+  parole ("per il resto accetto le tue raccomandazioni") conferma i passi
+  che nomina, e l'agente riporta quali scelte sono sue; simon parte dopo la
+  shopping list; joshua non registra i rifiuti del guard già superati né le
+  deleghe.
+- **Copilot**: la revisione guidata dall'utente, la divisione delle domande,
+  l'ordine di simon e la fiducia nella relay sono in #17 (mergiata).
+
+L'ultima sessione è arrivata a fine ford: scaffold, container, interfacce e
+mappa verificati (build, ruff, mypy strict, test, `docker build`).
+
+### Quinta sessione (22 ottobre, `kent-loop-sandbox`, interrotta)
+
+Greenfield `metrics-server` in una cartella (FastAPI, psycopg, Postgres,
+testcontainers), con la delega sulle raccomandazioni fin dal primo messaggio.
+
+- **Andato bene**: shopping list con le domande divise tra hughes (5) e
+  ford (5); hughes in un turno; ford con scaffold `--dir` (CI alla radice
+  filtrata, `toolchain.yaml` alla radice più quello della cartella, voluto),
+  8 commit di architettura (quattro componenti: `samples`, `storage`,
+  `http`, `app`), fitness function e `spec-check` ok; kent committa i file
+  del flusso (`docs(workflow)`) prima di unclebob; unclebob su `samples`:
+  75 commit rosso/verde/refactor, 25 test quasi tutti property-based, tre
+  caratterizzazioni fatte bene, 34/34 verdi, ruff e mypy strict puliti.
+  Nessun segnale `ok: false` in tutta la sessione.
+- **Da guardare**:
+  - ford ha cercato `GITHUB_REPO` su tutto il disco (`rg … /`, rifiutato):
+    `python-scaffold` non dice da dove viene il valore;
+  - ford non sapeva la versione di uv installata e ha fissato a caso il
+    tag dell'immagine (`0.9`, qui c'è la 0.13): un `toolchain`/`scaffold`
+    che la stampi;
+  - l'interfaccia `SampleStore` sta nel package di `samples`, non in
+    quello di `storage`: da rivedere nella mappa;
+  - hughes ha scelto di sovrascrivere i duplicati (nome e timestamp
+    uguali) invece di rifiutarli, sotto delega: una scelta di dominio
+    rilevante passata senza che l'utente la vedesse;
+  - unclebob prevede di spostare le strategie Hypothesis in
+    `tests/support/` per `storage`: il caso del punto 2 qui sotto.
+- **Costo e limiti**: l'unità `samples` da sola è costata circa 8 dollari
+  (88 mila token di output di unclebob in 23 minuti, 1491 righe di
+  transcript), 15,7 dollari la sessione fino a martin. Il limite di
+  sessione dell'abbonamento è scattato due volte (12:57, reset 13:30;
+  14:34, reset 19:00), la seconda un minuto dopo il lancio di martin: kent
+  e i suoi sei subagent Opus (joshua e simon sempre attivi) consumano la
+  stessa quota della sessione interattiva che li guida. Ridurre: unità più
+  piccole, joshua e simon meno chiacchieroni, un modello più leggero per
+  joshua e simon.
+- **Analisi dei costi** (dai transcript, token per categoria pesati 1 input,
+  1,25 scrittura in cache, 0,1 lettura dalla cache, 5 output; joshua gira
+  già su Sonnet, quindi la sua quota è sovrastimata): unclebob 50%, joshua
+  20%, ford 13%, kent 9%, simon 6%, martin e hughes 3%. Per categoria:
+  letture dalla cache 58%, scritture in cache 24%, output 18%.
+  - unclebob: 231 chiamate, circa 9 per ciclo, ognuna rilegge tutto il
+    contesto (da 27 mila a 178 mila token, mediana 109 mila): le sole
+    letture dalla cache di unclebob sono circa il 40% della sessione. Leve:
+    un unclebob nuovo ogni gruppo di cicli (il contesto resta piccolo);
+    `linus check-message` prima di ogni commit (75 chiamate) è ridondante
+    quando i commit non chiedono conferma, perché `linus commit` valida già
+    il messaggio; 19 refactor su 25 erano commit vuoti con il verdetto (due
+    chiamate ciascuno).
+  - joshua: 534 mila token scritti in cache in 59 chiamate. Tra un AUDIT e
+    l'altro la cache scade (5 minuti) e ogni ripresa riscrive tutto il
+    contesto. Leve: audit per unità invece che per turno, o un joshua nuovo
+    per audit.
+- **Persa al riavvio**: il repository di prova era in `/tmp/kent-loop`;
+  restano solo i transcript in
+  `~/.claude/projects/-tmp-kent-loop-kent-loop-sandbox/`. Spostare il
+  default di `KENT_LOOP` fuori da `/tmp` (per esempio `~/.cache/kent-loop`).
+
+### Il nuovo flusso delle unità (23 ottobre, implementato, mai provato)
+
+Deciso dopo l'analisi dei costi della quinta sessione. L'ipotesi
+dell'esperimento: problemi piccoli e iterazioni obbligate danno codice
+migliore a costo minore; il refactor però vuole la conoscenza del
+componente e del flusso intero, quindi lo fa un agente a sé, una volta per
+unità.
+
+- **unclebob** (workflow): cicli di un `test:` e un `feat:`, niente
+  refactor. Il `test:` non è mai vuoto; il `feat:` vuoto è una
+  caratterizzazione (il test passava già: la saturazione dei casi), provata
+  rompendo l'asserzione, registrata con `flow-log` e riportata in
+  `UNCLEBOB_DONE` (`characterisations`). Niente più sessioni di correzione.
+- **unclebob-pair** (interattivo, il comando `unclebob`): rosso, verde, blu;
+  il blu misura come martin e fa due commit, `refactor(test)` e
+  `refactor(<scope>)`; mostra a schermo ogni riga che aggiunge o cambia;
+  `check-message` resta.
+- **martin** (Martin Fowler, *Refactoring*), riscritto: `unit-audit order`
+  e le violazioni TDD in `audit-log` (ID `M-`); il tempo zero (complessità in
+  tempo e spazio, SOLID, idiomaticità, leggibilità, righe di produzione,
+  test e harness, durata dei test lanciati due volte per i flaky); il
+  refactor dei test e di tutto l'harness che tocca il componente con il
+  codice fermo, e se righe dell'harness o durate peggiorano chiede
+  all'utente con i numeri; il refactor del codice con i test come punto
+  stabile, la complessità uguale o migliore (benchmark temporanei in
+  `benchmarks/`, committati come `benchmark(<scope>)`, e se peggiora chiede);
+  subito dopo, nello stesso turno, `linus squash` dell'unità (i commit di
+  unclebob e i suoi; i `benchmark` scartati) e `UNIT_SQUASHED`, che porta
+  anche il report (misure, violazioni, findings). `REFACTOR_DONE` non c'è
+  più (26 ottobre).
+- **kent**: unclebob → martin (refactor e squash) → stop. **Niente revisione
+  con l'utente in sessione** (26 ottobre: costa token, l'utente la fa a
+  mano): kent mostra il report di martin e passa il controllo; l'utente
+  rivede il commit squashato da solo, con i suoi fixup, e dice a kent di
+  andare avanti. Il flusso funzionale va allo stesso modo, alla fine, poi
+  marvin. I fixup dell'utente restano fino al push (conservano il segnale
+  di cosa sbagliano gli agenti).
+- **linus** fa solo i commit su Claude Code: `--phase` facoltativa e solo
+  registrata, nessun controllo di ordine né di file per fase, `test:` mai
+  vuoto, tipo `benchmark`, `squash` che accetta `refactor(test)` e scarta i
+  `benchmark`. Su Copilot tutto come prima (ramo su `COAUTHOR`).
+- **Tool**: `unit-audit` (`order`, `lines`), `toolchain test --durations`,
+  `toolchain bench`.
+- **Log**: in `~/.local/state/minime/<repository>/` su Claude Code
+  (`MINIME_STATE_DIR` per spostarli; Copilot resta su `/tmp`), pulizia una
+  volta al giorno all'avvio (30 giorni, 100 MB in tutto). Due file:
+  `kent-events.jsonl` (ogni turno con segnale, uso del modello per turno:
+  chiamate, token di input, cache e output, modello; e cosa serve a
+  rieseguirlo: branch, HEAD, sessione, prompt di lancio, transcript) e
+  `kent-errors.jsonl` (rifiuti del guard, segnali falliti, violazioni di
+  joshua e martin, `handled` di argyris). `joshua.log` e `kent-guard.jsonl`
+  non ci sono più (`audit-log` migra il vecchio log). `kent-loop` in
+  `~/.cache/kent-loop`.
+- **`/save-session`** (`claude/skills/save-session`): kent scrive il suo
+  stato con `session-state` prima di un'interruzione.
+- **argyris e i log per repository**: argyris gira in `~/code/minime`, i
+  log di un progetto stanno nella cartella di quel progetto. `audit-log
+  repos` elenca i repository con violazioni aperte; `--repo <nome>` (o il
+  percorso di una cartella, come quella di kent-loop) su `audit-log` ed
+  `events-query` sceglie quale leggere. argyris resta il correttore delle
+  sessioni vere (i progetti personali, il flusso deterministico, Copilot);
+  kent-loop quello delle prove. Proposta aperta: kent-loop registra con
+  `audit-log append` i problemi che trova e li chiude con `handled`, così il
+  registro è uno solo.
+- simon su Sonnet; `check-message` tolto dal modo workflow di unclebob.
+
+### Prossimi passi
+
+1. **Niente più sessioni di prova con `kent-loop`** (decisione del 26
+   ottobre): il flusso nuovo si prova nelle sessioni vere, e argyris
+   corregge dalle violazioni registrate. I costi si confrontano con la
+   quinta sessione dalle righe `usage` di `kent-events.jsonl`.
+2. **Da verificare nella prima sessione vera**: che `/save-session` si
+   invochi dentro la sessione di kent; che il payload di `SubagentStop`
+   porti `cwd` e `session_id`; che `toolchain test --durations` funzioni con
+   i comandi personalizzati di `toolchain.yaml` (le opzioni passano come
+   percorsi); che martin faccia lo squash nello stesso turno del refactor.
+3. **`kent-loop` come modalità di lavoro**: l'agente principale guida kent
+   headless e corregge minime da sé, un argyris migliorato. Per ora un
+   esperimento; decidere se diventa il default e cosa resta ad argyris.
+4. **Copilot, punto 19** del suo `NEXT_ITERATION.md` (harness a unclebob,
+   deleghe, una correzione per turno): una PR a parte quando l'utente lo
+   chiede. Lo scaffold a ford e `toolchain` con `project:` aspettano che il
+   kent di Copilot scaffoldi.
+5. **Riprendere la sessione su `deterministic-workflow`**: il progetto va in
+   `deterministic-kent/`; la sezione "Who" della shopping list ora segue i
+   ruoli nuovi (hughes, poi ford scaffolda con `scaffold python --dir
+   deterministic-kent`, che scrive il `toolchain.yaml` alla radice con
+   `project:` e la CI alla radice). Il gitignore globale di questa macchina
+   non esclude più `.sources/`, `.documentation/` e `toolchain.yaml`: la
+   shopping list è committata.
+6. **Fatto (22 ottobre)**: `tests/test_signal_stop.py`, handback e
+   `last_assistant_message`, blocco, thread principale. Dopo un handback
+   rifiutato l'hook registra due righe con lo stesso `agent_id` (`ok:
+   false`, poi `ok: true`): joshua le audita come un turno solo.
+7. **`structurizr-cli`**: kent passa all'utente `make structurizr-install`
+   quando simon non lo trova; decidere se va bene così.
+8. **Fatto (22 ottobre)**: `python-handbook` copre `minime` (la skill guarda
+   il nome del repository, non la cartella del progetto) e
+   `kent-loop-sandbox`, il nuovo nome del repository di prova di
+   `kent-loop`, che prima nessuna handbook copriva.
+9. **PATH**: `make install` avverte che `~/.local/bin` non è nel PATH della
+   shell di `make`; controllare sull'altro PC.
+10. **C**: un driver C per `toolchain` (CMake + Make) e una `c-handbook`.
+11. **Le citazioni `spec:` nel codice di produzione**: chi le toglie prima
+    della PR (martin in review? un tool?).
+12. **Autonomia dei commit**: oggi chiedono conferma (in `kent-loop` li
+    approva l'allowlist). Se serve, un livello configurabile, come
+    `AUTONOMY_LINUS` su Copilot.
+13. **Versione LangGraph**, con metriche comuni per il confronto.
 
 ## Refactor dell'architettura degli agenti (decisioni del 16 ottobre)
 

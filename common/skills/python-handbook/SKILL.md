@@ -2,7 +2,8 @@
 name: python-handbook
 description: How to work on a Python project in this workflow - toolchain.yaml and the toolchain command (build, the tests to run, the static checks), the testing libraries (pytest, Hypothesis, Protocols and autospec doubles, contract tests), the test layout. Load it whenever you build, test, check, write or review Python code in a project listed in `projects`.
 projects:
-  - minime-langgraph
+  - minime
+  - kent-loop-sandbox
 tools:
   - uv
   - pytest
@@ -91,6 +92,22 @@ with `# noqa` or `# type: ignore` unless the user agrees.
   that tests use in its place.
 * **Architecture tests** (ford's fitness functions) live in
   `tests/architecture/`; `toolchain test --branch` always includes them.
+
+## Durations and benchmarks (martin)
+
+* `toolchain test --durations <paths>` adds `--durations=0
+  --durations-min=0`: pytest prints every test's setup, call and teardown
+  times, slowest first. A slow setup is usually a fixture with the wrong
+  scope (a container started per test instead of per session).
+* A benchmark is a plain script under `benchmarks/` in the project, run with
+  `toolchain bench <file>` (`python <file>` in the project's environment).
+  It imports the new version from the package and the old one from a copy
+  of the file as it was at `HEAD`, saved beside the script
+  (`benchmarks/<module>_old.py`), and times both with `timeit` on inputs of
+  growing size (for example 10, 100, 1000, 10000), printing one line per
+  size and version. Growing ratios between sizes show the complexity; equal
+  ratios with a constant gap show a constant factor. It is committed as
+  `benchmark(<scope>): …` and dropped by `linus squash`.
 
 ## Style
 

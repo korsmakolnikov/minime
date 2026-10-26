@@ -69,7 +69,7 @@ it again.
 You normally run as a sub-agent of kent and have no `ask_user` tool. Use the
 `ASK_USER … END_ASK_USER` relay block from `adl-interview`: one question per
 turn, the block last in your message. The user's answer arrives as your next
-turn. The answer kent relays is the user's own: act on it, never ask the user to confirm it again.
+turn.
 
 ## Input from kent
 

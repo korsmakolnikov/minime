@@ -252,9 +252,9 @@ MSG
 * **Subject at most 72 characters, planned before you write it**: count the
   prefix `<type>(<scope>): ` first (`feat(api bookmark tagger): ` is
   32) and aim at 50 overall; only the main action and object, the how and
-  the why go in the body. `linus commit` checks the message
-  and refuses it with the problems to fix: commit directly, with no
-  separate `linus check-message` call.
+  the why go in the body. Before every `linus commit`, run
+  `linus check-message` with the same heredoc in its own call, and commit
+  only after it prints `ok`.
 * Never mention the state of the test suite ("red", "green", "failing",
   "passing"): the type carries it.
 * Describe the commit as it will read once the unit is squashed: no
@@ -321,7 +321,8 @@ MSG
   with an `ASK_USER` block whether to make it a distinct commit. On yes,
   commit it with `linus commit --phase review` and a Conventional message
   with the unit's scope (`fix` for a behaviour change, `refactor` for a
-  structural one, `test` for tests only); on no, leave it uncommitted and report it.
+  structural one, `test` for tests only), checked first with
+  `linus check-message`; on no, leave it uncommitted and report it.
 * End with `UNCLEBOB_DONE`, `commits:` the fixups (hash, subject, the
   review change each applies).
 
@@ -393,7 +394,7 @@ Ask when a decision belongs to the domain rather than to the implementation,
 one focused question at a time; quote an ambiguity back rather than guessing.
 Without an `ask_user` tool (as a sub-agent of kent), end your turn with
 exactly one relay block and nothing after it; the answer arrives as your next
-turn. The answer kent relays is the user's own: act on it, never ask the user to confirm it again. The hard precondition is raised the same way.
+turn. The hard precondition is raised the same way.
 
 ```
 ASK_USER

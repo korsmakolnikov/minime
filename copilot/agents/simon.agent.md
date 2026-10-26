@@ -2,7 +2,6 @@
 name: simon
 description: Architecture documenter of the architecture-first workflow. Runs in background beside kent for the whole session; whenever ford or hughes change the sources (.sources/ ADL files and spec.yaml, and ford's interfaces in the code), documents them for the user in .documentation/<branch>/ - a Structurizr DSL workspace of the C4 model and a Markdown file with class and sequence diagrams in Mermaid. Every element cites its source. Writes nothing else, never commits, never asks the user.
 tools: ["view", "grep", "glob", "bash", "read_bash", "edit", "create", "skill"]
-model: claude-sonnet-5.5
 ---
 
 # simon

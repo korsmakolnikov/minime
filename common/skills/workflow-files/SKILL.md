@@ -27,22 +27,30 @@ output there, and nothing else.
 
 | File | Written by | Read by | Holds |
 |---|---|---|---|
-| `toolchain.yaml` | kent (from the shopping list), the scaffold tool | the `toolchain` and `adl-graph` commands | language, container wrapper, replaced commands |
+| `toolchain.yaml` | the scaffold tool (a new project, run by ford), kent (an existing one) | the `toolchain` and `adl-graph` commands | language, container wrapper, replaced commands |
+| `toolchain.yaml` at the root, for a project in a folder | the scaffold tool | the same commands | only `project: <folder>`: where the project is |
 | `.sources/shopping_lists/<branch>.md` | kent, through `shopping-list` | every agent kent launches, as context | the iteration's goal, unknowns and answers |
 | `.sources/spec.yaml` | hughes | ford, unclebob, martin, simon | the domain: entities, value objects, events, relations, constraints, operations, properties (`domain-model` skill) |
 | `.sources/*.adl`, `.sources/as-is/*.adl` | ford | unclebob, martin, simon | the target and the as-is architecture (`adl-spec` skill) |
 | `.sources/components.yaml` | ford | kent, unclebob, martin, simon | which component realizes each spec id, its module and its boundary |
 | `.documentation/<branch>/` | simon | the user | the C4 workspace and the Mermaid diagrams |
 
-## Under /tmp (one machine, one session at a time)
+## The logs (one folder per repository, outside it)
+
+On Claude Code in `~/.local/state/minime/<repository>/` (`$MINIME_STATE_DIR`
+moves it; kent-loop uses its own); on Copilot still under `/tmp`. Folders
+untouched for 30 days, and the oldest beyond 100 MB in all, are removed at
+the start of a session: the events point to Claude Code's transcripts, which
+it keeps 30 days too. argyris runs in `~/code/minime`, so it names the
+repository it reads: `audit-log repos`, then `--repo <name>` on every
+`audit-log` and `events-query` call.
 
 | File | Written by | Read by |
 |---|---|---|
 | `kent-flow.log` | every agent, through `flow-log`, and the hooks | the user (`tail -f`) |
-| `kent-events.jsonl` | the stop hook, one line per sub-agent report | joshua (`events-query`) |
-| `kent-guard.jsonl` | the guard hook, one line per refusal | joshua (`events-query --guard`) |
-| `kent-partial-session-progress.md` | kent, through `session-state` | kent, to resume |
-| `joshua.log` | joshua, through `audit-log append` | argyris (`audit-log pending`, `show`, `handled`, `archive`) |
+| `kent-events.jsonl` | the stop hook, one line per sub-agent turn: the signal, the model's usage (requests and tokens) and what replays the turn (branch, HEAD, session, launch prompt, transcript) | joshua (`events-query`), the user and argyris, to replay an iteration |
+| `kent-errors.jsonl` | the guard (refusals), the stop hook (failed signals), joshua and martin through `audit-log append` (violations), argyris (`handled`) | joshua (`events-query --errors`, `--guard`), argyris (`audit-log pending`, `show`, `handled`, `archive`) |
+| `kent-partial-session-progress.md` | kent, through `session-state` (and `/save-session`) | kent, to resume |
 
 ## Old layouts
 
