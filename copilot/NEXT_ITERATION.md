@@ -6,6 +6,43 @@ procede a parte in `claude/` e non tocca questa cartella. Tenete separate le
 due cartelle: una modifica a un agente qui non va replicata in `claude/`, e
 viceversa.
 
+## Allineamento al flusso di Claude (26 ottobre, branch `copilot-align`)
+
+Gli agenti Copilot sono ora i gemelli di quelli Claude (`claude/agents/`),
+adattati a Copilot CLI: stessi passi, stessi tool di `common/bin`, stesse
+skill (`domain-model`, spec versione 2, `python-scaffold`, `c-scaffold`,
+`container-scaffold`, `workflow-files`, le handbook), stessi segnali. Nuovi
+su Copilot: **marvin** (solo `AGENTS.md`, mai i file del flusso) e
+**unclebob-pair** (il TDD interattivo, `copilot --agent unclebob-pair`).
+Chiusi i punti 7, 10, 11, 16, 18, 19 e 20 qui sotto. Le differenze che
+restano sono nel README ("Copilot workflow"): i file del flusso mai
+versionati, i segnali controllati dall'agente invece che da un hook, i tool
+per agente scritti nei file invece che imposti da un guard, joshua a eventi
+(`LAUNCHED`/`ANSWERED`/`REPORTED`) sull'`events.jsonl` della sessione, i log
+in `/tmp`.
+
+- Log e registro: joshua, martin e argyris usano `audit-log`
+  (`/tmp/kent-errors.jsonl`); il primo `audit-log` importa il vecchio
+  `/tmp/joshua.log`. kent salva e riprende con `session-state`, porta i
+  layout vecchi con `minime-migrate`, scrive la shopping list con
+  `shopping-list`.
+- martin chiude il refactor con i test del branch, come su Claude; i
+  fallimenti causati dal refactor diventano fixup del commit di refactor.
+- Segnali tolti: `TDD_VIOLATIONS` (martin registra da sé), `MARTIN_DONE`,
+  `REVIEW_CHANGES`, `REFACTOR_DONE`. La skill `domain-spec` (spec versione
+  1) resta per le spec già scritte.
+
+**Sull'altro PC**: `git pull && make update && make copilot-install`.
+Prima sessione: kent propone un `toolchain.yaml` per ogni progetto che non
+ce l'ha (con l'`exec` del container, da `minime-config aliases`): senza,
+unclebob non può lanciare i test.
+
+**Da verificare nella prima sessione vera**: che gli agenti chiamino i tool
+senza prompt (l'hook li approva nelle cartelle versionate); che `toolchain
+test --commit|--branch` funzioni dentro il container; che joshua trovi i
+blocchi in `events.jsonl` con i nuovi segnali; che marvin non nomini mai
+`.sources/` né i tool del flusso.
+
 ## Stato attuale (su `master`)
 
 - Agenti: `kent` (orchestratore), `hughes`, `ford`, `unclebob`, `martin`,
@@ -152,7 +189,7 @@ Dalle iterazioni precedenti, ancora aperte:
    verifica). `make clean && make install-copilot` riparte da zero, tenendo
    `~/.bash_copilot`. Sostituisce anche il `rm -rf` di `elixir-style` del
    punto 5.
-10. **Refactor dell'architettura degli agenti** (decisioni del 16 ottobre,
+10. **Fatto (26 ottobre, allineamento).** **Refactor dell'architettura degli agenti** (decisioni del 16 ottobre,
     dettagli in `claude/NEXT_ITERATION.md`, "Refactor dell'architettura
     degli agenti"): applicarlo anche qui, dopo il lato Claude; Claude farà
     la review del lavoro. In breve:
@@ -230,13 +267,13 @@ Dalle iterazioni precedenti, ancora aperte:
     ford o hughes come fixup, poi rilancia martin) e chiude l'unità con un
     comando esplicito; kent non la chiude mai da sé. Il martin di Claude
     non emette più `REVIEW_CHANGES` (lo schema resta per Copilot).
-18. **Ancora da portare dopo #17**: lo scaffold a ford (`scaffold init`,
+18. **Fatto (26 ottobre, allineamento).** **Ancora da portare dopo #17**: lo scaffold a ford (`scaffold init`,
     `scaffold commit`, `container-scaffold`, la CI alla radice con il filtro
     `paths`) e il `toolchain.yaml` alla radice con `project:` (punti 14 e
     16), quando il kent di Copilot scaffolderà; la domanda di perimetro
     sull'health check e la divisione delle domande tra hughes e ford sono
     già in #17.
-19. **Dalla quarta sessione (22 ottobre, lato Claude), da portare**:
+19. **Fatto (26 ottobre, allineamento).** **Dalla quarta sessione (22 ottobre, lato Claude), da portare**:
     - l'harness dei test (fixture, factory, moduli di supporto, i servizi
       che i test avviano) è di unclebob, scritto test-first: un pezzo entra
       con il primo red che ne ha bisogno, e il refactor del ciclo copre

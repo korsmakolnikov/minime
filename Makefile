@@ -99,8 +99,10 @@ INSTALLED := \
 	$(COPILOT_HOME)/agents/kent.agent.md \
 	$(COPILOT_HOME)/agents/linus.agent.md \
 	$(COPILOT_HOME)/agents/martin.agent.md \
+	$(COPILOT_HOME)/agents/marvin.agent.md \
 	$(COPILOT_HOME)/agents/simon.agent.md \
 	$(COPILOT_HOME)/agents/unclebob.agent.md \
+	$(COPILOT_HOME)/agents/unclebob-pair.agent.md \
 	$(COPILOT_HOME)/agents/mortimer.agent.md \
 	$(COPILOT_HOME)/agents/sherlock.agent.md \
 	$(COPILOT_HOME)/agents/gutexberg.agent.md \

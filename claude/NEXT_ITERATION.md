@@ -271,7 +271,11 @@ unità.
   subito dopo, nello stesso turno, `linus squash` dell'unità (i commit di
   unclebob e i suoi; i `benchmark` scartati) e `UNIT_SQUASHED`, che porta
   anche il report (misure, violazioni, findings). `REFACTOR_DONE` non c'è
-  più (26 ottobre).
+  più (26 ottobre). Prima dello squash martin lancia i test del branch
+  (`toolchain test --branch`): un fallimento causato dal suo refactor lo
+  corregge con un fixup del commit di refactor; `unit-audit` e `linus
+  squash` accettano i fixup (anche quelli dei controlli statici di
+  unclebob, che prima interrompevano `unit-audit`).
 - **kent**: unclebob → martin (refactor e squash) → stop. **Niente revisione
   con l'utente in sessione** (26 ottobre: costa token, l'utente la fa a
   mano): kent mostra il report di martin e passa il controllo; l'utente
@@ -324,10 +328,11 @@ unità.
 3. **`kent-loop` come modalità di lavoro**: l'agente principale guida kent
    headless e corregge minime da sé, un argyris migliorato. Per ora un
    esperimento; decidere se diventa il default e cosa resta ad argyris.
-4. **Copilot, punto 19** del suo `NEXT_ITERATION.md` (harness a unclebob,
-   deleghe, una correzione per turno): una PR a parte quando l'utente lo
-   chiede. Lo scaffold a ford e `toolchain` con `project:` aspettano che il
-   kent di Copilot scaffoldi.
+4. **Fatto (26 ottobre): Copilot allineato a Claude.** Ogni agente in
+   `copilot/agents/` è il gemello del suo file in `claude/agents/`; marvin e
+   unclebob-pair esistono anche lì. Da ora una modifica a un agente si fa
+   sui due file (o si scrive nel `NEXT_ITERATION.md` dell'altro lato), con
+   le differenze del README ("Copilot workflow").
 5. **Riprendere la sessione su `deterministic-workflow`**: il progetto va in
    `deterministic-kent/`; la sezione "Who" della shopping list ora segue i
    ruoli nuovi (hughes, poi ford scaffolda con `scaffold python --dir

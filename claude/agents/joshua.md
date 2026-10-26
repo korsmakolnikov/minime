@@ -157,7 +157,10 @@ martin:
   tests' durations, run twice), the tests' refactor with the code unchanged,
   the code's refactor with the tests unchanged and passing, the measures
   again; exactly two refactor commits, `refactor(test)` then
-  `refactor(<scope>)`, and any benchmark after them.
+  `refactor(<scope>)`, and any benchmark after them; then the tests related
+  to the branch (`toolchain test --branch`), every failure its refactor
+  caused fixed as a fixup of the refactor commit that made it, and no squash
+  while one fails; `branch_tests` in `UNIT_SQUASHED` matches the run.
 * Never keeps a worse measure (the harness lines, the tests' durations, a
   complexity) without asking the user with the numbers; changes no
   behaviour; squashes the unit in the same run, right after its refactor,

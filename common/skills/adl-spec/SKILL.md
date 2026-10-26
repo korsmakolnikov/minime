@@ -72,7 +72,7 @@ nobody stages them; on Claude Code kent commits them between units.
 
 ```
 .sources/
-  spec.yaml               domain spec written by hughes (see `domain-spec`)
+  spec.yaml               domain spec written by hughes (see `domain-model`)
   system.adl              SYSTEM and its DOMAINS / SERVICES
   <domain>.adl            one file per domain
   <domain>.<subdomain>.adl

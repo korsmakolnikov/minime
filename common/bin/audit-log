@@ -74,11 +74,8 @@ def violation(match, text):
 
 
 def merge_legacy():
-    """The Markdown log of earlier versions, moved into the errors log. Not
-    under /tmp: there Copilot's joshua and argyris still write and read
-    /tmp/joshua.log directly."""
-    if STATE == "/tmp":
-        return
+    """The Markdown log of earlier versions (joshua.log, joshua-violations.md),
+    moved into the errors log: Copilot's under /tmp included."""
     for path in (os.path.join(STATE, "joshua.log"), os.path.join(STATE, "joshua-violations.md")):
         if not os.path.exists(path):
             continue

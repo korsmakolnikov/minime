@@ -62,7 +62,7 @@ Write:
                                 (martin, after the unit's TDD audit). Every commit
                                 of the unit carries <scope> (a fixup carries that
                                 of the commit it fixes) or is martin's
-                                refactor(test) or benchmark, none is a squashed
+                                refactor(test) (or a fixup of it) or benchmark, none is a squashed
                                 unit already, the commit before <commit> does not
                                 carry <scope> unless it is a squashed unit, and
                                 the work tree is clean. The message has the same
@@ -442,7 +442,7 @@ squash)
       continue
     fi
     [ "$(subject_scope "$subject")" = "$SCOPE" ] ||
-      [[ "$subject" =~ $TEST_REFACTOR_RE ]] ||
+      [[ "${subject##*fixup! }" =~ $TEST_REFACTOR_RE ]] ||
       die "$short does not carry the scope ($SCOPE): '$subject'"
   done < <(log_with_phases "$from^..HEAD")
   before=$(git rev-parse "$from^")
