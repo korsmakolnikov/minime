@@ -268,6 +268,10 @@ update:
 			printf '%s\n' '#   COPILOT_CONTAINERS  containers where agents may run commands' 'export COPILOT_CONTAINERS=""' >> $(HOME)/.bash_copilot; \
 			echo "Added an empty COPILOT_CONTAINERS to $(HOME)/.bash_copilot"; \
 		fi; \
+		if ! grep -q '^export AUTONOMY_MARTIN=' $(HOME)/.bash_copilot; then \
+			printf '%s\n' '#   AUTONOMY_MARTIN     martin'"'"'s refactor of the code and the tests' 'export AUTONOMY_MARTIN=0' >> $(HOME)/.bash_copilot; \
+			echo "Added AUTONOMY_MARTIN=0 to $(HOME)/.bash_copilot"; \
+		fi; \
 	fi
 	@for g in $$(find $(PROJECTS_DIR) -maxdepth 4 -type d -path '*/.git/gutexberg' -prune 2>/dev/null); do \
 		d="$${g%/gutexberg}"; \

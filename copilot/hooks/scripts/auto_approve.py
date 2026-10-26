@@ -584,8 +584,10 @@ def decide_edit(payload, file_path, cwd):
     if any(real.startswith(root + os.sep) for root in READABLE_ROOTS) and autonomy("argyris") \
             and requesting_agent(payload, path, cwd) == "argyris":
         return ALLOW
-    if writable(path, cwd) and autonomy("unclebob") and requesting_agent(payload, path, cwd) == "unclebob":
-        return ALLOW
+    if writable(path, cwd):
+        agent = requesting_agent(payload, path, cwd)
+        if agent in ("unclebob", "martin") and autonomy(agent):
+            return ALLOW
     # Everything else, code edits first of all, asks the user.
     ask(f"edit of {path} by an agent without autonomy")
     return FALL_THROUGH

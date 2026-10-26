@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # linus: the single write path to git of the workflow agents, on Copilot CLI
 # and on Claude Code alike.
-# Every change is a new commit with a valid Conventional message. On Copilot
-# the TDD cycle (red, green, refactor) is enforced from the phase recorded for
-# each commit; on Claude Code linus only commits, and martin checks the order
-# of the unit's commits with unit-audit. Code-review corrections are fixups of
-# a branch commit, or review commits with the user's consent.
+# Every change is a new commit with a valid Conventional message. linus only
+# commits: martin checks the order of a unit's commits with unit-audit. The
+# CLIs differ only in the trailer and in the workflow's files, which Copilot
+# never commits. Code-review corrections are fixups of a branch commit, or
+# review commits with the user's consent.
 
 set -euo pipefail
 
@@ -21,7 +21,7 @@ TEST_PATH_RE='(^|/)(test|tests|spec|__tests__)/|_test\.[a-z]+$|(^|/)test_[^/]*\.
 TEST_SUBJECT_RE='^test[(:!]'
 BENCHMARK_SUBJECT_RE='^benchmark[(:!]'
 TEST_REFACTOR_RE='^refactor\(test\)!?: '
-PHASES='red green refactor regression characterisation architecture review other'
+PHASES='architecture review other'
 
 die() {
   >&2 echo -e "${RED}$*${NC}"
@@ -36,7 +36,6 @@ Read-only:
   base                          Print the merge-base of HEAD and the base branch.
   range                         List branch commits (<base>..HEAD), newest first,
                                 with the phase recorded for each.
-  next                          Print the phases a new commit may have now.
   check-message [-F <file>] <<'MSG'
                                 Validate a message without committing.
                                 Prints "ok (<n>/72)" or every problem found.
@@ -51,28 +50,25 @@ Write:
   unstage [<path>...]           Unstage paths (all if none given).
   commit [--phase <phase>] [--empty] [<path>...] <<'MSG'
                                 Stage the given paths, then commit everything staged.
-                                On Claude Code the phase is optional and only
-                                recorded, and a test: commit is never empty.
+                                The phase is optional and only recorded; a
+                                test: commit is never empty.
                                 The message comes from stdin: the subject line, a
                                 blank line and a body. The co-author trailer is appended.
-  amend --phase <phase> [<path>...]
-                                Stage the given paths (tests only) and amend HEAD,
-                                keeping its message. Only a red, regression or
-                                characterisation HEAD can be amended.
+  amend [<path>...]
+                                Stage the given paths and amend HEAD, keeping its
+                                message. Only a test: HEAD can be amended.
   squash --scope <scope> --from <commit> <<'MSG'
                                 Replace the unit <commit>..HEAD with one commit
                                 (martin, after the unit's TDD audit). Every commit
                                 of the unit carries <scope> (a fixup carries that
-                                of the commit it fixes), none is a squashed
+                                of the commit it fixes) or is martin's
+                                refactor(test) or benchmark, none is a squashed
                                 unit already, the commit before <commit> does not
-                                carry <scope> unless it is a squashed unit, the
-                                unit's cycle is closed and the work tree is clean.
-                                The message has the same scope; the tree does
-                                not change. The commit is recorded as a "unit".
-                                On Claude Code the unit may also hold martin's
-                                refactor(test) and benchmark commits, the cycle
-                                is not checked, and the benchmark commits are
-                                dropped: the tree loses only their changes.
+                                carry <scope> unless it is a squashed unit, and
+                                the work tree is clean. The message has the same
+                                scope. The benchmark commits are dropped: the
+                                tree loses only their changes. The commit is
+                                recorded as a "unit".
   fixup --target <commit> [<path>...] <<'MSG'
                                 Stage the given paths, then commit everything staged
                                 as "fixup! <subject of <commit>>" (code review, or
@@ -81,27 +77,9 @@ Write:
                                 the body; the co-author trailer is appended. The
                                 commit is recorded as a "fixup"; never autosquashed.
 
-Phases and the TDD cycle, enforced on Copilot only (the last cycle commit of
-the branch decides):
-  red, characterisation   a new test; the cycle must be closed (no cycle commit
-                          yet, or the last one is a refactor)
-  regression              a new test after a green that broke other tests
-  green                   production code after red, regression or
-                          characterisation; --empty only after characterisation
-  refactor                after green or refactor; --empty when there is nothing
-                          to refactor
-  architecture            ford's work, any time; scope "architecture", or that of
-                          the unit it belongs to
-  review                  a code-review correction whose target commit lies
-                          outside the branch, any time, with the user's consent;
-                          scope of the unit it corrects
-  other                   anything else, only while the cycle is closed
-
-  red, regression and characterisation commits hold only test files; green
-  commits hold none. Cycle commits need a scope: "(<domain> <component>)", or
-  "(<domain>)" for the functional flow tests.
-
-  A squashed unit ends the cycle history: the cycle guard does not look past it.
+Phases, only recorded (linus range shows them): architecture (ford's work,
+scope "architecture" or that of its unit), review (a correction to code outside
+the branch, with the user's consent) and other.
 
   commit and squash accept -F <file> instead of stdin and --model <id>. The
   co-author trailer names the agent's CLI, $LINUS_COAUTHOR: "copilot"
@@ -180,70 +158,6 @@ subject_scope() {
   if [[ "$subject" =~ ^($TYPES)\(([^\)]*)\)!?:\  ]]; then echo "${BASH_REMATCH[2]}"; fi
 }
 
-# The phase of the newest cycle commit since the last squashed unit, or "none".
-last_cycle_phase() {
-  load_base
-  log_with_phases "$BASE..HEAD" | awk '
-    stop { next }
-    $3 ~ /^(red|green|refactor|regression|characterisation)$/ { phase = $3; stop = 1; next }
-    $3 == "unit" { stop = 1 }
-    END { print (phase == "" ? "none" : phase) }'
-}
-
-allowed_after() {
-  case "$1" in
-  none) echo "red characterisation architecture review other" ;;
-  red | regression) echo "green architecture review" ;;
-  characterisation) echo "green architecture review" ;;
-  green) echo "refactor regression architecture review" ;;
-  refactor) echo "refactor red characterisation architecture review other" ;;
-  esac
-}
-
-cycle_guard() {
-  local phase="$1" empty="$2" last allowed label
-  last=$(last_cycle_phase)
-  allowed=$(allowed_after "$last")
-  label="a $last commit"
-  [ "$last" != none ] || label="the start of the branch"
-  [[ " $allowed " == *" $phase "* ]] ||
-    die "A $phase commit cannot follow $label (linus range shows the phases). Allowed now: $allowed."
-  if [ -n "$empty" ]; then
-    [ "$phase" = refactor ] || { [ "$phase" = green ] && [ "$last" = characterisation ]; } ||
-      die "--empty is only for a refactor, or for the green after a characterisation."
-  fi
-}
-
-check_paths() {
-  local phase="$1" files tests others
-  files=$(git diff --cached --name-only)
-  tests=$(grep -E "$TEST_PATH_RE" <<<"$files" || true)
-  others=$(grep -vE "$TEST_PATH_RE" <<<"$files" || true)
-  case "$phase" in
-  red | regression | characterisation)
-    [ -z "$others" ] || die "A $phase commit holds only test files. Not tests: $others" ;;
-  green)
-    [ -z "$tests" ] || die "A green commit holds only production code. Test files: $tests" ;;
-  esac
-  return 0
-}
-
-check_subject_scope() {
-  local phase="$1" subject="$2"
-  case "$phase" in
-  architecture)
-    [[ "$subject" =~ ^($TYPES)$SCOPE_RE ]] ||
-      die "An architecture commit needs a scope: (architecture), or that of the unit it belongs to: '$subject'" ;;
-  review)
-    [[ "$subject" =~ ^($TYPES)$SCOPE_RE ]] ||
-      die "A review commit needs the scope of the unit it corrects: '$subject'" ;;
-  red | green | refactor | regression | characterisation)
-    [[ "$subject" =~ ^($TYPES)$SCOPE_RE ]] ||
-      die "A $phase commit needs the scope (<domain> <component>), or (<domain>) for the flow tests: '$subject'" ;;
-  esac
-  return 0
-}
-
 # Sets COAUTHOR, the CLI the trailer names: claude or copilot.
 load_coauthor() {
   COAUTHOR="${LINUS_COAUTHOR:-}"
@@ -281,10 +195,8 @@ parse_commit_args() {
     esac
   done
   resolve_model
-  if [ -n "$PHASE" ] || [ "$COAUTHOR" = copilot ]; then
-    [ -n "$PHASE" ] || die "The phase is missing: pass --phase <phase> ($PHASES)."
-    [[ " $PHASES " == *" $PHASE "* ]] || die "Unknown phase '$PHASE'. Phases: $PHASES."
-  fi
+  [ -z "$PHASE" ] || [[ " $PHASES " == *" $PHASE "* ]] || die "Unknown phase '$PHASE'. Phases: $PHASES."
+
   [ "$CMD" != commit ] || read_message
 }
 
@@ -416,12 +328,6 @@ range)
     printf '%s [%s] %s\n' "$short" "${phase#-}" "$subject"
   done < <(log_with_phases "$BASE..HEAD")
   ;;
-next)
-  load_coauthor
-  [ "$COAUTHOR" = copilot ] || { echo "linus does not check the order of the commits on Claude Code (martin: unit-audit order)."; exit 0; }
-  last=$(last_cycle_phase)
-  echo "last cycle commit: $last; allowed: $(allowed_after "$last")"
-  ;;
 check-message) check_message "$@" ;;
 branch)
   [ $# -eq 1 ] || die "Usage: linus branch <name>"
@@ -469,10 +375,7 @@ commit)
   parse_commit_args "$@"
   current_branch_guard
   validate_message "$MSG_FILE"
-  if [ "$COAUTHOR" = copilot ]; then
-    check_subject_scope "$PHASE" "$(sed -n 1p "$MSG_FILE")"
-    cycle_guard "$PHASE" "$EMPTY"
-  elif [ -n "$EMPTY" ] && [[ "$(sed -n 1p "$MSG_FILE")" =~ $TEST_SUBJECT_RE ]]; then
+  if [ -n "$EMPTY" ] && [[ "$(sed -n 1p "$MSG_FILE")" =~ $TEST_SUBJECT_RE ]]; then
     die "A test: commit is never empty: it holds the new test."
   fi
   stage_paths "${PATHS[@]}"
@@ -480,7 +383,6 @@ commit)
     git diff --cached --quiet || die "--empty commits nothing: unstage the staged changes first."
   else
     require_staged
-    [ "$COAUTHOR" != copilot ] || check_paths "$PHASE"
   fi
   { strip_existing_trailer "$MSG_FILE"; echo; trailer; } | git commit -q ${EMPTY:+--allow-empty} -F -
   [ -z "$PHASE" ] || record_phase "$PHASE"
@@ -493,19 +395,9 @@ amend)
   load_base
   head=$(git rev-parse HEAD)
   in_branch "$head" || die "HEAD is outside the branch: refusing to amend."
-  if [ "$COAUTHOR" = copilot ]; then
-    head_phase=$(phase_of "$head")
-    case "$head_phase" in
-    red | regression | characterisation) ;;
-    *) die "Only a red, regression or characterisation HEAD can be amended; HEAD is '${head_phase:-unrecorded}'." ;;
-    esac
-    [ "$PHASE" = "$head_phase" ] || die "HEAD is a $head_phase commit, not $PHASE."
-  else
-    [[ "$(git log -1 --format=%s)" =~ $TEST_SUBJECT_RE ]] || die "Only a test: HEAD can be amended."
-  fi
+  [[ "$(git log -1 --format=%s)" =~ $TEST_SUBJECT_RE ]] || die "Only a test: HEAD can be amended."
   stage_paths "${PATHS[@]}"
   require_staged
-  [ "$COAUTHOR" != copilot ] || check_paths "$PHASE"
   git commit -q --amend --no-edit
   [ -z "$PHASE" ] || record_phase "$PHASE"
   flow_log "amend ${PHASE:-test}"
@@ -545,12 +437,12 @@ squash)
   while read -r sha short phase subject; do
     count=$((count + 1))
     [ "$phase" != unit ] || die "$short is a squashed unit already: start the unit after it."
-    if [ "$COAUTHOR" = claude ] && [[ "$subject" =~ $BENCHMARK_SUBJECT_RE ]]; then
+    if [[ "$subject" =~ $BENCHMARK_SUBJECT_RE ]]; then
       BENCHMARKS+=("$sha")
       continue
     fi
     [ "$(subject_scope "$subject")" = "$SCOPE" ] ||
-      { [ "$COAUTHOR" = claude ] && [[ "$subject" =~ $TEST_REFACTOR_RE ]]; } ||
+      [[ "$subject" =~ $TEST_REFACTOR_RE ]] ||
       die "$short does not carry the scope ($SCOPE): '$subject'"
   done < <(log_with_phases "$from^..HEAD")
   before=$(git rev-parse "$from^")
@@ -558,13 +450,6 @@ squash)
     [ "$(subject_scope "$(git log -1 --format=%s "$before")")" = "$SCOPE" ] &&
     [ "$(phase_of "$before")" != unit ]; then
     die "$(git rev-parse --short "$before") before $FROM also carries ($SCOPE): the unit starts earlier."
-  fi
-  if [ "$COAUTHOR" = copilot ]; then
-    last=$(last_cycle_phase)
-    case "$last" in
-    none | refactor) ;;
-    *) die "The unit's cycle is open (last cycle commit: $last): close it with a refactor first." ;;
-    esac
   fi
   tip=$(git rev-parse HEAD)
   git reset -q --soft "$before"

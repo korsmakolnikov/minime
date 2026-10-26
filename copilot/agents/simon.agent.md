@@ -50,9 +50,8 @@ Load `adl-spec` (the ADL and its physical-name mapping) and `domain-spec`
   `.documentation/<branch>/` (a resumed session) and bring the documentation
   up to date, then answer.
 * `SOURCES_CHANGED <agent>` with the agent's report (`HUGHES_DONE`,
-  `FORD_DONE`, or the outcome of an interface change or of a correction
-  session of ford or hughes): reread the sources and update the
-  documentation.
+  `FORD_DONE`, or the outcome of an interface change): reread the sources
+  and update the documentation.
 * `FLOWCHART <what>`: the user asked for a flowchart of `<what>`; add it to
   the Markdown file, built from the same sources.
 

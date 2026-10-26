@@ -145,40 +145,42 @@ class ToolTest(unittest.TestCase):
     def linus(self, env, *args, stdin=None):
         return subprocess.run(["linus", *args], cwd=self.repo, env=env, input=stdin, capture_output=True, text=True)
 
-    def test_linus_only_commits_on_claude(self):
-        self.sh("git", "switch", "-qc", "feat/u")
-        claude = dict(self.env, LINUS_COAUTHOR="claude", LINUS_MODEL="m")
-        copilot = dict(self.env, LINUS_COAUTHOR="copilot", LINUS_MODEL="m")
-        self.write("src/a.py", "A = 1\n")
-        green = "feat(lab a): add a\n\nA constant.\n"
-        self.assertNotEqual(self.linus(copilot, "commit", "--phase", "green", "src/a.py", stdin=green).returncode, 0)
-        done = self.linus(claude, "commit", "src/a.py", stdin=green)
-        self.assertEqual(done.returncode, 0, done.stderr)
-        empty_test = self.linus(claude, "commit", "--empty", stdin="test(lab a): nothing\n\nNo test.\n")
-        self.assertIn("never empty", empty_test.stderr)
-        empty_feat = self.linus(claude, "commit", "--empty", stdin="feat(lab a): cover b\n\nAlready covered.\n")
-        self.assertEqual(empty_feat.returncode, 0, empty_feat.stderr)
+    def test_linus_only_commits(self):
+        for cli in ("claude", "copilot"):
+            with self.subTest(cli=cli):
+                self.sh("git", "switch", "-qc", f"feat/u-{cli}", "master")
+                env = dict(self.env, LINUS_COAUTHOR=cli, LINUS_MODEL="m")
+                self.write(f"src/{cli}.py", "A = 1\n")
+                green = "feat(lab a): add a\n\nA constant.\n"
+                done = self.linus(env, "commit", f"src/{cli}.py", stdin=green)
+                self.assertEqual(done.returncode, 0, done.stderr)
+                empty_test = self.linus(env, "commit", "--empty", stdin="test(lab a): nothing\n\nNo test.\n")
+                self.assertIn("never empty", empty_test.stderr)
+                empty_feat = self.linus(env, "commit", "--empty", stdin="feat(lab a): cover b\n\nAlready covered.\n")
+                self.assertEqual(empty_feat.returncode, 0, empty_feat.stderr)
 
-    def test_linus_squash_drops_the_benchmarks_on_claude(self):
-        self.sh("git", "switch", "-qc", "feat/s")
-        claude = dict(self.env, LINUS_COAUTHOR="claude", LINUS_MODEL="m")
-        steps = [("tests/test_a.py", "def test_a(): pass\n", "test(lab a): specify a"),
-                 ("src/a.py", "A = 1\n", "feat(lab a): add a"),
-                 ("tests/test_a.py", "def test_a():\n    pass\n", "refactor(test): split the test"),
-                 ("bench/a.py", "print(1)\n", "benchmark(lab a): time a"),
-                 ("src/a.py", "A = 1  # one\n", "refactor(lab a): name the constant")]
-        for path, text, subject in steps:
-            self.write(path, text)
-            done = self.linus(claude, "commit", path, stdin=f"{subject}\n\nWhy.\n")
-            self.assertEqual(done.returncode, 0, done.stderr)
-        first = self.sh("git", "rev-list", "--reverse", "master..HEAD").stdout.split()[0]
-        squash = self.linus(claude, "squash", "--scope", "lab a", "--from", first,
-                            stdin="feat(lab a): add a\n\nThe unit.\n")
-        self.assertEqual(squash.returncode, 0, squash.stderr)
-        self.assertEqual(self.sh("git", "rev-list", "--count", "master..HEAD").stdout.strip(), "1")
-        self.assertFalse(os.path.exists(os.path.join(self.repo, "bench", "a.py")))
-        with open(os.path.join(self.repo, "src", "a.py")) as code:
-            self.assertIn("# one", code.read())
+    def test_linus_squash_drops_the_benchmarks(self):
+        for cli in ("claude", "copilot"):
+            with self.subTest(cli=cli):
+                self.sh("git", "switch", "-qc", f"feat/s-{cli}", "master")
+                env = dict(self.env, LINUS_COAUTHOR=cli, LINUS_MODEL="m")
+                steps = [(f"tests/test_{cli}.py", "def test_a(): pass\n", "test(lab a): specify a"),
+                         (f"src/{cli}.py", "A = 1\n", "feat(lab a): add a"),
+                         (f"tests/test_{cli}.py", "def test_a():\n    pass\n", "refactor(test): split the test"),
+                         (f"bench/{cli}.py", "print(1)\n", "benchmark(lab a): time a"),
+                         (f"src/{cli}.py", "A = 1  # one\n", "refactor(lab a): name the constant")]
+                for path, text, subject in steps:
+                    self.write(path, text)
+                    done = self.linus(env, "commit", path, stdin=f"{subject}\n\nWhy.\n")
+                    self.assertEqual(done.returncode, 0, done.stderr)
+                first = self.sh("git", "rev-list", "--reverse", "master..HEAD").stdout.split()[0]
+                squash = self.linus(env, "squash", "--scope", "lab a", "--from", first,
+                                    stdin="feat(lab a): add a\n\nThe unit.\n")
+                self.assertEqual(squash.returncode, 0, squash.stderr)
+                self.assertEqual(self.sh("git", "rev-list", "--count", "master..HEAD").stdout.strip(), "1")
+                self.assertFalse(os.path.exists(os.path.join(self.repo, "bench", f"{cli}.py")))
+                with open(os.path.join(self.repo, "src", f"{cli}.py")) as code:
+                    self.assertIn("# one", code.read())
 
     def test_unit_audit(self):
         self.sh("git", "switch", "-qc", "feat/a")

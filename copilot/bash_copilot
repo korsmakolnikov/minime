@@ -3,6 +3,7 @@
 # and by the agents, so changes apply without restarting.
 #   AUTONOMY_LINUS      commits, fixups and amends
 #   AUTONOMY_UNCLEBOB   unclebob's edits of the code (tests and production)
+#   AUTONOMY_MARTIN     martin's refactor of the code and the tests
 #   AUTONOMY_ARGYRIS    argyris's changes to agent and skill files, its mirror
 #                       commits in minime included
 #   COPILOT_CONTAINERS  containers (docker, docker compose and their aliases
@@ -10,5 +11,6 @@
 #                       commands, separated by spaces
 export AUTONOMY_LINUS=1
 export AUTONOMY_UNCLEBOB=1
+export AUTONOMY_MARTIN=1
 export AUTONOMY_ARGYRIS=0
 export COPILOT_CONTAINERS=""

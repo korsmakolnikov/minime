@@ -279,10 +279,12 @@ unità.
   andare avanti. Il flusso funzionale va allo stesso modo, alla fine, poi
   marvin. I fixup dell'utente restano fino al push (conservano il segnale
   di cosa sbagliano gli agenti).
-- **linus** fa solo i commit su Claude Code: `--phase` facoltativa e solo
-  registrata, nessun controllo di ordine né di file per fase, `test:` mai
-  vuoto, tipo `benchmark`, `squash` che accetta `refactor(test)` e scarta i
-  `benchmark`. Su Copilot tutto come prima (ramo su `COAUTHOR`).
+- **linus** fa solo i commit, su tutti e due i lati dal 26 ottobre (il
+  flusso è portato anche su Copilot): `--phase` facoltativa e solo
+  registrata (`architecture`, `review`, `other`), nessun controllo di
+  ordine né di file per fase, `test:` mai vuoto, tipo `benchmark`, `squash`
+  che accetta `refactor(test)` e scarta i `benchmark`. `COAUTHOR` decide
+  solo il trailer e i file del flusso.
 - **Tool**: `unit-audit` (`order`, `lines`), `toolchain test --durations`,
   `toolchain bench`.
 - **Log**: in `~/.local/state/minime/<repository>/` su Claude Code

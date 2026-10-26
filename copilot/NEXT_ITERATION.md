@@ -250,32 +250,28 @@ Dalle iterazioni precedenti, ancora aperte:
       scaffold si saltano se kent o la delega le coprono; joshua non la
       conta come violazione;
     - hughes chiede una correzione con più modifiche una modifica per turno.
-20. **Il nuovo flusso delle unità (23 ottobre, lato Claude), da portare**
-    quando l'utente lo chiede, dopo che sarà provato su Claude
-    (`claude/NEXT_ITERATION.md`, "Il nuovo flusso delle unità"):
-    - unclebob senza refactor: cicli `test:`/`feat:`, `test:` mai vuoto,
-      `feat:` vuoto per una caratterizzazione;
-    - martin come agente di refactor: `unit-audit order` e le violazioni
-      TDD in `audit-log`, il tempo zero (complessità, SOLID, idiomaticità,
-      leggibilità, righe di produzione, test e harness, durata dei test
-      lanciati due volte), `refactor(test)` con il codice fermo,
-      `refactor(<scope>)` con i test come punto stabile, benchmark
-      temporanei (`benchmark(<scope>)`, scartati da `linus squash`), una
-      domanda all'utente con i numeri per ogni misura peggiorata; lo squash
-      subito dopo il refactor, nello stesso turno, con il report in
-      `UNIT_SQUASHED` (`REFACTOR_DONE` non c'è più);
-    - niente revisione con l'utente in sessione (26 ottobre): kent mostra il
-      report e passa il controllo; l'utente rivede il commit squashato da
-      solo, con i suoi fixup, e dice a kent di andare avanti; il flusso
-      funzionale alla fine, allo stesso modo;
-    - `linus`: su Copilot controlla ancora l'ordine delle fasi (ramo su
-      `COAUTHOR`); portare il flusso vuol dire togliere quel ramo, o passare
-      `--phase` coerenti con i commit nuovi;
-    - i log: su Copilot restano in `/tmp` (`minime.state_dir` sceglie
-      `~/.local/state/minime/<repository>` solo con `CLAUDECODE=1`); i due
-      file `kent-events.jsonl` e `kent-errors.jsonl` sono comuni, e
-      `joshua.log` non esiste più (`audit-log` scrive le violazioni in
-      `kent-errors.jsonl`). joshua e argyris di Copilot scrivono e leggono
-      ancora `/tmp/joshua.log` a mano: `audit-log` non lo tocca finché i
-      log restano in `/tmp`; portarli ad `audit-log` è parte del port;
-    - simon su Sonnet e `check-message` tolto sono già in master (#18).
+20. **Il nuovo flusso delle unità: portato (26 ottobre, branch `new-flow`).**
+    Sull'altro PC: `git pull && make update && make copilot-install`
+    (`make update` aggiunge `AUTONOMY_MARTIN=0` a `~/.bash_copilot`:
+    mettilo a 1 se le modifiche di martin non devono chiedere conferma).
+    - unclebob: lanciato da kent, cicli `test:`/`feat:` senza refactor
+      (`test:` mai vuoto, `feat:` vuoto per una caratterizzazione), niente
+      più sessioni di correzione, controlli statici solo a fine unità; da
+      solo con l'utente fa ancora il refactor dopo ogni verde
+      (`refactor(test)`, poi `refactor(<scope>)`).
+    - martin: agente di refactor come su Claude (`unit-audit order`, tempo
+      zero, i due refactor, benchmark temporanei, una domanda con i numeri
+      per ogni misura peggiorata), poi lo squash nello stesso turno e il
+      report in `UNIT_SQUASHED`. Le violazioni TDD passano ancora da kent a
+      joshua con `TDD_VIOLATIONS` e finiscono in `/tmp/joshua.log`.
+    - kent: niente revisione con l'utente in sessione; dopo
+      `UNIT_SQUASHED` mostra il report e aspetta che l'utente, rivisto il
+      commit da solo, dica di andare avanti.
+    - `linus`: un solo comportamento per i due lati, solo commit; il
+      controllo dell'ordine delle fasi non c'è più (`linus next` tolto,
+      `--phase` facoltativa: `architecture`, `review`, `other`).
+    - `MARTIN_DONE` e `REVIEW_CHANGES` tolti; ford e simon senza sessioni
+      di correzione.
+    - **Ancora da fare**: portare joshua e argyris di Copilot su
+      `audit-log` (oggi `/tmp/joshua.log` a mano), e il resto del
+      refactor degli agenti (punto 10).

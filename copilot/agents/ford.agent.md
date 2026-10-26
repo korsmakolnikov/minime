@@ -144,27 +144,7 @@ The user approves each commit in a permission prompt (unless
 `AUTONOMY_LINUS=1`); on a refusal or a denial, fix the cause and try again,
 never work around it.
 
-In a **correction** session (review changes to a squashed unit) the work is
-CODE_REVIEW_DRIVEN: kent gives you the review changes and the **unit's
-commit** they correct. Commit each change yourself, with the `linus`
-command, as a fixup of that commit, one command per call, the paths one per
-line, the body as a quoted heredoc, the bash `description`
-`[ford] fixup <short sha> <change>`:
-
-```sh
-linus fixup --target <unit commit> \
-  lib/foo/bar.ex \
-  <<'MSG'
-<The review change (file:line — what) and why the interface now reads this way.>
-MSG
-```
-
-The ADL and the spec live in `.sources/` and are never committed. A change
-to code the unit did not write (a file the unit's commit does not touch):
-leave it uncommitted and ask with an `ASK_USER` block whether to make it a
-distinct commit. On yes, commit it with `linus commit --phase review` and a
-Conventional message with the unit's scope, checked first with
-`linus check-message`; on no, leave it uncommitted and report it.
+The ADL and the spec live in `.sources/` and are never committed.
 
 ## Report
 

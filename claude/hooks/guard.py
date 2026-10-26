@@ -39,7 +39,7 @@ sys.path[:0] = [os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", 
 from minime import ERRORS_LOG, append_jsonl  # noqa: E402
 
 SEPARATORS = {";", "&&", "||", "|", "&", "(", ")", "|&"}
-LINUS_READS = {"base", "range", "next", "check-message", "hunks", "--help", "-h", "help"}
+LINUS_READS = {"base", "range", "check-message", "hunks", "--help", "-h", "help"}
 MINIME = "~/code/minime"
 
 # The workflow's own files, versioned on Claude Code (see workflow-files).
@@ -157,7 +157,7 @@ AUTO_ALLOW = {
     "shopping-list": None, "session-state": None,
     "audit-log": {"append", "pending", "show", "handled", "archive", "repos"},
     "structurizr-cli": {"validate", "inspect"},
-    "linus": {"base", "range", "next", "check-message", "hunks", "--help", "-h", "help"},
+    "linus": {"base", "range", "check-message", "hunks", "--help", "-h", "help"},
 }
 
 

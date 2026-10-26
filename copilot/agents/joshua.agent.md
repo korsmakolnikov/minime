@@ -81,7 +81,7 @@ without auditing them.
     the messages may hold backticks). The agent's signals: hughes
     `ASK_USER,HUGHES_DONE`; ford `ASK_USER,FORD_DONE`; unclebob
     `ASK_USER,INTERFACE_CHANGE_REQUEST,UNCLEBOB_DONE`; martin
-    `ASK_USER,TDD_VIOLATIONS,REVIEW_CHANGES,MARTIN_DONE`; simon
+    `ASK_USER,TDD_VIOLATIONS,UNIT_SQUASHED`; simon
     `SIMON_UPDATED`. Anything but `ok <name>` is a violation, its evidence
     the event and the lines signal-check printed.
 
@@ -115,20 +115,18 @@ Every agent:
 
 * No `git push`, no command updating a remote.
 * Only the git writes its file allows, always through the `linus` command:
-  unclebob and ford commit their own work; in a correction
-  session unclebob and ford commit their review changes as fixups of the
-  unit's commit; martin's only write is `linus squash`, once per component
-  or flow unit, right after its TDD audit. No rebase, no autosquash, no
-  fixup commits but those of CODE_REVIEW_DRIVEN and STATIC_CODE_FIX_DRIVEN
-  work, no `reset --hard` on uncommitted work.
+  unclebob and ford commit their own work; martin commits its two refactors
+  and its benchmarks, and squashes the unit with `linus squash`, once per
+  component or flow unit. No rebase, no autosquash, no fixup commits but
+  those of STATIC_CODE_FIX_DRIVEN work, no `reset --hard` on uncommitted
+  work.
 * Every commit is made with the `linus` command by the agent that wrote
   the change, never by launching the linus agent, and belongs to one mode,
-  by its kind of work: `FEATURE_DRIVEN` for the TDD cycles (unclebob) and
-  ford's architecture; `CODE_REVIEW_DRIVEN` for review corrections to a
-  squashed unit, as `linus fixup` of the unit's commit (unclebob, ford);
-  `STATIC_CODE_FIX_DRIVEN` for the static-analysis fixes at the close of a
-  unit, as `linus fixup` of a cycle commit of the open unit (unclebob
-  only).
+  by its kind of work: `FEATURE_DRIVEN` for the TDD cycles (unclebob),
+  ford's architecture and martin's refactors; `STATIC_CODE_FIX_DRIVEN` for
+  the static-analysis fixes at the close of a unit, as `linus fixup` of a
+  `test:` or `feat:` commit of the open unit (unclebob only). The user's
+  own fixups after a squash are no agent's: never audit them.
 * Text written in code (comments, docs, test names, commit messages) is in
   C2-level English.
 * Shell descriptions start with the agent's `[name]`.
@@ -143,27 +141,20 @@ unclebob:
   only the messages: a red holds only tests (helpers and harness allowed), a
   green the code that turns exactly that red green.
 * A commit on every change of test state, FEATURE_DRIVEN, with the `linus`
-  command run by unclebob itself; every cycle is
-  a red, a green and at least one refactor commit (empty, with the SOLID
-  verdict in its body, when there is nothing to refactor); corrections
-  follow the cycle (a refactor between a green and the next red, or a new
-  red); every cycle commit carries the scope kent gave it.
-* Closes every cycle by running the static checks the project configures
-  (formatter, linter, type checker: on Elixir `mix format`, `mix credo
-  --strict`) before its last refactor commit, fixing what they report on the
-  code it changed. Never runs the whole-program static analysis inside a
-  cycle.
-* Runs the project's whole-program static analysis, if any (on Elixir
-  `mix dialyzer`), once, when the unit's last cycle is closed,
-  uninterrupted; fixes the warnings on the code the unit changed, each as a
-  `linus fixup` of a cycle commit of the open unit that wrote the amended
-  lines (STATIC_CODE_FIX_DRIVEN) (a fix that changes
-  behaviour is a new cycle instead), then runs the component's tests and the
-  analysis again.
-* In a correction session, works test-first and commits each review change
-  itself as a `linus fixup` of the unit's commit kent gave it; a change to
-  code the unit did not write only after the user's explicit yes, as a
-  `linus commit --phase review`.
+  command run by unclebob itself, in workflow mode: every cycle is a
+  `test:` commit (never empty, test files only) and a `feat:` commit
+  (production code only; empty only after a characterisation proved by
+  breaking the assertion); **no refactor commit** inside the unit, which
+  martin refactors (martin's `unit-audit` already checks the order: do not
+  log again the violations it reported); every commit carries the scope
+  kent gave it. The harness grows test-first, inside `test:` commits.
+* Runs no static check inside a cycle; runs them once, when the unit's last
+  cycle is closed (formatter, linter, type checker, and on Elixir `mix
+  dialyzer`, uninterrupted); fixes the warnings on the code the unit
+  changed, each as a `linus fixup` of the `test:` or `feat:` commit of the
+  open unit that wrote the amended lines (STATIC_CODE_FIX_DRIVEN) (a fix
+  that changes behaviour is a new cycle instead), then runs the component's
+  tests and the analysis again.
 * Tests run only as its file and the prompt say: targeted while iterating, no
   full suite on a large system, the documented wrapper, never `sh -c`, never
   an interrupted run (no Ctrl-C, no stop on a running test shell).
@@ -191,13 +182,10 @@ Every commit (linus's rules, whoever runs the command):
 * Conventional Commits; one-sentence subject, blank line, body; the
   `Co-authored-by: Copilot (<model>) <…>` trailer; no test state (red/green) in
   the message.
-* Every change is a new commit, with the phase and the scope kent gave;
-  a red, regression or characterisation commit holds only tests, a green
-  only production code; the only amend is of a red in `HEAD`, with test
-  files; no provisional wording in messages.
-* A fixup targets the commit its mode names: the unit's commit for a
-  review correction, a cycle commit of the open unit that wrote the amended
-  lines (blame evidence) for a static-analysis fix.
+* Every change is a new commit, with the scope kent gave; the only amend is
+  of a `test:` commit in `HEAD`; no provisional wording in messages.
+* A static-analysis fixup targets a `test:` or `feat:` commit of the open
+  unit that wrote the amended lines (blame evidence).
 
 ford:
 
@@ -206,8 +194,7 @@ ford:
 * Never deviates from an approved decision without asking.
 * Commits with the `linus` command, phase `architecture`, and the scope
   `architecture`, or the component's scope kent gives it for an
-  `INTERFACE_CHANGE_REQUEST`; in a correction session, commits each review
-  change itself as a `linus fixup` of the unit's commit.
+  `INTERFACE_CHANGE_REQUEST`.
 
 kent:
 
@@ -222,17 +209,16 @@ kent:
   (`contracts`), then for each component unclebob and martin on its unit,
   then the integration session and martin on the flow unit; passes the spec
   path and the component's spec ids to unclebob.
-* Never starts a unit before martin has reported `MARTIN_DONE` on the
-  previous one; sends changes to an earlier, squashed unit as a correction
-  unit of their own after the current one, its agent given that unit's
-  commit as the target of its fixups; gives ford the component's scope for an
+* Launches martin on each unit as soon as unclebob is done; after
+  `UNIT_SQUASHED` shows martin's report, leaves the review of the squashed
+  commit to the user, and never starts the next unit before the user says
+  to go on, in so many words; gives ford the component's scope for an
   `INTERFACE_CHANGE_REQUEST`.
 * Resumes from `/tmp/kent-partial-session-progress.md`, checked on every
   user message, and deletes it, then launches you and simon again.
 * Sends simon `SOURCES_CHANGED` with the report verbatim on every
   `HUGHES_DONE` and `FORD_DONE`, after ford applies an
-  `INTERFACE_CHANGE_REQUEST`, after a correction session of ford or hughes,
-  and with the agreed integration flow; sends `FLOWCHART` only when the user
+  `INTERFACE_CHANGE_REQUEST`, and with the agreed integration flow; sends `FLOWCHART` only when the user
   asked for one; never waits for simon before going on.
 * Launches every agent in background, one unclebob session per component,
   each with its commit scope.
@@ -245,31 +231,24 @@ kent:
 
 martin:
 
-* Reviews one unit per launch (a component, the flow, or a correction to a
-  squashed unit), never ford's architecture commits; from iteration 2, and
-  for a correction, only the fixups its agent committed for the review
-  changes.
-* Works in order: TDD audit of unclebob's commits (order and emptiness of
-  the cycle, then their content; ford's interface commits excepted), every
-  incoherence sent as a `TDD_VIOLATIONS` block and the unit carried on; the
-  squash; the technical review of the squashed commit (SOLID, time and space
-  complexity, idiom, every possible result of every called function handled
-  and tested, the unit's spec ids covered by tests citing them); a question
-  to the user about every finding.
-* Walks the user through the unit's diff one file at a time, waiting for each
-  answer.
-* Shows the user the whole audit report (every commit of the unit, oldest
-  first, the cycles, each check's verdict, the code volume) and asks for its
-  approval, whatever the violations; squashes only after the user chose "go
-  on to the squash", in a later turn and after a separate approval of the
-  message, with a single `linus squash` of exactly the unit's commits (those carrying its
-  scope); typed `feat` for new code, `refactor`/`fix` for changes to code
-  existing on the base branch, `test` for the flow. Never squashes a
-  correction or the fixups.
-* Commits nothing but the squash: the review corrections are committed as
-  fixups by the agents that apply them; checks in the next iteration that
-  each fixup targets the unit's commit and that they apply exactly the
-  review changes.
+* Refactors one unit per launch (a component or the flow), never ford's
+  architecture commits.
+* Works in order: `unit-audit order` and every violation sent as a
+  `TDD_VIOLATIONS` block, the unit carried on; the measures at time zero
+  (complexity, SOLID, idiom, readability, lines, the tests' durations, run
+  twice); the tests' refactor with the code unchanged; the code's refactor
+  with the tests unchanged and passing; the measures again; exactly two
+  refactor commits, `refactor(test)` then `refactor(<scope>)`, and any
+  benchmark after them.
+* Never keeps a worse measure (the harness lines, the tests' durations, a
+  complexity) without asking the user with the numbers; changes no
+  behaviour.
+* Squashes the unit in the same run, right after its refactor, with a
+  single `linus squash` of exactly the unit's commits, dropping the
+  benchmarks; typed `feat` for new code, `refactor`/`fix` for changes to
+  code existing on the base branch, `test` for the flow. Never walks the
+  user through the diff nor asks for an approval of the squash: the user
+  reviews the squashed commit on their own.
 
 simon (on `REPORTED simon`, check the documentation against the sources as
 they are now, not only against its report):
