@@ -16,6 +16,10 @@ The old `kent` agent stays until beck is stable, then fades out.
   it cannot, the event passes to an agent (often a small one, on Haiku).
   beck is an agentic application made of several state machines, not a
   script, and not a single LLM orchestrator.
+* **Structured output.** Every agent answers in a structured format with a
+  schema, so that beck can check as much as possible deterministically
+  (a repeated failure pattern, a declared scope, a signal); an output that
+  does not match its schema is rejected (`SignalRejected`).
 * **Event storming before design.** The domain of the workflow is modelled
   from its events first; the actors and their boundaries come after, and the
   old agents' boundaries are not sacred.
@@ -24,31 +28,35 @@ The old `kent` agent stays until beck is stable, then fades out.
 * **Agents never search the code twice.** The index maps every DSL id to the
   code and the tests; beck hands each agent only the slice it needs.
 * **The user is the architect at the start and the reviewer at the end**,
-  not a reviewer of every unit: the workflow can run overnight.
+  not a reviewer of every unit: the workflow can run overnight, and on
+  holidays. What it cannot solve alone it parks, with a proposal, and goes on
+  with the rest.
 * **Event sourcing.** Everything that happens is an event; state, resume,
   policies, audits, metrics and replays all read the events.
 * **KISS.** No layer, abstraction or option without a concrete need today.
 
 ## Configuration
 
-* `~/.config/kent/config.yml`: global defaults. Anything tied to a work
+* `~/.config/beck/config.yml`: global defaults. Anything tied to a work
   environment lives only here, never in this repository.
-* `.kent/config.yml` in the project: extends and overrides the global one.
+* `.beck/config.yml` in the project: extends and overrides the global one.
+* The old `~/.config/minime/*.toml` (`minime-config`) stays with the old
+  workflow; beck does not read it.
 * Settings so far:
-  * whether `.kent/` is versioned (replaces the old rule "versioned on
+  * whether `.beck/` is versioned (replaces the old rule "versioned on
     Claude Code, never on Copilot", which no longer holds once Claude Code
     runs on company code);
   * the branch name format (when it contains a task code, the user gives it);
   * the model of each actor;
   * the token budget, per agent session and per iteration (infinite allowed:
     first we measure);
+  * the limits of a cycle (see "Blocked cycles"): 3 repetitions of a
+    pattern, 30 attempts;
   * the CLI driver (Claude Code, Copilot).
-* To decide: how this relates to the existing `~/.config/minime/*.toml`
-  (`minime-config`).
 
-## Project layout: `.kent/`
+## Project layout: `.beck/`
 
-Everything beck needs lives in `.kent/`; the old `.sources/`,
+Everything beck needs lives in `.beck/`; the old `.sources/`,
 `.documentation/`, `.adl/` and `.shopping_lists/` are ignored
 (`minime-migrate` is dropped).
 
@@ -59,7 +67,7 @@ Everything beck needs lives in `.kent/`; the old `.sources/`,
 * `index.db`: the DSL-to-code index (derived, never versioned)
 * the event stores (never versioned)
 
-When versioned, beck commits `.kent/` itself (`docs(workflow): …`), only
+When versioned, beck commits `.beck/` itself (`docs(workflow): …`), only
 between units; no agent is needed for it.
 
 ## Actors (draft)
@@ -67,18 +75,18 @@ between units; no agent is needed for it.
 | Actor | What | Notes |
 |---|---|---|
 | beck | the state machines, the policies, the commits, the deterministic checks, the TUI | no LLM |
-| kent (scout, inside beck) | studies the existing code, delimits the area the iteration touches, anchors the spec ids to the code in brownfield, brings the environment up from the project's docs (`AGENTS.md`, README, Makefile) | name kept from Kent Beck; never runs together with the old `kent` agent |
-| DSL author | the domain and the architecture: hughes and ford merged | two phases with fresh contexts; whether the domain phase still reads no code is open |
-| unclebob | TDD, one group of spec ids per session, context cut by the index | may run in parallel on independent components |
-| martin | refactors the unit on green tests and closes it on its own | no new tests (temporary benchmarks only); outside the unit only code covered by tests; missing tests send the work back to unclebob |
-| joshua | audits only what the deterministic auditor cannot decide: interruptions, tooling violations, scope of the tests run | fed by events, at least per cycle |
-| argyris | improves the agents, triggered by events; runs replays and A/B tests of models | |
+| kent (inside beck) | studies the existing code and delimits the area the iteration touches; brings the environment up from the project's docs (`AGENTS.md`, README, Makefile); writes the shopping list; is the DSL author: the domain, then the architecture and the interfaces (hughes and ford merged); anchors the spec ids to the code; keeps the DSLs in sync with the code; proposes the resolution of a blocked cycle or of an interface change | name kept from Kent Beck; never runs together with the old `kent` agent; the domain and the architecture are two states of the machine, each with a fresh context and its own approval; in brownfield it reads the code, only the slice of the delimited area the index hands it |
+| unclebob | TDD, one group of spec ids per session, context cut by the index | N in parallel, one unit each, in its own worktree; may request an interface change |
+| martin | refactors the unit on green tests and closes it on its own; resolves the conflicts when its unit lands | runs in parallel with the unclebobs; no new tests (temporary benchmarks only); outside the unit only code covered by tests; missing tests send the work back to unclebob; may request an interface change, never makes one |
+| joshua | audits only what the deterministic auditor cannot decide: interruptions, tooling violations, scope of the tests run; watches every `SignalRejected` and how the parallelism stalls | fed by events, at least per cycle |
+| argyris | improves the agents, triggered by events; runs replays and A/B tests of models; with joshua, tunes the parallelism | |
 | test reader | on Haiku: summarises a failure for unclebob | only when the deterministic parser is not enough |
 | environment checker | is the environment up? deterministic from the container status, Haiku as fallback on long logs | |
 
-Removed: **simon** (its output was never used; may return on demand),
-**marvin** (`AGENTS.md` updates proved harmful; later, `AGENTS.md` will
-import the DSLs), **the old kent** (after fade-out).
+Removed: **hughes** and **ford** (merged into kent), **simon** (its output
+was never used; may return on demand), **marvin** (`AGENTS.md` updates
+proved harmful; later, `AGENTS.md` will import the DSLs), **the old kent**
+(after fade-out).
 
 ## DSLs
 
@@ -88,6 +96,10 @@ import the DSLs), **the old kent** (after fade-out).
 * **No components map**: which component realizes each spec id is written
   in the architecture YAML (a design decision, so it lives in a versioned
   source); the index derives the rest down to the code.
+* The domain and the architecture are two parallel branches of the model,
+  each with its own approval; in practice they run in sequence (the
+  architecture is derived from the domain, and the user, who reads and
+  discusses both, is the bottleneck).
 * The fitness functions are generated deterministically from the
   assertions; an agent writes only those the generator cannot translate.
 * Future stages, not in the first iteration: Alloy and TLA+ where they make
@@ -99,47 +111,94 @@ import the DSLs), **the old kent** (after fade-out).
   Symbols from tree-sitter (Elixir, Python, C grammars).
 * Few heavy writes (when the DSLs are created), then small updates; mostly
   reads, graph walks with `WITH RECURSIVE`.
+* The index is derived: beck rebuilds it deterministically, kent anchors the
+  ids to the symbols where needed. The DSLs are design decisions: kent
+  proposes their changes, the user approves them.
 * Each file is tracked by content hash; a commit event marks the index of
   its files dirty, and a policy has kent verify them.
 * **At the start of every iteration** the whole map is checked against the
   diff from the last indexed commit, including other people's commits (a new
-  PR merged into the base). This covers most cases.
+  PR merged into the base). This covers most cases. When the diff changes
+  the behaviour of code that realizes spec ids, the DSLs have drifted: kent
+  proposes how to bring them back in sync, the user approves, beck rebuilds
+  the index.
 * An agent that finds the code different from what the index says reports
   it, and the area is reindexed.
 
 ## Event store (SQLite, embedded)
 
-* **One event store per iteration** (the iteration's name is the branch's
-  name), so that old iterations can be deleted. A catalog table holds:
-  event store, session id, iteration name, start date, end date.
+* **One event store per iteration.** It is created as soon as a session
+  starts, with a random id; when the branch is created, the catalog records
+  the iteration's name (the branch's name). Old iterations can be deleted.
+  The catalog table holds: event store, session id, iteration name, start
+  date, end date.
+* `beck sessions` lists the event stores of the project (id, branch, start,
+  end, last event); `beck attach <id>` resumes one, replaying its events up
+  to the last. Ctrl-C is safe; `session-state` is no longer needed.
 * Every event records the repository's commit sha and, for an agent turn,
   its tokens: a replay rebuilds the starting point.
 * **Policies** react to events and send signals to the agents (a dirty
   index → kent verifies; a turn ended → the auditor).
-* Resume = replay the events up to the last one; Ctrl-C is safe.
-  `session-state` is no longer needed.
 * **Replays for improvements and A/B tests of models**: an event's input is
   run again N times, and the outcomes are judged by the deterministic checks.
   The verdict is statistical (errors, complexity, tokens, compared across the
-  runs).
+  runs). The replays also tune what can only be tuned on real data, such as
+  the normalisation of the failure signatures.
 * The flow log stays, only as a human-readable log.
 
-## Commits
+## Parallelism and commits
 
-* beck commits every TDD phase after verifying it: the new test fails (red),
-  then passes with no test changed (green).
-* **Commit order with parallel unclebobs**: beck must guarantee the right
-  order. Approved: the planned commits are events, not memory. Proposal to
-  confirm: each parallel unclebob works in its own git worktree and beck
-  commits there at once (the code is never left uncommitted); at the end of
-  the component beck replays the commits onto the feature branch in the
-  right order. martin then squashes the unit.
+* **As parallel as possible.** Every unit (a component, the integration
+  flow) gets its own git worktree, branched from the feature branch once the
+  interfaces are committed. N unclebobs work on different units at once, and
+  martin refactors the finished units beside them.
+* An unclebob does not wait for the components its unit depends on: it
+  trusts the declared interfaces, which is what they are for. The
+  integration unit at the end exists to find where the components diverge
+  from the interfaces.
+* beck commits every TDD phase in the unit's worktree as soon as it has
+  verified it: the new test fails (red), then passes with no test changed
+  (green). The code is never left uncommitted.
+* martin squashes the unit in its worktree; beck then lands the squashed
+  commit on the feature branch, in the dependency order of the architecture.
+  Since every unit lands as one commit, no single commit needs reordering.
+  A landing that conflicts (shared files: dependencies, the supervision
+  tree) goes back to martin, then through the checks again.
+* It is not expected to work well at first: joshua measures, from the
+  events, how long each unit waits, the conflicts at landing and the
+  divergences found by the integration, and argyris and the user tune it.
 * **After the iteration ends** a flag turns on: beck makes no new commits,
   only fixups of the iteration's commits, which the user squashes. This holds
   for the user's corrections and, later, for the PR comments read with `gh`.
   Pushing stays manual.
 * The user's final corrections: a new iteration, or by hand — the user's
   choice.
+
+## Blocked cycles
+
+* Every attempt of a cycle ends with a **failure signature**, computed
+  deterministically from the structured test report and the agent's
+  structured output: the normalised set of (test, kind of failure, assertion
+  message), without line numbers, addresses and times.
+* beck looks at the tail of the sequence of signatures: a block of length p
+  repeated 3 times in a row blocks the cycle. p = 1 is the same result three
+  times; p ≥ 2 is a repeated pattern (A B A B A B).
+* With no repetition, the cycle blocks after 30 attempts.
+* Both limits are in the configuration. The normalisation is the delicate
+  part (too coarse blocks too early, too fine never sees a repetition): it
+  starts as above and is tuned with the replays.
+* A blocked cycle does not stop the machine: beck parks it and the cycles
+  that depend on it, goes on with the independent work, and has kent propose
+  a resolution, which waits for the user. When nothing else can proceed, the
+  machine stops, and that is correct.
+* An **interface change** follows the same path. It can be requested during
+  the iteration by unclebob (a signature lacks a datum the operation needs,
+  an error case is not in the return type, a property of the spec cannot be
+  observed through the public interface), by martin (an interface too wide
+  or leaking its implementation: changing a contract changes the tests, so
+  martin requests it, never makes it), or by the integration unit (a
+  divergence between components). The work in flight on the components that
+  use that interface is parked too.
 
 ## Tests in the projects
 
@@ -197,7 +256,9 @@ Driving beck from stdin stays possible, at little cost.
 ## Metrics
 
 Tokens per agent turn, saved with the events; the average cost of a turn of
-each agent, to know where to save; shown in the TUI.
+each agent, to know where to save; shown in the TUI. The parallelism
+measures (waits, conflicts at landing, divergences at integration) come from
+the events too.
 
 ## Drivers
 
@@ -212,34 +273,138 @@ checker, the index), since they judge the agents; the TUI is tried by hand.
 The tokens of the development sessions are measured to check that this
 costs less than TDD. The replays act as integration tests.
 
-## Event storming (big picture, draft)
+## Event storming (big picture)
 
-Actors: (U) user, (B) beck deterministic, (A) agent.
+Actors: (U) user, (B) beck deterministic, (A) agent. Each phase has a main
+line, read left to right; the branches (`↳`) leave from the event they
+hang under and either return to an earlier event (`⟲`) or stop the line.
+Every branch becomes a transition of the state machine.
 
-1. **Framing:** ProjectClassified (B) → InterviewCompleted (U) →
-   BranchNamed (A, configured format) → BranchCreated (B)
-2. **Survey:** ToolchainDetected (B) → ToolchainConfirmed (U) →
-   EnvironmentUp (B, A fallback) → SuiteVerified (B) → CodeAreaDelimited
-   (A kent) → ShoppingListApproved (U)
-3. **Model:** DomainWritten (A) → DomainValidated (B) →
-   ArchitectureWritten (A) → InterfacesWritten (A) → FitnessFunctionsGenerated
-   (B, A for the rest) → IndexBuilt (B, A anchors) → ModelApproved (U)
-4. **Implementation, per group of spec ids:** CycleOpened (B, context cut
-   from the index) → RedDeclared (A) → RedVerified (B) → CommitPlanned (B) →
-   GreenDeclared (A) → GreenVerified (B) → CommitPlanned (B) → TestFailed →
-   FailureSummarised (Haiku) → ScopeViolated (B or joshua) →
-   InterfaceChangeRequested (A) → CommitsApplied (B, in order)
-5. **Unit refactor:** RefactorDone (A martin) → RefactorInvariantsVerified
-   (B) → UnitSquashed (B) → UnitClosed (B)
-6. **Closing:** IntegrationFlowGreen (A + B) → FullSuiteGreen (B, once) →
-   FixupModeOn (B) → IterationReviewed (U) → CorrectionsRequested (U) /
-   IterationClosed (U)
-7. **Cross-cutting:** AgentTurnEnded (B, tokens and sha) → SignalRejected
-   (B) → IndexMarkedDirty (B) → InterruptionDetected (joshua) →
-   ViolationLogged (B or joshua) → ImprovementProposed (argyris)
+### 1. Session and framing
 
-Next: correct the timeline, then add commands, policies and read models,
-and only then the boundaries of the actors.
+```
+SessionStarted (B: event store with a random id, catalog row)
+  → ConfigLoaded (B) → ProjectClassified (B) → InterviewCompleted (U)
+  → BranchNamed (A, configured format) → BranchCreated (B: iteration name in the catalog)
+```
+
+* ↳ `ProjectClassified` with only documents → `ClassificationAsked` (U).
+* ↳ `beck attach <id>` → `SessionAttached` (B: replay up to the last event,
+  resume from there).
+
+### 2. Survey
+
+```
+ToolchainDetected (B) → ToolchainConfirmed (U)        first time in the project
+  | ToolchainLoaded (B)                               toolchain.yml exists
+→ EnvironmentUp (B, A fallback) → SuiteVerified (B)
+→ IndexReconciled (B) → CodeAreaDelimited (A kent)    brownfield
+→ ShoppingListWritten (A kent) → ShoppingListApproved (U)
+```
+
+* Greenfield: `ProjectScaffolded` (B) → `ToolchainLoaded`; no
+  reconciliation, no code area.
+* ↳ `EnvironmentDown` (B) → stops, reported to the user.
+* ↳ `SuiteFailed` (B) → stops, reported to the user.
+* ↳ `IndexReconciled` → `DslDriftDetected` (B) → `DslSyncProposed`
+  (A kent) → `DslSyncApproved` (U) → `IndexRebuilt` (B).
+* ↳ `ShoppingListRevised` (U) ⟲ `ShoppingListWritten`.
+
+### 3. Model
+
+Two branches, each a state of kent with a fresh context and its own
+approval; in practice the domain comes first.
+
+```
+Domain:        DomainWritten (A kent) → DomainValidated (B) → DomainApproved (U)
+Architecture:  ArchitectureWritten (A kent) → ArchitectureValidated (B)
+               → InterfacesWritten (A kent) → InterfacesCompiled (B)
+               → FitnessFunctionsGenerated (B, A for the rest)
+               → ArchitectureApproved (U, requires DomainApproved)
+→ IndexBuilt (B, A kent anchors in brownfield)
+→ UnitsPlanned (B: units, groups of spec ids, dependency and landing order)
+→ ModelCommitted (B: interfaces and fitness functions on the feature branch;
+                  .beck/ too when versioned)
+```
+
+* ↳ `DomainInvalid` / `ArchitectureInvalid` / `InterfacesBroken` (B)
+  ⟲ the corresponding `…Written`.
+* ↳ `DomainRevised` / `ArchitectureRevised` (U) ⟲ the corresponding
+  `…Written`.
+
+### 4. Implementation (per unit, in its own worktree, units in parallel)
+
+```
+UnitStarted (B: worktree from the feature branch)
+→ for each group of spec ids:
+    CycleOpened (B, context cut from the index)
+    → RedDeclared (A unclebob) → RedVerified (B) → RedCommitted (B)
+    → GreenDeclared (A unclebob) → GreenVerified (B) → GreenCommitted (B)
+    → CycleClosed (B)
+→ UnitImplemented (B)
+```
+
+* ↳ `RedRejected` (B: the test passes, or does not compile for another
+  reason) ⟲ `RedDeclared`.
+* ↳ `GreenRejected` (B: a test still fails, or a test was changed)
+  → `FailureSummarised` (B parser, Haiku fallback) ⟲ `GreenDeclared`.
+* ↳ `ScopeViolated` (B, or joshua) ⟲ the declared phase.
+* ↳ `CycleBlocked` (B: a repeated pattern, or 30 attempts)
+  → `DependentsParked` (B) → `ResolutionProposed` (A kent)
+  → `ResolutionApproved` (U) → `CycleReopened` (B) ⟲ `CycleOpened`;
+  or `ResolutionRejected` (U) → the user decides.
+* ↳ `InterfaceChangeRequested` (A unclebob) → `DependentsParked` (B)
+  → `ResolutionProposed` (A kent) → `ResolutionApproved` (U)
+  → `InterfacesChanged` (B commits them) → the parked cycles reopen.
+
+### 5. Unit refactor (martin, in the unit's worktree, beside the other units)
+
+```
+UnitMeasured (B, A for what cannot be measured) → RefactorDone (A martin)
+→ RefactorInvariantsVerified (B) → UnitSquashed (B)
+→ UnitLanded (B, on the feature branch, in dependency order) → UnitClosed (B)
+```
+
+* ↳ `RefactorRejected` (B: a test failed or changed, a measure got worse)
+  ⟲ `RefactorDone`.
+* ↳ `MissingTestsFound` (A martin) → back to unclebob ⟲ `CycleOpened`.
+* ↳ `InterfaceChangeRequested` (A martin) → the path of phase 4.
+* ↳ `LandingConflicted` (B) → `ConflictResolved` (A martin)
+  → `RefactorInvariantsVerified` ⟲ `UnitLanded`.
+
+### 6. Integration and closing
+
+The integration flow is the last unit: it goes through phases 4 and 5 like
+the others and ends with `UnitClosed`.
+
+```
+FullSuiteGreen (B, once) → StaticChecksPassed (B) → FixupModeOn (B)
+→ IterationReviewed (U) → IterationClosed (U)
+```
+
+* ↳ a divergence between components in the integration unit
+  → `InterfaceChangeRequested` (phase 4).
+* ↳ `FullSuiteFailed` (B) → the index maps the failing tests to the units
+  → `CycleOpened` on them.
+* ↳ `StaticChecksFailed` (B) → `StaticFixesProposed` (A martin)
+  → fixups of the units' commits (B).
+* ↳ `CorrectionsRequested` (U) → fixups (B), or a new iteration, or by
+  hand: the user's choice.
+
+### 7. Cross-cutting
+
+* `AgentTurnEnded` (B, tokens and sha) → the auditor's policy.
+* `SignalRejected` (B: an output that does not match its schema) → joshua.
+* `IndexMarkedDirty` (B) → `IndexVerified` (A kent).
+* `IndexDiscrepancyReported` (A) → `IndexRebuilt` (B).
+* `TokenBudgetExceeded` (B).
+* `SessionInterrupted` (B, Ctrl-C) / `SessionAttached` (B).
+* `EnvironmentDown` (B), at any time.
+* `InterruptionDetected` (joshua), `ViolationLogged` (B or joshua).
+* `ImprovementProposed` (argyris).
+
+Next: commands, policies and read models on this timeline, then the
+boundaries of the actors and the state machines, then the code.
 
 ## Open points
 
@@ -247,12 +412,7 @@ and only then the boundaries of the actors.
 * **Index staleness**: how to detect a time jump (the code changed under the
   index without any event). Reindexing at the start of each iteration covers
   about 90 %; the rest is handled as it comes.
-* **A cycle that does not converge** (no green after N attempts, a red test
-  that cannot be written because the spec is not testable as written): to
-  decide. Proposal: a configurable limit per cycle, then a CycleBlocked event;
-  beck parks the cycle, goes on with the independent work and reports it at
-  the end.
-* The parallel commit order: confirm the worktree proposal.
-* The DSL author: does the domain phase still read no code?
-* The configuration vs the existing `~/.config/minime/*.toml`.
+* Whether `toolchain.yml` moves into `.beck/`.
+* The normalisation of the failure signatures: tuned with the replays.
+* Unity's JUnit output; `grandalf` for the TUI's graph.
 * Later: PR comments with `gh`, Alloy and TLA+ stages, simon on demand.
