@@ -184,6 +184,10 @@ proved harmful; later, `AGENTS.md` will import the DSLs), **the old kent**
   repeated 3 times in a row blocks the cycle. p = 1 is the same result three
   times; p ≥ 2 is a repeated pattern (A B A B A B).
 * With no repetition, the cycle blocks after 30 attempts.
+* The rule is not only for TDD: it applies to every loop between an agent
+  and a deterministic check (`DomainInvalid ⟲ WriteDomain`,
+  `InterfacesBroken ⟲ WriteInterfaces`, …). A loop triggered by the user
+  (`Revise…`) has no limit.
 * Both limits are in the configuration. The normalisation is the delicate
   part (too coarse blocks too early, too fine never sees a repetition): it
   starts as above and is tuned with the replays.
@@ -228,11 +232,16 @@ proved harmful; later, `AGENTS.md` will import the DSLs), **the old kent**
 
 * A deterministic tool tells greenfield from brownfield: at least one code
   file means brownfield; a directory with only documents means asking.
-* `scaffold init` stays, deterministic, only in a completely empty
-  directory.
-* The interview is mostly standard questions, kept in the event store; the
-  branch is created (`linus branch`) only after it, its name proposed by an
-  actor in the configured format.
+* `.beck/` does not count: a directory holding only `.beck/` is empty.
+* `scaffold init` stays, deterministic, only in an empty directory. It runs
+  `git init`, so in greenfield the branch is created after it.
+* The interview is mostly standard questions, kept in the event store; kent
+  may add follow-up questions. The branch is created (`linus branch`) only
+  after it: an actor proposes its name in the configured format, the user
+  confirms it.
+* **The first iteration of beck on a brownfield project** has no DSLs: kent
+  writes them for the delimited area only, the as-is first, then the
+  iteration's changes on top.
 * `toolchain.yml` is built deterministically from the stack, with the user's
   help, once per project.
 
@@ -273,6 +282,19 @@ checker, the index), since they judge the agents; the TUI is tried by hand.
 The tokens of the development sessions are measured to check that this
 costs less than TDD. The replays act as integration tests.
 
+## Read models
+
+No projection is persisted, and they are not an architectural concept:
+they are functions that fold the events into a state, called by the
+policies and by the TUI. They are named only where a policy needs one:
+
+* the state of the machine (where `beck attach` resumes);
+* the sequence of the failure signatures of a loop (the repetition rule);
+* which units are ready to land and which are parked;
+* the TUI and the metrics (tokens per agent, the histogram, the graph of the
+  components, the parallelism measures for joshua);
+* the catalog (`beck sessions`).
+
 ## Event storming (big picture)
 
 Actors: (U) user, (B) beck deterministic, (A) agent. Each phase has a main
@@ -280,57 +302,83 @@ line, read left to right; the branches (`↳`) leave from the event they
 hang under and either return to an earlier event (`⟲`) or stop the line.
 Every branch becomes a transition of the state machine.
 
-### 1. Session and framing
+The approved phases also list their commands and policies:
+`Command (who) → Event`, and `P: Event → Command` for a policy, which
+carries the signal from one actor to the next. `[…]` is a condition read
+from a read model; `⟲` returns to an earlier command.
+
+### 1. Session and framing (approved)
 
 ```
-SessionStarted (B: event store with a random id, catalog row)
-  → ConfigLoaded (B) → ProjectClassified (B) → InterviewCompleted (U)
-  → BranchNamed (A, configured format) → BranchCreated (B: iteration name in the catalog)
+StartSession (U: beck)                     → SessionStarted (B: event store with a random id, catalog row)
+P: SessionStarted → LoadConfig (B)         → ConfigLoaded | ConfigInvalid (stop)
+P: ConfigLoaded → ClassifyProject (B)      → ProjectClassified {greenfield | brownfield | undetermined}
+P: [undetermined] → AskClassification (B→U)
+   ClassifyProject (U)                     → ProjectClassified
+P: ProjectClassified → AskQuestion (B: the standard questions; A kent: the follow-ups)
+   AnswerQuestion (U)                      → QuestionAnswered
+P: [no question pending]                   → InterviewCompleted (B)
+P: InterviewCompleted [greenfield] → ScaffoldProject (B) → ProjectScaffolded (git init, toolchain.yml)
+P: InterviewCompleted [brownfield] | ProjectScaffolded
+   → ProposeBranchName (A)                 → BranchNameProposed
+   ConfirmBranchName (U)                   → BranchNamed
+P: BranchNamed → CreateBranch (B)          → BranchCreated (iteration name in the catalog)
+AttachSession (U: beck attach <id>)        → SessionAttached (replay, resume from the pending command)
 ```
 
-* ↳ `ProjectClassified` with only documents → `ClassificationAsked` (U).
-* ↳ `beck attach <id>` → `SessionAttached` (B: replay up to the last event,
-  resume from there).
-
-### 2. Survey
+### 2. Survey (approved)
 
 ```
-ToolchainDetected (B) → ToolchainConfirmed (U)        first time in the project
-  | ToolchainLoaded (B)                               toolchain.yml exists
-→ EnvironmentUp (B, A fallback) → SuiteVerified (B)
-→ IndexReconciled (B) → CodeAreaDelimited (A kent)    brownfield
-→ ShoppingListWritten (A kent) → ShoppingListApproved (U)
+P: BranchCreated [toolchain.yml present] → LoadToolchain (B)   → ToolchainLoaded
+P: BranchCreated [toolchain.yml absent]  → DetectToolchain (B) → ToolchainDetected
+   ConfirmToolchain (U)                                        → ToolchainConfirmed
+P: ToolchainLoaded | ToolchainConfirmed
+   → BringEnvironmentUp (B, A kent fallback from the docs)     → EnvironmentUp | EnvironmentDown (stop)
+P: EnvironmentUp → VerifySuite (B)       → SuiteVerified {machine-readable report: yes | no} | SuiteFailed (stop)
+P: SuiteVerified [brownfield, index present] → ReconcileIndex (B) → IndexReconciled | DslDriftDetected
+P: DslDriftDetected → ProposeDslSync (A kent)  → DslSyncProposed
+   ApproveDslSync (U)                          → DslSyncApproved
+P: DslSyncApproved → RebuildIndex (B)          → IndexRebuilt
+P: IndexReconciled | IndexRebuilt | SuiteVerified [brownfield, no index]
+   → DelimitCodeArea (A kent)                  → CodeAreaDelimited
+P: CodeAreaDelimited | SuiteVerified [greenfield]
+   → WriteShoppingList (A kent)                → ShoppingListWritten
+   ApproveShoppingList (U)                     → ShoppingListApproved
+   ReviseShoppingList (U)                      → ShoppingListRevised ⟲ WriteShoppingList
 ```
 
-* Greenfield: `ProjectScaffolded` (B) → `ToolchainLoaded`; no
-  reconciliation, no code area.
-* ↳ `EnvironmentDown` (B) → stops, reported to the user.
-* ↳ `SuiteFailed` (B) → stops, reported to the user.
-* ↳ `IndexReconciled` → `DslDriftDetected` (B) → `DslSyncProposed`
-  (A kent) → `DslSyncApproved` (U) → `IndexRebuilt` (B).
-* ↳ `ShoppingListRevised` (U) ⟲ `ShoppingListWritten`.
-
-### 3. Model
+### 3. Model (approved)
 
 Two branches, each a state of kent with a fresh context and its own
-approval; in practice the domain comes first.
+approval; in practice the domain comes first. While writing, kent asks the
+user (`QuestionAsked` (A) ⟷ `QuestionAnswered` (U)). Every `⟲` triggered by
+a check follows the repetition rule of "Blocked cycles".
 
 ```
-Domain:        DomainWritten (A kent) → DomainValidated (B) → DomainApproved (U)
-Architecture:  ArchitectureWritten (A kent) → ArchitectureValidated (B)
-               → InterfacesWritten (A kent) → InterfacesCompiled (B)
-               → FitnessFunctionsGenerated (B, A for the rest)
-               → ArchitectureApproved (U, requires DomainApproved)
-→ IndexBuilt (B, A kent anchors in brownfield)
-→ UnitsPlanned (B: units, groups of spec ids, dependency and landing order)
-→ ModelCommitted (B: interfaces and fitness functions on the feature branch;
-                  .beck/ too when versioned)
+P: ShoppingListApproved → WriteDomain (A kent, fresh context) → DomainWritten
+P: DomainWritten → ValidateDomain (B, spec-check)  → DomainValidated | DomainInvalid ⟲ WriteDomain {the errors}
+   ApproveDomain (U)                               → DomainApproved
+   ReviseDomain (U)                                → DomainRevised ⟲ WriteDomain
+P: DomainApproved → WriteArchitecture (A kent, fresh context) → ArchitectureWritten
+P: ArchitectureWritten → ValidateArchitecture (B: the schema, every spec id realized by exactly one component)
+                                                   → ArchitectureValidated | ArchitectureInvalid ⟲ WriteArchitecture
+P: ArchitectureValidated → WriteInterfaces (A kent) → InterfacesWritten
+P: InterfacesWritten → CompileInterfaces (B)       → InterfacesCompiled | InterfacesBroken ⟲ WriteInterfaces
+P: InterfacesCompiled → GenerateFitnessFunctions (B) → FitnessFunctionsGenerated {the untranslated assertions}
+P: [untranslated ≠ ∅] → WriteFitnessFunctions (A kent) → FitnessFunctionsWritten
+P: FitnessFunctionsGenerated [untranslated = ∅] | FitnessFunctionsWritten
+   → RunFitnessFunctions (B)                       → FitnessFunctionsPassed | FitnessFunctionsFailed ⟲ WriteInterfaces
+   ApproveArchitecture (U)                         → ArchitectureApproved (requires DomainApproved)
+   ReviseArchitecture (U)                          → ArchitectureRevised ⟲ WriteArchitecture
+P: ArchitectureApproved → BuildIndex (B)           → IndexBuilt {the unanchored ids}
+P: [unanchored ≠ ∅] → AnchorIds (A kent)           → IdsAnchored
+P: IndexBuilt [unanchored = ∅] | IdsAnchored → PlanUnits (B)
+                                                   → UnitsPlanned (units, groups of spec ids, dependency and landing order)
+P: UnitsPlanned → CommitModel (B)                  → ModelCommitted (interfaces and fitness functions on the
+                                                     feature branch; .beck/ too when versioned)
 ```
 
-* ↳ `DomainInvalid` / `ArchitectureInvalid` / `InterfacesBroken` (B)
-  ⟲ the corresponding `…Written`.
-* ↳ `DomainRevised` / `ArchitectureRevised` (U) ⟲ the corresponding
-  `…Written`.
+Cross-cutting, from phase 1: `P: AgentTurnEnded | SignalRejected → AuditTurn (joshua)`.
 
 ### 4. Implementation (per unit, in its own worktree, units in parallel)
 
@@ -403,8 +451,9 @@ FullSuiteGreen (B, once) → StaticChecksPassed (B) → FixupModeOn (B)
 * `InterruptionDetected` (joshua), `ViolationLogged` (B or joshua).
 * `ImprovementProposed` (argyris).
 
-Next: commands, policies and read models on this timeline, then the
-boundaries of the actors and the state machines, then the code.
+Next: the commands and policies of phases 4 and 5 (implementation and
+refactor), then phase 6 (integration and closing), each approved in turn;
+then the boundaries of the actors and the state machines, then the code.
 
 ## Open points
 
