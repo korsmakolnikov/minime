@@ -455,6 +455,104 @@ Next: the commands and policies of phases 4 and 5 (implementation and
 refactor), then phase 6 (integration and closing), each approved in turn;
 then the boundaries of the actors and the state machines, then the code.
 
+## Resume here: phases 4 and 5 (under discussion, 2026-11-13)
+
+Not approved yet. The next session resumes from this section; once it is
+approved, phases 4 and 5 of the event storming are rewritten with their
+commands and policies, and this section is removed.
+
+### Decided by the user
+
+* **A worsened measure parks the unit**: beck goes on with everything else.
+  Later iterations will add tools (connascence, coupling, cohesion,
+  cyclomatic complexity) to let martin judge whether worsening one measure
+  for another is worth it; premature now.
+* **The number of units in parallel is configurable**; default 4 or 8, to
+  try (Claude proposed 4, because of the plan's rate limit).
+* **beck never runs the tests.** unclebob runs the tests of its cycle;
+  martin runs the tests of the unit, and the fitness functions when it moves
+  or splits a module; the whole suite runs once, run by martin, at the end of
+  the integration unit.
+
+### Proposed by Claude, waiting for approval
+
+* **From the DSLs to the graph** (built by `BuildIndex` in SQLite), three
+  levels: components (the architecture: realizes, depends on) → operations
+  (the spec: the entities they use) → clauses (`post`, errors, properties
+  with that `operation`, invariants and rules of the entities used,
+  constraints) → anchored to the symbols, tested by the tests
+  (`spec: <id>`).
+* **Unit** = a component of the architecture (as before), plus the
+  integration unit for the constraints spanning components. One worktree,
+  then martin.
+* **Group** = one operation of the component's interface with the clauses
+  that bind it: one unclebob session. Its context: only those clauses, the
+  types of the entities used, the operation's signature, the signatures of
+  the dependencies, the paths of source and tests. Order inside a component,
+  from the particular to the general: the invariants of value objects and
+  entities not tied to an operation, then the operations, then the
+  properties spanning several operations (`model`).
+* **Cycle** = one clause = one test, one red and one green.
+* **How beck verifies red and green without running the tests**: it reads
+  the JUnit report of unclebob's run and checks that it holds the declared
+  tests, with the expected outcome, and is newer than the last change to the
+  files; it runs them again only when the report is missing or stale.
+* **A module split in two**: inside the same component it stays covered by
+  the fitness functions, provided the generator writes them with `FOREACH`
+  over the component's namespace and never names single modules; martin's
+  commit marks the index dirty and beck reindexes the new symbols. A part
+  that leaves the component is an architecture change:
+  `ArchitectureChangeRequested`, the same path as `InterfaceChangeRequested`.
+* **joshua**: the driver records every tool call as an event; projectors
+  derive the deterministic violations (`SignalRejected`, a forbidden tool,
+  a violated scope, an interruption, tests run that are not the cycle's) and
+  write them to an outbox read by argyris. What no projector can judge is
+  whether a test really verifies the clause it cites: a small agent (Haiku?),
+  on a sample, only for that. Whether even that is needed, the measures
+  will say. The user asked whether an agent is still needed at all.
+
+### Draft of the commands and policies (to rewrite with the cuts above)
+
+```
+P: ModelCommitted | UnitClosed → ScheduleUnits (B)
+   [free slot, unit not started] → StartUnit (B)      → UnitStarted (worktree from the feature branch)
+P: UnitStarted | GroupClosed [groups left] → OpenGroup (B) → GroupOpened (new unclebob session)
+P: GroupOpened | CycleClosed [ids of the group without a test] → WriteRedTest (A unclebob) → RedDeclared
+P: RedDeclared → VerifyRed (B)          → RedVerified | RedRejected ⟲ WriteRedTest {reason}
+P: RedVerified → CommitRed (B)          → RedCommitted
+P: RedCommitted → WriteGreenCode (A unclebob) → GreenDeclared
+P: GreenDeclared → VerifyGreen (B)      → GreenVerified | GreenRejected
+P: GreenRejected → SummariseFailure (B parser, Haiku fallback) → FailureSummarised ⟲ WriteGreenCode
+P: GreenVerified → CommitGreen (B)      → GreenCommitted → CycleClosed
+P: CycleClosed [every id of the group has a green test] → GroupClosed
+P: GroupClosed [no group left]          → UnitImplemented
+
+P: [repetition rule] → BlockCycle (B)   → CycleBlocked
+   RequestInterfaceChange (A unclebob | martin) → InterfaceChangeRequested
+P: CycleBlocked | InterfaceChangeRequested → ParkDependents (B) → DependentsParked
+P: DependentsParked → ProposeResolution (A kent) → ResolutionProposed
+   ApproveResolution (U) → ResolutionApproved | RejectResolution (U) → ResolutionRejected {instructions}
+P: ResolutionApproved → ApplyResolution (B: DSL and interfaces committed on the feature branch,
+                        parked worktrees rebased) → ResolutionApplied
+P: ResolutionApplied → ReopenCycles (B) → CyclesReopened ⟲ WriteRedTest
+
+P: UnitImplemented → MeasureUnit (B: lines, complexity, durations, flakiness;
+                     A martin: SOLID, idiom, readability) → UnitMeasured
+P: UnitMeasured | RefactorCommitted [tests phase done] → RefactorUnit (A martin) → RefactorDeclared {phase}
+P: RefactorDeclared → VerifyRefactor (B) → RefactorVerified | RefactorRejected ⟲ RefactorUnit
+P: RefactorVerified → CommitRefactor (B) → RefactorCommitted
+P: RefactorCommitted [code phase done] → SquashUnit (B) → UnitSquashed
+P: UnitSquashed | UnitLanded [dependencies landed] → LandUnit (B) → UnitLanded | LandingConflicted
+P: LandingConflicted → ResolveConflict (A martin) → ConflictResolved ⟲ LandUnit
+P: UnitLanded → CloseUnit (B: removes the worktree; commits .beck/ when versioned) → UnitClosed
+   ReportMissingTests (A martin)         → MissingTestsFound
+P: MissingTestsFound → OpenGroup (B, on the ids of the uncovered code) ⟲ then MeasureUnit
+```
+
+The draft still has beck running the tests in `VerifyGreen` and
+`LandUnit`: to change, since beck never runs the tests (it reads the
+reports). A worsened measure in `VerifyRefactor` parks the unit.
+
 ## Open points
 
 * **TODO: a tool in the TUI to delete old event stores.**
